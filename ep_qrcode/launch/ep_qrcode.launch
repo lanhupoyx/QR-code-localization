@@ -1,0 +1,5 @@
+<launch>
+   <!-- ns="$(arg namespace)" -->
+	<node pkg="ep_qrcode" name="ep_qrcode" type="ep_qrcode" output="screen" >
+	</node>
+</launch>
