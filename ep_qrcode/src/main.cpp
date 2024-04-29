@@ -1,4 +1,5 @@
 #include "ros/ros.h"
+#include <tf/tf.h>
 #include <ros/console.h>
 #include <boost/asio.hpp>
 #include <iostream>
@@ -10,6 +11,7 @@
 #include <array>
 #include "ep_qrcode/qrcodedebug.h"
 #include "std_msgs/String.h"
+#include <nav_msgs/Odometry.h>
 
 //数据帧转换到16进制
 std::string charArrayToHex(std::array<char, 1024> array, size_t size) {
@@ -71,6 +73,29 @@ std::string format_time(ros::Time t){
     return ss.str();
 }
 
+//帧格式
+struct frame{
+    std::string hex;
+    std::string head;
+    uint32_t index;
+    uint32_t duration;
+    uint32_t code;
+    double error_x;
+    double error_y;
+    double error_yaw;
+    std::string sum;
+    ros::Time stamp;
+};
+
+//二维码信息
+struct qrcode_info{
+    uint32_t code;
+    double x;
+    double y;
+    double yaw;
+};
+
+//主函数
 int main(int argc, char *argv[])
 {
     //初始化
@@ -79,7 +104,8 @@ int main(int argc, char *argv[])
     ros::NodeHandle nh;
 
     //发布器
-    ros::Publisher pub = nh.advertise<std_msgs::String>("qrCodeMsg",1000);
+    ros::Publisher pub_qrCodeMsg = nh.advertise<std_msgs::String>("qrcode_msg",1000);
+    ros::Publisher pub_qrcode_odom = nh.advertise<nav_msgs::Odometry> ("qrcode_odom", 2000);
 
     //UDP端口监测初始化
     std::string port = "1024";
@@ -90,102 +116,129 @@ int main(int argc, char *argv[])
     boost::system::error_code error;
 
     //日志文件初始化
-    std::string log_name = format_time(ros::Time::now()) +".txt";
-    std::ofstream file("/var/xmover/log/qrcode/"+ log_name);
-    std::cout << format_time(ros::Time::now()) << std::endl;
-    if (!file.is_open()) {
+    std::string log_name = "/var/xmover/log/qrcode/"+ format_time(ros::Time::now()) +".txt";
+    std::ofstream log_file(log_name);
+    if (!log_file.is_open()) {
         std::cout << "can't open: " << log_name << std::endl;
+    }else{
+        std::cout << "open: " << log_name << std::endl;
     }
-    std::ostream& output = file; // 将文件流转换为输出流对象
+    std::ostream& log_os = log_file; // 将文件流转换为输出流对象
 
-
-    while (ros::ok())
+    //读取二维码-坐标对照表
+    std::string table_name = "/home/xun/work/ep-qrcode/src/ep_qrcode/config/qrcode_coordinate_table.txt";
+    std::ifstream ifs;
+    ifs.open(table_name, std::ios::in);
+    if (!ifs.is_open()){
+        std::cout << table_name + "打开失败!" << std::endl;
+    }
+    std::map<uint32_t, qrcode_info> qrcode_table;
+    std::string buf;//将数据存放到c++ 中的字符串中
+    while (std::getline(ifs,buf)) //使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
     {
-        socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
-        if (!error)
-        {
-            std::string sender = sender_endpoint.address().to_string();
-            std::string data = std::string(recv_buf.data());
-            //std::cout << recv_buf.data() << std::endl;
-            std::string hexString = charArrayToHex(recv_buf, 1024);
-            //std::cout << "Hex representation: " << hexString << std::endl;
-            std::string subStr = hexString.substr(0, 30);
-            //std::cout << "Hex representation: " << subStr << std::endl;
+        std::stringstream line_ss;
+        line_ss << buf;
+        qrcode_info info;
+        line_ss >> info.code >> info.x >> info.y >> info.yaw;
+        qrcode_table.insert(std::pair<uint32_t, qrcode_info>(info.code, info));
+    }
+    log_os << "qrcode_table的大小为: " << qrcode_table.size() << std::endl;
 
-            std::stringstream ss;
+    //主循环
+    ros::Rate loop_rate(100);
+    while (ros::ok())
+    {   
+        frame f; 
+        bool isNewFrame = false;
+        if(socket.available()){
+            socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
+            if (!error)
+            {
+                f.stamp = ros::Time::now();
+                std::string sender = sender_endpoint.address().to_string();
+                f.hex = charArrayToHex(recv_buf, 15);
+                std::cout << "hex is: " << f.hex << std::endl;
+                
+                //todo:判断帧头和字节校验和
+                f.head = f.hex.substr(2, 2) + f.hex.substr(0, 2);
+                f.sum = f.hex.substr(28, 2); // 转换为整数
 
-            // 获取当前时间戳
-            ros::Time current_time = ros::Time::now();
-            // 将时间戳转换为秒和纳秒
-            int32_t seconds = current_time.sec;
-            int32_t nanoseconds = current_time.nsec;
-            // 将秒转换为日期和时间
-            ros::WallTime wall_time = ros::WallTime(current_time.toSec());
-            int year = wall_time.toBoost().date().year();
-            int month = wall_time.toBoost().date().month();
-            int day = wall_time.toBoost().date().day();
-            int hour = wall_time.toBoost().time_of_day().hours() + 8;
-            int minute = wall_time.toBoost().time_of_day().minutes();
-            int second = wall_time.toBoost().time_of_day().seconds();
-            double millisecond = (double(second)*1e3 + double(nanoseconds)/1000000.0)/1000.0; // 毫秒
+                //数据提取与转换
+                f.index = convert_16_to_10(f.hex.substr(4, 2));
+                f.duration = convert_16_to_10(f.hex.substr(6, 2));
+                f.code = convert_16_to_10(f.hex.substr(14, 2) + f.hex.substr(12, 2) + f.hex.substr(10, 2) + f.hex.substr(8, 2));
+                f.error_x = double(std::stoi(f.hex.substr(18, 2) + f.hex.substr(16, 2), 0, 16))*0.2125; 
+                f.error_y = double(std::stoi(f.hex.substr(22, 2) + f.hex.substr(20, 2), 0, 16))*0.2166667;
+                f.error_yaw = double(convert_16_to_10(f.hex.substr(26, 2) + f.hex.substr(24, 2)))/100.0;
 
-
-            //pub_data.stamp = ros::Time::now();
-            std::string head = hexString.substr(2, 2) + hexString.substr(0, 2);
-            //std::cout << "head is: " << head << std::endl;
-            output << year << "-" << month << "-" << day << " " << hour << ":" << minute << ":" << std::fixed << std::setprecision(6) << millisecond ; // 写入内容
-            std::cout.unsetf(std::ios::fixed);
-            //std::string sindex = hexString.substr(4, 2);
-            // std::cout << "shead is: " << sindex << std::endl;
-            //int16_t index_temp = std::stoi(hexString.substr(4, 2), 0, 16); // 转换为整数
-            uint32_t index = convert_16_to_10(hexString.substr(4, 2));
-            ss << " "  << index ; // 写入内容
-            output << " " << index; // 写入内容
-            //pub_data.index = uint8_t(index_temp);
-            //std::cout << "index is: " << index << std::endl;
-            //output << "  index: " << pub_data.index ; // 写入内容
-
-            //std::string sduration = hexString.substr(6, 2);
-            //std::cout << "shead is: " << sduration << std::endl;
-            //pub_data.duration = std::stoi(hexString.substr(6, 2), 0, 16); // 转换为整数
-            //std::cout << "duration is: " << duration << std::endl;
-
-            //std::string scode = hexString.substr(14, 2) + hexString.substr(12, 2) + hexString.substr(10, 2) + hexString.substr(8, 2);
-            //std::cout << "shead is: " << scode << std::endl;
-            uint32_t code = convert_16_to_10(hexString.substr(14, 2) + hexString.substr(12, 2) + hexString.substr(10, 2) + hexString.substr(8, 2)); // 转换为整数
-            ss << " "  << code ; // 写入内容
-            output << " " << code ; // 写入内容
-
-            int16_t error_x = std::stoi(hexString.substr(18, 2) + hexString.substr(16, 2), 0, 16); // 转换为整数
-            ss << " dx:" << error_x*0.2125 ; // 写入内容
-            output << " dx:" << error_x*0.2125 ; // 写入内容
-
-            int16_t error_y = std::stoi(hexString.substr(22, 2) + hexString.substr(20, 2), 0, 16); // 转换为整数
-            ss << " dy:" << error_y*0.2166667 ; // 写入内容
-            output << " dy:" << error_y*0.2166667 ; // 写入内容
-
-            uint32_t error_yaw = convert_16_to_10(hexString.substr(26, 2) + hexString.substr(24, 2)); // 转换为整数
-            ss << " dyaw:" << error_yaw/100.0 ; // 写入内容
-            output << " dyaw:" << error_yaw/100.0 ; // 写入内容
-
-            ss << " dyaw_hex: 0x" << hexString.substr(26, 2) << hexString.substr(24, 2) ; // 写入内容
-
-            u_int8_t sum = std::stoi(hexString.substr(28, 2), 0, 16); // 转换为整数
-            //std::cout << "sum is: " << sum << std::endl;
-            
-            std_msgs::String msg;
-            msg.data = ss.str();
-            pub.publish(msg);
-
-            output << std::endl; // 写入内容
-            
-            //ROS_INFO("Received %s from %s", data.c_str(), sender.c_str());
+                //发布 /qrCodeMsg
+                std::stringstream pub_ss;
+                pub_ss  << format_time(f.stamp) << " [" << sender.c_str() << "] " << f.index << " " << f.duration << "ms " // ip
+                        << " " << f.error_x << "mm "<< f.error_y << "mm "<< f.error_yaw << std::endl;
+                std_msgs::String msg;
+                msg.data = pub_ss.str();
+                pub_qrCodeMsg.publish(msg);
+                
+                //保存帧log
+                log_os  << format_time(f.stamp) << " [" << sender.c_str() << "] " << f.index << " " << f.duration << "ms " // ip
+                        << " " << f.error_x << "mm "<< f.error_y << "mm "<< f.error_yaw << std::endl;
+                
+                isNewFrame = true;
+            }
+            else
+            {
+                ROS_WARN("Error receiving UDP data: %s", error.message().c_str());
+            }
         }
-        else
-        {
-            ROS_WARN("Error receiving UDP data: %s", error.message().c_str());
+        if(isNewFrame){
+            isNewFrame = false;
+            
+            //获取二维码坐标
+            static qrcode_info info;
+            static qrcode_info info_last;
+            if(f.code != info_last.code){
+                std::map<uint32_t, qrcode_info>::iterator it = qrcode_table.find(f.code);
+                if (it != qrcode_table.end()) {
+                    info_last = info;
+                    info = (*it).second;
+                } else {
+                    log_os << "can not identify code:" << f.code << std::endl;
+                }
+            }
+
+            //计算相机坐标
+            double camera_x = info.x + f.error_x;
+            double camera_y = info.y + f.error_y;
+            double camera_yaw = info.yaw + f.error_yaw;
+
+            tf::Quaternion q;
+            q.setRPY(0, 0, camera_yaw);
+
+
+
+
+            //发布相机坐标
+
+            nav_msgs::Odometry odom;
+
+            odom.header.stamp = f.stamp;
+            odom.header.frame_id = "map";
+
+            odom.pose.pose.position.x = camera_x;
+            odom.pose.pose.position.y = camera_y;
+            odom.pose.pose.position.z = 0;
+            odom.pose.pose.orientation.x = q.getX();
+            odom.pose.pose.orientation.y = q.getY();
+            odom.pose.pose.orientation.z = q.getZ();
+            odom.pose.pose.orientation.w = q.getW();
+
+            //odom.pose.covariance.
+            
+            pub_qrcode_odom.publish(odom);
+
         }
  
+        loop_rate.sleep();
         ros::spinOnce();
     }
 
