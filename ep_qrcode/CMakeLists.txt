@@ -68,6 +68,10 @@ add_executable(ep_qrcode src/main.cpp)
 target_link_libraries(ep_qrcode ${catkin_LIBRARIES} )
 
 
+#############
+## Install ##
+#############
+
 install(TARGETS
     ep_qrcode
     RUNTIME DESTINATION deb_package/opt/xmover/ros/melodic/ep_qrcode/lib/ep_qrcode
@@ -82,3 +86,45 @@ install(FILES
    package.xml
    DESTINATION deb_package/opt/xmover/ros/melodic/ep_qrcode/share/ep_qrcode
 )
+
+#################
+## 打包、安装脚本 ##
+#################
+
+install(FILES
+   install/start.sh
+   DESTINATION deb_package/opt/xmover/ros/melodic/ep_qrcode/share/ep_qrcode
+)
+
+install(FILES
+   install/control
+   DESTINATION deb_package/DEBIAN
+)
+
+install(FILES
+   install/postinst
+   DESTINATION deb_package/DEBIAN
+)
+      
+install(FILES
+   install/postrm
+   DESTINATION deb_package/DEBIAN
+)
+
+install(FILES
+   install/preinst
+   DESTINATION deb_package/DEBIAN
+)
+
+install(FILES
+   install/prerm
+   DESTINATION deb_package/DEBIAN
+)
+
+install(FILES
+   install/ep-qrcode.service
+   DESTINATION deb_package/usr/lib/systemd/system
+)
+
+
+
