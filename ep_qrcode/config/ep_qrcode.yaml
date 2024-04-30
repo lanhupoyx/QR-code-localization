@@ -1,0 +1,16 @@
+################################################
+#####        params for ep_qrcode                       #######
+#####        yuanxun@ep-ep.com                              #######
+#####        updateTime:  2024.05.01                              #######
+################################################
+
+ep_qrcode:
+  verision: "v-0.0.1"
+  
+  odomTopic: "qrcode/odom"
+  msgTopic: "qrcode/msg"
+  show_msg: true
+  port: 1024
+  log_dir: "/var/xmover/log/qrcode"
+  cfg_dir: "/home/xun/work/ep-qrcode/src/ep_qrcode/config"
+
