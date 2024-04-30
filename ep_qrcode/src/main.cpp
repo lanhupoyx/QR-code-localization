@@ -1,9 +1,10 @@
 //################################################
-//#####        main for ep_qrcode                     
+//#####        main function for ep_qrcode                     
 //#####        yuanxun@ep-ep.com                     
 //#####        updateTime:  2024.05.01  
 //################################################
-#include "ep_qrcode_utility.h"
+#include "ep_qrcode_utility.hpp"
+#include "MV_SC2005AM.hpp"
 
 //主函数
 int main(int argc, char *argv[])
@@ -17,12 +18,14 @@ int main(int argc, char *argv[])
     std::string odomTopic;;
     std::string msgTopic;;
     bool show_msg;
+    bool collect_QRcode;
     std::string port;
     std::string log_dir;
     std::string cfg_dir;
     nh.param<std::string>("ep_qrcode/odomTopic", odomTopic, "qrcode/odom");
     nh.param<std::string>("ep_qrcode/msgTopic", msgTopic, "qrcode/msg");
     nh.param<bool>("ep_qrcode/show_msg", show_msg, false);
+    nh.param<bool>("ep_qrcode/collect_QRcode", collect_QRcode, false);
     nh.param<std::string>("ep_qrcode/port", port, "1024");
     nh.param<std::string>("ep_qrcode/log_dir", log_dir, "/var/xmover/log/qrcode");
     nh.param<std::string>("ep_qrcode/cfg_dir", cfg_dir, "/var/xmover/params");
@@ -30,13 +33,6 @@ int main(int argc, char *argv[])
     //发布器
     ros::Publisher pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic,1000);
     ros::Publisher pub_qrcode_odom = nh.advertise<nav_msgs::Odometry> (odomTopic, 2000);
-
-    //UDP端口监测初始化
-    boost::asio::io_service io_service;
-    boost::asio::ip::udp::socket socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(port.c_str())));
-    boost::asio::ip::udp::endpoint sender_endpoint;
-    std::array<char, 1024> recv_buf;
-    boost::system::error_code error;
 
     //日志文件初始化
     std::string log_name = log_dir + "/"+ format_time(ros::Time::now()) +".txt";
@@ -48,114 +44,79 @@ int main(int argc, char *argv[])
     }
     std::ostream& log_os = log_file; // 将文件流转换为输出流对象
 
-    //读取《二维码-坐标对照表》
-    std::string table_name = cfg_dir + "/qrcode_coordinate_table.txt";
-    std::ifstream ifs;
-    ifs.open(table_name, std::ios::in);
-    if (!ifs.is_open()){
-        std::cout << table_name + "打开失败!" << std::endl;
-    }
-    std::map<uint32_t, qrcode_info> qrcode_table;
-    std::string buf;//将数据存放到c++ 中的字符串中
-    while (std::getline(ifs,buf)) //使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
-    {
-        std::stringstream line_ss;
-        line_ss << buf;
-        qrcode_info info;
-        line_ss >> info.code >> info.x >> info.y >> info.yaw;
-        qrcode_table.insert(std::pair<uint32_t, qrcode_info>(info.code, info));
-    }
-    log_os << "qrcode_table的大小为: " << qrcode_table.size() << std::endl;
+    coordinate_table table(cfg_dir + "/qrcode_coordinate_table.txt", log_os);
+    MV_SC2005AM camera(port, log_os);
 
-    //主循环
+    ros::Subscriber* sub_pos;
+    ros::Subscriber* sub_trans;
+    if(collect_QRcode){
+        *sub_pos = nh.subscribe<tf2_msgs::TFMessage>("/tf", 1000, table.tfCallback);
+    }
+
+    tf::Transform*  tfListener= new tf::TransformListener;
+    tf::StampedTransform stfBaseToLink2, stfBaseToLink1, stfLink1ToLink2;
+    bool tferr = true;
+    while (tferr) {
+        tferr=false;
+        try{
+            tfListener.lookupTransform("/map", "/base_link",ros::Time(0), transform);
+            tfListener->lookupTransform("base_link", "link1", ros::Time(0), tfLink2WrtBaseLink);
+        }catch(tf::TransformException &exception) {
+            ROS_WARN("%s; retrying...", exception.what());
+            tferr=true;
+            ros::Duration(0.5).sleep(); 
+            continue;            
+        }   
+    }
+
+
+    
+    //主循环 100Hz
     ros::Rate loop_rate(100);
     while (ros::ok())
     {   
-        //获取相机数据
+        //查询相机数据
         frame pic; 
-        bool isNewFrame = false;
-        if(socket.available()){
-            socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
-            if (!error)
-            {
-                pic.stamp = ros::Time::now();
-                std::string sender = sender_endpoint.address().to_string();
-                pic.hex = charArrayToHex(recv_buf, 15);
-                std::cout << "hex is: " << pic.hex << std::endl;
-                
-                //todo:判断帧头和字节校验和
-                pic.head = pic.hex.substr(2, 2) + pic.hex.substr(0, 2);
-                pic.sum = pic.hex.substr(28, 2); // 转换为整数
-
-                //数据提取与转换
-                pic.index = convert_16_to_10(pic.hex.substr(4, 2));
-                pic.duration = double(convert_16_to_10(pic.hex.substr(6, 2)))/1000.0;
-                pic.code = convert_16_to_10(pic.hex.substr(14, 2) + pic.hex.substr(12, 2) + pic.hex.substr(10, 2) + pic.hex.substr(8, 2));
-                pic.error_x = double(std::stoi(pic.hex.substr(18, 2) + pic.hex.substr(16, 2), 0, 16))*0.2125; 
-                pic.error_y = double(std::stoi(pic.hex.substr(22, 2) + pic.hex.substr(20, 2), 0, 16))*0.2166667;
-                pic.error_yaw = double(convert_16_to_10(pic.hex.substr(26, 2) + pic.hex.substr(24, 2)))/100.0;
-
-                //发布 /qrCodeMsg
-                if(show_msg){
-                    std::stringstream pub_ss;
-                    pub_ss  << format_time(pic.stamp) << " [" << sender.c_str() << "] " << pic.index << " " << pic.duration << "ms " // ip
-                            << " " << pic.error_x << "mm "<< pic.error_y << "mm "<< pic.error_yaw << std::endl;
-                    std_msgs::String msg;
-                    msg.data = pub_ss.str();
-                    pub_qrCodeMsg.publish(msg);
-                }
-
-                //保存帧log
-                log_os  << format_time(pic.stamp) << " [" << sender.c_str() << "] " << pic.index << " " << pic.duration << "ms " // ip
-                        << " " << pic.error_x << "mm "<< pic.error_y << "mm "<< pic.error_yaw << std::endl;
-                
-                isNewFrame = true;
-            }
-            else
-            {
-                log_os  << "error receiving UDP data: " << error.message().c_str() << std::endl;
-            }
-        }
-
-        //计算和发布相机位姿
         static nav_msgs::Odometry odom;
-        if(isNewFrame){
-            isNewFrame = false;
+        if(camera.getframe(&pic)){
+            //发布 /qrCodeMsg
+            if(show_msg){
+                std::stringstream pub_ss;
+                pub_ss  << format_time(pic.stamp) << " [" << pic->sender << "] " << pic.index << " " << pic.duration << "ms " // ip
+                        << " " << pic.error_x << "mm "<< pic.error_y << "mm "<< pic.error_yaw << std::endl;
+                std_msgs::String msg;
+                msg.data = pub_ss.str();
+                pub_qrCodeMsg.publish(msg);
+            }
             
             //查询二维码坐标
-            static qrcode_info code_info;
-            static qrcode_info code_info_last;
-            if(pic.code != code_info_last.code){
-                std::map<uint32_t, qrcode_info>::iterator it = qrcode_table.find(pic.code);
-                if (it != qrcode_table.end()) {
-                    code_info_last = code_info;
-                    code_info = (*it).second;
-                } else {
-                    log_os << "can not identify code:" << pic.code << std::endl;
-                }
+            qrcode_info code_info;
+            if(table.find(pic, &code_info)){
+                //计算相机坐标
+                double camera_x = code_info.x + pic.error_x;
+                double camera_y = code_info.y + pic.error_y;
+                double camera_yaw = code_info.yaw + pic.error_yaw;
+                tf::Quaternion q;
+                q.setRPY(0, 0, camera_yaw);
+
+                //发布相机坐标
+                odom.header.stamp = pic.stamp;
+                odom.header.frame_id = "map";
+                odom.header.seq = pic.index;
+                odom.pose.pose.position.x = camera_x;
+                odom.pose.pose.position.y = camera_y;
+                odom.pose.pose.position.z = 0.1;
+                odom.pose.pose.orientation.x = q.getX();
+                odom.pose.pose.orientation.y = q.getY();
+                odom.pose.pose.orientation.z = q.getZ();
+                odom.pose.pose.orientation.w = q.getW();
+                odom.pose.covariance[0] = 1; //此帧是否可用，1：可用，0：不可用
+                odom.pose.covariance[1] = pic.duration; //相机处理图像用时(s)
+                pub_qrcode_odom.publish(odom);
+            }else{
+                odom.pose.covariance[0] = 0; //此帧是否可用，1：可用，0：不可用
+                pub_qrcode_odom.publish(odom);
             }
-
-            //计算相机坐标
-            double camera_x = code_info.x + pic.error_x;
-            double camera_y = code_info.y + pic.error_y;
-            double camera_yaw = code_info.yaw + pic.error_yaw;
-            tf::Quaternion q;
-            q.setRPY(0, 0, camera_yaw);
-
-            //发布相机坐标
-            odom.header.stamp = pic.stamp;
-            odom.header.frame_id = "map";
-            odom.header.seq = pic.index;
-            odom.pose.pose.position.x = camera_x;
-            odom.pose.pose.position.y = camera_y;
-            odom.pose.pose.position.z = 0.1;
-            odom.pose.pose.orientation.x = q.getX();
-            odom.pose.pose.orientation.y = q.getY();
-            odom.pose.pose.orientation.z = q.getZ();
-            odom.pose.pose.orientation.w = q.getW();
-            odom.pose.covariance[0] = 1; //此帧是否可用，1：可用，0：不可用
-            odom.pose.covariance[1] = pic.duration; //相机处理图像用时(s)
-            pub_qrcode_odom.publish(odom);
         }else{
             odom.pose.covariance[0] = 0; //此帧是否可用，1：可用，0：不可用
             pub_qrcode_odom.publish(odom);

@@ -10,6 +10,7 @@ ep_qrcode:
   odomTopic: "qrcode/odom"
   msgTopic: "qrcode/msg"
   show_msg: true
+  collect_QRcode: false
   port: 1024
   log_dir: "/var/xmover/log/qrcode"
   cfg_dir: "/home/xun/work/ep-qrcode/src/ep_qrcode/config"
