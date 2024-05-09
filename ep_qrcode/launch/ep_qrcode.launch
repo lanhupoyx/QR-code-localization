@@ -1,6 +1,0 @@
-<launch>
-   <!-- ns="$(arg namespace)" -->
-	<rosparam file="/home/zl/work/ep-qrcode/src/ep_qrcode/config/ep_qrcode.yaml" command="load" />
-	<node pkg="ep_qrcode" name="ep_qrcode" type="ep_qrcode" output="screen" >
-	</node>
-</launch>

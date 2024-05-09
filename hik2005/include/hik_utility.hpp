@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _SC2005AM_QRCODE_H_
-#define _SC2005AM_QRCODE_H_
+#ifndef _hik_utility_H_
+#define _hik_utility_H_
 
 #include "ros/ros.h"
 #include <tf/tf.h>
@@ -231,9 +231,9 @@ public:
 
             // camera---->qrcode
             qrcode_info frame;
-            frame.x = pose_out.position.x - d_it->error_x;
-            frame.y = pose_out.position.y - d_it->error_y;
-            frame.yaw = yaw - d_it->error_yaw;
+            frame.x = pose_out.position.x + d_it->error_x;
+            frame.y = pose_out.position.y + d_it->error_y;
+            frame.yaw = yaw + d_it->error_yaw;
             poselog.push_back(frame);
 
             x_sum += frame.x;

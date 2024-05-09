@@ -2,7 +2,7 @@
 # 卸载时，在删除文件之前运行的脚本
 #可以在这里关闭和删除systemctl服务
 
-systemctl disable ep-qrcode
-systemctl stop ep-qrcode
+systemctl disable ep-camera-hik
+systemctl stop ep-camera-hik
 systemctl daemon-reload
 

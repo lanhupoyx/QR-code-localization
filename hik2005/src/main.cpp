@@ -3,7 +3,7 @@
 // #####        yuanxun@ep-ep.com
 // #####        updateTime:  2024.05.01
 // ################################################
-#include "ep_qrcode_utility.hpp"
+#include "hik_utility.hpp"
 #include "MV_SC2005AM.hpp"
 
 // 主函数
@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
     // 初始化
     setlocale(LC_ALL, "");
-    ros::init(argc, argv, "ep_qrcode");
+    ros::init(argc, argv, "hik2005");
     ros::NodeHandle nh;
 
     // 读取参数
@@ -23,13 +23,13 @@ int main(int argc, char *argv[])
     std::string port;
     std::string log_dir;
     std::string cfg_dir;
-    nh.param<std::string>("ep_qrcode/odomTopic", odomTopic, "qrcode/odom");
-    nh.param<std::string>("ep_qrcode/msgTopic", msgTopic, "qrcode/msg");
-    nh.param<bool>("ep_qrcode/show_msg", show_msg, false);
-    nh.param<bool>("ep_qrcode/collect_QRcode", collect_QRcode, false);
-    nh.param<std::string>("ep_qrcode/port", port, "1024");
-    nh.param<std::string>("ep_qrcode/log_dir", log_dir, "/var/xmover/log/qrcode");
-    nh.param<std::string>("ep_qrcode/cfg_dir", cfg_dir, "/var/xmover/params");
+    nh.param<std::string>("hik2005/odomTopic", odomTopic, "hik2005/odom");
+    nh.param<std::string>("hik2005/msgTopic", msgTopic, "hik2005/msg");
+    nh.param<bool>("hik2005/show_msg", show_msg, false);
+    nh.param<bool>("hik2005/collect_QRcode", collect_QRcode, false);
+    nh.param<std::string>("hik2005/port", port, "1024");
+    nh.param<std::string>("hik2005/log_dir", log_dir, "/var/xmover/log/hik2005");
+    nh.param<std::string>("hik2005/cfg_dir", cfg_dir, "/var/xmover/params");
 
     // 发布器
     ros::Publisher pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic, 1000);
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
             {
                 std::stringstream pub_ss;
                 pub_ss << format_time(pic.stamp) << " [" << pic.sender << "] " << pic.index << " " << pic.duration << "s " // ip
-                       << " " << pic.error_x << "mm " << pic.error_y << "mm " << pic.error_yaw << std::endl;
+                       << " " << pic.error_x << "mm " << pic.error_y << "mm " << pic.error_yaw;
                 std_msgs::String msg;
                 msg.data = pub_ss.str();
                 pub_qrCodeMsg.publish(msg);
@@ -98,8 +98,8 @@ int main(int argc, char *argv[])
             if (table.find(pic, &code_info))
             {
                 // 计算相机坐标
-                double camera_x = code_info.x + pic.error_x;
-                double camera_y = code_info.y + pic.error_y;
+                double camera_x = code_info.x + pic.error_x/100.0;
+                double camera_y = code_info.y + pic.error_y/100.0;
                 double camera_yaw = code_info.yaw + pic.error_yaw;
                 tf::Quaternion q;
                 q.setRPY(0, 0, camera_yaw);
@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
                 // 发布相机坐标
                 odom.header.stamp = pic.stamp;
                 odom.header.frame_id = "map";
+                odom.child_frame_id = "sc2005am_link";
                 odom.header.seq = pic.index;
                 odom.pose.pose.position.x = camera_x;
                 odom.pose.pose.position.y = camera_y;

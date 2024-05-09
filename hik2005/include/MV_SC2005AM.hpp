@@ -3,7 +3,11 @@
 // #####        yuanxun@ep-ep.com
 // #####        updateTime:  2024.05.01
 // ################################################
-#include "ep_qrcode_utility.hpp"
+#pragma once
+#ifndef _MV_SC2005AM_H_
+#define _MV_SC2005AM_H_
+
+#include "hik_utility.hpp"
 
 class MV_SC2005AM
 {
@@ -44,15 +48,15 @@ public:
 
                 int16_t pixel_x = std::stoi(pic->hex.substr(18, 2) + pic->hex.substr(16, 2), 0, 16);
                 int16_t pixel_y = std::stoi(pic->hex.substr(22, 2) + pic->hex.substr(20, 2), 0, 16);
-                int16_t pixel_yaw = std::stoi(pic->hex.substr(26, 2) + pic->hex.substr(24, 2), 0, 16);
+                u_int32_t pixel_yaw = convert_16_to_10(pic->hex.substr(26, 2) + pic->hex.substr(24, 2));
                 pic->error_x = pixel_x * 0.2125;
                 pic->error_y = pixel_y * 0.2166667;
                 pic->error_yaw = pixel_yaw / 100.0;
 
                 // 保存帧log
-                *log_os << format_time(pic->stamp) << " [" << sender.c_str() << "] " << pic->code << pic->index << " " << pic->duration << "s " // ip
+                *log_os << format_time(pic->stamp) << " [" << sender.c_str() << "] " << pic->code << " " << pic->index << " " << pic->duration << "s " // ip
                         << " " << pic->error_x << "mm " << pic->error_y << "mm " << pic->error_yaw << std::endl;
-                std::cout << format_time(pic->stamp) << " [" << sender.c_str() << "] " << pic->code << pic->index << " " << pic->duration << "s " // ip
+                std::cout << format_time(pic->stamp) << " [" << sender.c_str() << "] " << pic->code << " " << pic->index << " " << pic->duration << "s " // ip
                           << " " << pic->error_x << "mm " << pic->error_y << "mm " << pic->error_yaw << std::endl;
 
                 return true;
@@ -70,3 +74,5 @@ private:
     boost::system::error_code error;
     std::ofstream *log_os;
 };
+
+#endif

@@ -1,5 +1,5 @@
 [Unit]
-Description=ep-qrcode
+Description=ep-camera-hik
 Documentation=
 #network.target，表示网络已经启动并准备就绪。network-online.target，表示网络已经启动并连接到外部网络。
 After=network.target ep-roscore.service
@@ -8,8 +8,8 @@ Type=forking
 User=zl
 Group=zl
 #ExecStartPre=/usr/bin/ep-util-sleep 10
-WorkingDirectory=/opt/xmover/ros/melodic/ep_qrcode/share/ep_qrcode
-ExecStart=/bin/bash /opt/xmover/ros/melodic/ep_qrcode/share/ep_qrcode/start.sh
+WorkingDirectory=/opt/xmover/ros/melodic/hik2005/share/hik2005
+ExecStart=/bin/bash /opt/xmover/ros/melodic/hik2005/share/hik2005/start.sh
 ExecReload=/bin/kill -HUP $MAINPID
 [Install]
 WantedBy=multi-user.target

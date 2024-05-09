@@ -4,8 +4,8 @@
 
 USER_NAME=$(getent passwd `who` | head -n 1 | cut -d : -f 1)
 echo "USER_NAME=$USER_NAME"
-sed -i -r 's/^User=.*/User='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode.service
-sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode.service
+sed -i -r 's/^User=.*/User='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-camera-hik.service
+sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-camera-hik.service
 
 #检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
 #检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
@@ -23,8 +23,8 @@ sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode
 #fi
 chown -R $USER_NAME:$USER_NAME /opt/xmover
 chown -R $USER_NAME:$USER_NAME /var/xmover
-chown $USER_NAME:$USER_NAME /usr/lib/systemd/system/ep-qrcode.service
+chown $USER_NAME:$USER_NAME /usr/lib/systemd/system/ep-camera-hik.service
 
 systemctl daemon-reload
-systemctl disable ep-qrcode  # disable  开机自启
-#systemctl start ep-lidar-hesai   # 安装后立即启动
+systemctl disable ep-camera-hik  # disable  开机自启
+systemctl start ep-camera-hik   # 安装后立即启动

@@ -1,17 +1,17 @@
 ################################################
-#####        params for ep_qrcode                       #######
+#####        params for hik2005                       #######
 #####        yuanxun@ep-ep.com                              #######
 #####        updateTime:  2024.05.01                              #######
 ################################################
 
-ep_qrcode:
+hik2005:
   verision: "v-0.0.1"
   
-  odomTopic: "qrcode/odom"
-  msgTopic: "qrcode/msg"
+  odomTopic: "hik2005/odom"
+  msgTopic: "hik2005/msg"
   show_msg: true
   collect_QRcode: true
   port: 1024
-  log_dir: "/var/xmover/log/qrcode"
-  cfg_dir: "/home/zl/work/ep-qrcode/src/ep_qrcode/config"
+  log_dir: "/var/xmover/log/hik2005"
+  cfg_dir: "/home/zl/work/ep-camera-hik/src/hik2005/config"
 
