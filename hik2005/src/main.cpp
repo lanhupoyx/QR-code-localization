@@ -50,14 +50,16 @@ int main(int argc, char *argv[])
     // baselink---->camera的变换关系
     tf2_ros::Buffer buffer;
     tf2_ros::TransformListener tfListener(buffer);
-    geometry_msgs::TransformStamped transform;
+    geometry_msgs::TransformStamped trans_base2camera;
+    geometry_msgs::TransformStamped trans_camera2base;
     bool tferr = true;
     while (tferr)
     {
         tferr = false;
         try
         {
-            transform = buffer.lookupTransform("sc2005am_link", "base_link", ros::Time(0));
+            trans_base2camera = buffer.lookupTransform("sc2005am_link", "base_link", ros::Time(0));
+            trans_camera2base = buffer.lookupTransform("base_link", "sc2005am_link", ros::Time(0));
         }
         catch (tf::TransformException &exception)
         {
@@ -68,57 +70,73 @@ int main(int argc, char *argv[])
         }
     }
 
-    coordinate_table table(cfg_dir + "/qrcode_coordinate_table.txt", &log_file, transform);
+    QRcodeTable table(cfg_dir + "/qrcode_table.txt", &log_file, trans_camera2base);
     MV_SC2005AM camera(port, &log_file);
 
-    ros::Subscriber sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1000, &coordinate_table::tfCallback);
+    ros::Subscriber sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1000, &QRcodeTable::tfCallback);
 
     // 主循环 100Hz
     ros::Rate loop_rate(100);
     while (ros::ok())
     {
-        // 查询相机数据
-        frame pic;
+        frame pic; // 相机数据
         static nav_msgs::Odometry odom;
         if (camera.getframe(&pic))
         {
-            // 发布 /qrCodeMsg
-            if (show_msg)
-            {
-                std::stringstream pub_ss;
-                pub_ss << format_time(pic.stamp) << " [" << pic.sender << "] " << pic.index << " " << pic.duration << "s " // ip
-                       << " " << pic.error_x << "mm " << pic.error_y << "mm " << pic.error_yaw;
-                std_msgs::String msg;
-                msg.data = pub_ss.str();
-                pub_qrCodeMsg.publish(msg);
-            }
-
             // 查询二维码坐标
             qrcode_info code_info;
             if (table.find(pic, &code_info))
             {
-                // 计算相机坐标
-                double camera_x = code_info.x + pic.error_x/100.0;
-                double camera_y = code_info.y + pic.error_y/100.0;
-                double camera_yaw = code_info.yaw + pic.error_yaw;
+                // 二维码到map变换关系
+                geometry_msgs::Pose pose_qrcode2map;
+                pose_qrcode2map.position.x = code_info.x;
+                pose_qrcode2map.position.y = code_info.y;
+                pose_qrcode2map.position.z = 0.0;
                 tf::Quaternion q;
-                q.setRPY(0, 0, camera_yaw);
+                q.setRPY(0.0, 0.0, code_info.yaw*M_PI/180);
+                tf::quaternionTFToMsg(q, pose_qrcode2map.orientation);
+                double yaw_qrcode2map = getYaw(pose_qrcode2map);
+                // 相机到二维码变换关系
+                geometry_msgs::Pose pose_camera2qrcode;
+                q.setRPY(0.0, 0.0, pic.error_yaw*M_PI/180);
+                tf::quaternionTFToMsg(q, pose_camera2qrcode.orientation);
+                double yaw_camera2qrcode = getYaw(pose_camera2qrcode);
+                tf::Matrix3x3 m(q);
+                tf::Matrix3x3 inv_m(m);
+                tf::Vector3 v(pic.error_x/1000.0, pic.error_y/-1000.0, 0.0);
+                inv_m.inverse();  // 求逆
+                pose_camera2qrcode.position.x = -inv_m.getRow(0).dot(v);//(row0(0)*v.getX() + inv_m(0,1)*v.getX() +inv_m(0,2)*v.getZ());
+                pose_camera2qrcode.position.y = -inv_m.getRow(1).dot(v);//-(inv_m(1,0)*v.getX() + inv_m(1,1)*v.getX() +inv_m(1,2)*v.getZ());
+                pose_camera2qrcode.position.z = 0.0;
+                // 相机到map位姿
+                geometry_msgs::Pose pose_camera2map;
+                tf2::doTransform(pose_camera2qrcode, pose_camera2map, p2t(pose_qrcode2map));
+                double yaw_camera2map = getYaw(pose_camera2map);
+                // base到map位姿
+                geometry_msgs::Pose pose_base2map;
+                tf2::doTransform(t2p(trans_base2camera), pose_base2map, p2t(pose_camera2map));
+                double yaw_base2map = getYaw(pose_base2map);
 
-                // 发布相机坐标
+                //发布base_link坐标
                 odom.header.stamp = pic.stamp;
                 odom.header.frame_id = "map";
-                odom.child_frame_id = "sc2005am_link";
+                odom.child_frame_id = "base_link";
                 odom.header.seq = pic.index;
-                odom.pose.pose.position.x = camera_x;
-                odom.pose.pose.position.y = camera_y;
-                odom.pose.pose.position.z = 0.1;
-                odom.pose.pose.orientation.x = q.getX();
-                odom.pose.pose.orientation.y = q.getY();
-                odom.pose.pose.orientation.z = q.getZ();
-                odom.pose.pose.orientation.w = q.getW();
+                odom.pose.pose = pose_base2map;
                 odom.pose.covariance[0] = 1;            // 此帧是否可用，1：可用，0：不可用
                 odom.pose.covariance[1] = pic.duration; // 相机处理图像用时(s)
                 pub_qrcode_odom.publish(odom);
+
+                // 发布 /qrCodeMsg
+                if (show_msg)
+                {
+                    std::stringstream pub_ss;
+                    pub_ss << format_time(pic.stamp) << " [" << pic.sender << "] " << pic.index << " " << pic.duration << "s " // ip
+                        << " " << pic.error_x << "mm " << pic.error_y << "mm " << pic.error_yaw << " yaw_base2map:" << yaw_base2map;
+                    std_msgs::String msg;
+                    msg.data = pub_ss.str();
+                    pub_qrCodeMsg.publish(msg);
+                }
             }
             else
             {
