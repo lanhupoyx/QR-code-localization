@@ -51,6 +51,7 @@ catkin_package(
 include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
+  "/opt/libs-x86_64-Linux/eigen/eigen3"
 )
 
 # link directories

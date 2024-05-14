@@ -25,6 +25,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include "message_filters/subscriber.h"
 #include "tf2_ros/buffer.h"
+#include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
 
 // 数据帧转换到16进制
@@ -157,6 +158,11 @@ struct qrcode_info
     double yaw;
 };
 
+
+
+
+
+
 // 二维码坐标对照表
 class QRcodeTable
 {
@@ -191,7 +197,7 @@ public:
     ~QRcodeTable() {}
 
     // 根据二维码编号查表，得到位姿信息
-    bool find(frame pic, qrcode_info *info)
+    bool find_add(frame pic, qrcode_info *info)
     {
         std::map<uint32_t, qrcode_info>::iterator it = map.find(pic.code);
         if (it != map.end())
@@ -203,6 +209,22 @@ public:
         {
             *log_os << "can not identify code:" << pic.code << std::endl;
             add(pic);
+        }
+        return false;
+    }
+
+    // 根据二维码编号查表，得到位姿信息
+    bool onlyfind(frame pic, qrcode_info *info)
+    {
+        std::map<uint32_t, qrcode_info>::iterator it = map.find(pic.code);
+        if (it != map.end())
+        {
+            *info = (*it).second;
+            return true;
+        }
+        else
+        {
+            *log_os << "can not identify code:" << pic.code << std::endl;
         }
         return false;
     }
@@ -231,8 +253,16 @@ public:
             map.insert(std::pair<uint32_t, qrcode_info>(new_qrcode.code, new_qrcode));
             std::ofstream table(path, std::ios::app);
             std::ostream &table_os = table; // 将文件流转换为输出流对象
-            table_os << new_qrcode.code << " " << new_qrcode.x << " " << new_qrcode.y << " " << new_qrcode.yaw << std::endl;
+            table_os    << new_qrcode.code << " " 
+                        << new_qrcode.x << " " 
+                        << new_qrcode.y << " " 
+                        << new_qrcode.yaw << std::endl;
             table.close();
+            *log_os     << "add to dable:"  
+                        << new_qrcode.code << " " 
+                        << new_qrcode.x << " " 
+                        << new_qrcode.y << " " 
+                        << new_qrcode.yaw << std::endl;
         }
 
         return true;
@@ -245,9 +275,9 @@ public:
         const nav_msgs::Odometry transform = *msg; //->transforms[i];
         if (tf_buffer.size() != 0)
         {
-            double x_error = std::fabs(transform.pose.pose.position.x - tf_buffer.back().pose.pose.position.x);
-            double y_error = std::fabs(transform.pose.pose.position.y - tf_buffer.back().pose.pose.position.y);
-            if ((x_error > 0.02) || (y_error > 0.02))
+            double x_error = std::fabs(transform.pose.pose.position.x - tf_buffer.begin()->pose.pose.position.x);
+            double y_error = std::fabs(transform.pose.pose.position.y - tf_buffer.begin()->pose.pose.position.y);
+            if ((x_error > 0.03) || (y_error > 0.03))
             {
                 tf_buffer.clear();
             }

@@ -7,11 +7,15 @@
 hik2005:
   verision: "v-0.0.1"
   
-  odomTopic: "hik2005/odom"
+  odom4mapTopic: "hik2005/odom_map"
+  odom4qrmapTopic: "hik2005/odom_qrmap"
   msgTopic: "hik2005/msg"
+  useLidar: false  #true:实施阶段使用Lidar采集二维码坐标
+  calTrans: false  #true:实施阶段使用Lidar采集二维码坐标
   show_msg: true
   collect_QRcode: true
   port: 1024
   log_dir: "/var/xmover/log/hik2005"
   cfg_dir: "/home/zl/work/ep-camera-hik/src/hik2005/config"
 
+  qrmap2mapTrans: [8.97887, -1.09013, 0, 0, 0, -0.0163837, 0.999866] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
