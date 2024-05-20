@@ -1,0 +1,287 @@
+#pragma once
+
+#include "ros/ros.h"
+#include <tf/tf.h>
+#include <ros/console.h>
+#include <boost/asio.hpp>
+
+#include <iostream>
+#include <cmath>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <mutex>
+#include <vector>
+#include <list>
+#include <string>
+#include <array>
+#include <thread>
+
+#include "std_msgs/String.h"
+#include <nav_msgs/Odometry.h>
+#include <tf2_msgs/TFMessage.h>
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/message_filter.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include <geometry_msgs/PoseStamped.h>
+#include "message_filters/subscriber.h"
+#include "tf2_ros/buffer.h"
+#include <Eigen/Dense>
+#include "geometry_msgs/PointStamped.h"
+
+// 数据帧转换到16进制
+std::string charArrayToHex(std::array<char, 1024> array, size_t size)
+{
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (size_t i = 0; i < size; ++i)
+    {
+        ss << std::setw(2) << static_cast<int>(static_cast<unsigned char>(array[i]));
+    }
+    return ss.str();
+}
+
+// 十六进制转换为十进制
+uint32_t convert_16_to_10(std::string str2)
+{
+
+    double sum = 0, times;
+    double m;
+    std::string::size_type sz = str2.size();
+    for (std::string::size_type index = 0; index != sz; ++index)
+    {
+        // 变为小写，这个思路很好
+        str2[index] = tolower(str2[index]);
+        if (str2[index] >= 'a' && str2[index] <= 'f')
+        {
+            // 这里让a~f进行转换为数字字符，很奇妙
+            m = str2[index] - 'a' + 10;
+            // 求幂次方
+            times = pow(16, (sz - 1 - index));
+            sum += m * times;
+        }
+        else if (isdigit(str2[index]))
+        {
+            // 需要将字符类型转换为数字类型
+            // 因为0的ASCII码是48，所以转换为相应的数字，减去48即可
+            m = str2[index] - 48;
+            times = pow(16, (sz - 1 - index));
+            sum += m * times;
+        }
+        else
+        {
+            std::cout << "无法识别的十六进制!";
+            break;
+        }
+    }
+    return uint32_t(sum);
+}
+
+// 时间格式化输出
+std::string format_time(ros::Time t)
+{
+    std::stringstream ss;
+    ros::WallTime wall_time = ros::WallTime(t.toSec());
+    ss << wall_time.toBoost().date().year() << '-';
+    ss << wall_time.toBoost().date().month() << '-';
+    ss << wall_time.toBoost().date().day() << '_';
+    ss << wall_time.toBoost().time_of_day().hours() + 8 << ':';
+    ss << wall_time.toBoost().time_of_day().minutes() << ':';
+    int second = wall_time.toBoost().time_of_day().seconds();
+    ss << std::fixed << std::setprecision(6) << (double(second) * 1e3 + double(t.nsec) / 1000000.0) / 1000.0; // 毫秒
+    return ss.str();
+}
+
+// pose to transform
+geometry_msgs::TransformStamped p2t(geometry_msgs::Pose pose){
+    geometry_msgs::TransformStamped trans;
+    trans.transform.translation.x = pose.position.x;
+    trans.transform.translation.y = pose.position.y;
+    trans.transform.translation.z = pose.position.z;
+    trans.transform.rotation = pose.orientation;
+    return trans;
+}
+
+// transform to pose
+geometry_msgs::Pose t2p(geometry_msgs::TransformStamped trans){
+    geometry_msgs::Pose pose;
+    pose.position.x = trans.transform.translation.x;
+    pose.position.y = trans.transform.translation.y;
+    pose.position.z = trans.transform.translation.z;
+    pose.orientation = trans.transform.rotation;
+    return pose;
+}
+
+// get yaw frome pose
+double getYaw(geometry_msgs::Pose pose){
+    tf::Quaternion q(   pose.orientation.x, 
+                        pose.orientation.y, 
+                        pose.orientation.z, 
+                        pose.orientation.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(q).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw*180/M_PI;
+}
+
+// get yaw frome pose
+double getYaw(geometry_msgs::Quaternion q){
+    tf::Quaternion quaternion(q.x, q.y, q.z, q.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw*180/M_PI;
+}
+
+// get yaw frome TransformStamped
+double getYaw(geometry_msgs::TransformStamped trans){
+    tf::Quaternion q(   trans.transform.rotation.x, 
+                        trans.transform.rotation.y, 
+                        trans.transform.rotation.z, 
+                        trans.transform.rotation.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(q).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw*180/M_PI;
+}
+
+// 扫码相机数据帧格式
+struct CameraFrame
+{
+    std::string hex;
+    std::string head;
+    uint32_t index;
+    double duration;
+    uint32_t code;
+    double error_x;
+    double error_y;
+    double error_yaw;
+    std::string sum;
+    ros::Time stamp;
+    std::string sender;
+};
+
+// 二维码信息帧格式
+struct QRcodeInfo
+{
+    uint32_t code;
+    double x;
+    double y;
+    double yaw;
+};
+
+class ParamServer
+{
+public:
+    ros::NodeHandle nh;
+
+    std::string odommapTopic;
+    std::string odomqrmapTopic;
+    std::string msgTopic;
+    bool useLidar;
+    bool calTrans;
+    bool show_msg;
+    bool collect_QRcode;
+    std::string port;
+    std::string log_dir;
+    std::string cfg_dir;
+    std::vector<double> qrmap2mapTrans;
+    geometry_msgs::Pose pose_qrmap2mapcopy;
+    std::ofstream log_file;
+
+    ParamServer(){
+        nh.param<std::string>("ep_qrcode_loc/odom4mapTopic", odommapTopic, "ep_qrcode_loc/odom_map");
+        nh.param<std::string>("ep_qrcode_loc/odom4qrmapTopic", odomqrmapTopic, "ep_qrcode_loc/odom_qrmap");
+        nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
+        nh.param<bool>("ep_qrcode_loc/useLidar", useLidar, false);
+        nh.param<bool>("ep_qrcode_loc/calTrans", calTrans, false);
+        nh.param<bool>("ep_qrcode_loc/show_msg", show_msg, false);
+        nh.param<bool>("ep_qrcode_loc/collect_QRcode", collect_QRcode, false);
+        nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
+        nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/ep_qrcode_loc");
+        nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params");
+        nh.param<std::vector<double>>("ep_qrcode_loc/qrmap2mapTrans", qrmap2mapTrans, std::vector<double>());
+        pose_qrmap2mapcopy.position.x = qrmap2mapTrans[0];
+        pose_qrmap2mapcopy.position.y = qrmap2mapTrans[1];
+        pose_qrmap2mapcopy.position.z = qrmap2mapTrans[2];
+        pose_qrmap2mapcopy.orientation.x = qrmap2mapTrans[3];
+        pose_qrmap2mapcopy.orientation.y = qrmap2mapTrans[4];
+        pose_qrmap2mapcopy.orientation.z = qrmap2mapTrans[5];
+        pose_qrmap2mapcopy.orientation.w = qrmap2mapTrans[6];
+
+        // // 日志文件初始化
+        // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";
+        // log_file.open(log_name);
+        // if (!log_file.is_open())
+        // {
+        //     std::cout << "can't open: " << log_name << std::endl;
+        // }
+        // else
+        // {
+        //     std::cout << "open: " << log_name << std::endl;
+        // }
+    }
+};
+
+class Logger : public ParamServer
+{
+private:
+    static std::ofstream logFile;
+    static std::mutex mutex;
+ 
+    // 私有构造函数确保不能直接创建Logger实例
+    Logger() 
+    {
+        init(log_dir + "/Main" + format_time(ros::Time::now()) + ".csv");
+    }
+ 
+    // 防止拷贝构造和赋值
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
+ 
+    // 静态成员函数，用于初始化静态变量
+    static void init(std::string log_name) 
+    {
+        logFile.open(log_name, std::ios::app);
+        if (!logFile.is_open()) 
+        {
+            std::cout << "can't open: " << log_name << std::endl;
+        }
+        else
+        {
+            std::cout << "open: " << log_name << std::endl;
+        }
+    }
+ 
+public:
+    // 获取单例对象
+    static Logger& getInstance() {
+        static Logger instance; // 懒汉式，在第一次调用时实例化
+        return instance;
+    }
+ 
+    // 记录日志的方法
+    void log(const std::string& message) {
+        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        logFile << message << std::endl;
+    }
+};
+ 
+std::ofstream Logger::logFile;
+std::mutex Logger::mutex;
+
+class vec  
+{
+public:
+	double v[3];
+	vec(){}
+	vec(double x,double y ,double z)
+	{
+		 v[0] = x; v[1] = y; v[2] = z;
+	}
+	const double &operator [] (int i) const
+	{
+		return v[i];
+	}
+	double &operator [] (int i)
+	{
+		return v[i];
+	}
+};

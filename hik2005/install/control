@@ -1,9 +1,0 @@
-Package: ep-camera-hik
-Description: 二维码定位
-Maintainer: yx <yuanxun@ep-ep.com>
-Version:0.0.1-2024-04-28
-Section: devel
-Prioritt: optional
-Architecture: amd64
-Installed-Size:1757692
-Build-Time:2024-04-28_13:01:03

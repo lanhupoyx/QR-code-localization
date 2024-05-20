@@ -1,0 +1,30 @@
+#!/bin/bash
+#软件安装完后，执行该Shell脚本，一般用来配置软件执行环境
+#可以添加systemctl的启动服务
+
+USER_NAME=$(getent passwd `who` | head -n 1 | cut -d : -f 1)
+echo "USER_NAME=$USER_NAME"
+sed -i -r 's/^User=.*/User='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-loc.service
+sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-loc.service
+
+#检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
+#检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
+#if [ ! -f /var/xmover/params/PandarXT-16.csv ]; then
+#  mkdir -p /var/xmover/params
+#  echo "copy params file PandarXT-16.csv"
+ # cp /opt/xmover/ros/melodic/ep_lidar_hesai/share/ep_lidar_hesai/PandarXT-16.csv /var/xmover/params/PandarXT-16.csv
+#  chmod 777 /var/xmover/params/PandarXT-16.csv
+#fi
+#if [ ! -f /var/xmover/params/PandarXT-32.csv ]; then
+#  mkdir -p /var/xmover/params
+#  echo "copy params file PandarXT-32.csv"
+ # cp /opt/xmover/ros/melodic/ep_lidar_hesai/share/ep_lidar_hesai/PandarXT-32.csv /var/xmover/params/PandarXT-32.csv
+#  chmod 777 /var/xmover/params/PandarXT-32.csv
+#fi
+chown -R $USER_NAME:$USER_NAME /opt/xmover
+chown -R $USER_NAME:$USER_NAME /var/xmover
+chown $USER_NAME:$USER_NAME /usr/lib/systemd/system/ep-qrcode-loc.service
+
+systemctl daemon-reload
+systemctl disable ep-qrcode-loc  # disable  开机自启
+systemctl start ep-qrcode-loc   # 安装后立即启动

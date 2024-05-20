@@ -1,8 +1,0 @@
-<launch>
-   <!-- ns="$(arg namespace)" -->
-	<rosparam file="/home/zl/work/ep-camera-hik/src/hik2005/config/ep-camera-hik.yaml" command="load" />
-	<node pkg="hik2005" type="hik2005_node" name="hik2005" output="screen" >
-	</node>
-	<!-- <node pkg="hik2005" type="save_error_node" name="save_error_node" output="screen" >
-	</node> -->
-</launch>
