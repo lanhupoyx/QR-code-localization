@@ -1,0 +1,19 @@
+QRcodeLoc Start
+QRcodeTable Start
+qrcode_table的大小为: 10
+100316 2 0.682 0
+100317 0 0.682 0
+100318 1 0.682 0
+100320 3 0.682 0
+100321 4 0.682 0
+100322 0 0 0
+100323 1 0 0
+100324 2 0 0
+100325 3 0 0
+100330 4 0 0
+QRcodeTable Start
+qrcode_table的大小为: 0
+MV_SC2005AM Start
+
+ init 
+

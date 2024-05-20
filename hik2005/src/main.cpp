@@ -29,7 +29,7 @@ std::vector<double> calTrans_SVD(){
     //读取Lidarmap_table.txt
     std::ifstream ifs;
     std::map<uint32_t, qrcode_info> map;
-    std::string path = "/home/zl/work/ep-camera-hik/src/hik2005/config/Lidarmap_table.txt";
+    std::string path = "/var/xmover/params/QRcode/Lidarmap_table.txt";
     ifs.open(path, std::ios::in);
     if (!ifs.is_open())
     {
@@ -53,7 +53,7 @@ std::vector<double> calTrans_SVD(){
 
     //读取QRmap_table.txt
     std::map<uint32_t, qrcode_info> qrmap;
-    path = "/home/zl/work/ep-camera-hik/src/hik2005/config/QRmap_table.txt";
+    path = "/var/xmover/params/QRcode/QRmap_table.txt";
     ifs.open(path, std::ios::in);
     if (!ifs.is_open())
     {
@@ -374,6 +374,7 @@ int main(int argc, char *argv[])
             }
             else
             {
+                //std::cout << "is pic but no loc" << std::endl;
                 odom_qrmap.pose.covariance[0] = 0; // 此帧是否可用，1：可用，0：不可用
                 pub_odom_qrmap.publish(odom_qrmap);
                 odom_map.pose.covariance[0] = 0; // 此帧是否可用，1：可用，0：不可用
@@ -382,6 +383,7 @@ int main(int argc, char *argv[])
         }
         else
         {
+            //std::cout << "no pic" << std::endl;
             odom_qrmap.pose.covariance[0] = 0; // 此帧是否可用，1：可用，0：不可用
             pub_odom_qrmap.publish(odom_qrmap);
             odom_map.pose.covariance[0] = 0; // 此帧是否可用，1：可用，0：不可用

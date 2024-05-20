@@ -1,11 +1,10 @@
 #pragma once
-#ifndef _hik_utility_H_
-#define _hik_utility_H_
 
 #include "ros/ros.h"
 #include <tf/tf.h>
 #include <ros/console.h>
 #include <boost/asio.hpp>
+
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -16,6 +15,8 @@
 #include <list>
 #include <string>
 #include <array>
+#include <thread>
+
 #include "std_msgs/String.h"
 #include <nav_msgs/Odometry.h>
 #include <tf2_msgs/TFMessage.h>
@@ -122,6 +123,14 @@ double getYaw(geometry_msgs::Pose pose){
     return yaw*180/M_PI;
 }
 
+// get yaw frome pose
+double getYaw(geometry_msgs::Quaternion q){
+    tf::Quaternion quaternion(q.x, q.y, q.z, q.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw*180/M_PI;
+}
+
 // get yaw frome TransformStamped
 double getYaw(geometry_msgs::TransformStamped trans){
     tf::Quaternion q(   trans.transform.rotation.x, 
@@ -157,11 +166,6 @@ struct qrcode_info
     double y;
     double yaw;
 };
-
-
-
-
-
 
 // 二维码坐标对照表
 class QRcodeTable
@@ -372,4 +376,3 @@ private:
 std::mutex QRcodeTable::mtx;
 std::list<nav_msgs::Odometry> QRcodeTable::tf_buffer;
 
-#endif

@@ -64,14 +64,16 @@ link_directories(
 ###########
 
 # Range Image Projection
-add_executable(${PROJECT_NAME}_node src/main.cpp)
+add_executable(${PROJECT_NAME}_node src/QRcodeLoc.cpp)
 # add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} )
 
+add_executable(save_error_node src/SaveLocError.cpp)
+target_link_libraries(save_error_node ${catkin_LIBRARIES} )
 
 
 install(TARGETS
-      ${PROJECT_NAME}_node
+      ${PROJECT_NAME}_node  save_error_node
       RUNTIME DESTINATION deb_package/opt/xmover/ros/melodic/${PROJECT_NAME}/lib/${PROJECT_NAME}
 )
 
