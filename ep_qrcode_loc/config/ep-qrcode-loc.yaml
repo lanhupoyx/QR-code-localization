@@ -10,9 +10,8 @@ ep_qrcode_loc:
   odom4mapTopic: "ep_qrcode_loc/odom_map"
   odom4qrmapTopic: "ep_qrcode_loc/odom_qrmap"
   msgTopic: "ep_qrcode_loc/msg"
-  useLidar: false  #true:实施阶段使用Lidar采集二维码坐标
-  calTrans: false  #true:实施阶段使用Lidar采集二维码坐标
-  mode: 3   # 1:采集二维码坐标; 2:计算qrmap2mapTrans; 3:正常运行
+  realVelDt: 0.01 
+  mode: 4   # 1:计算qrmap2mapTrans; 2:采集二维码坐标; 3:运行模式（不第推）; 4:运行模式（第推）
   show_msg: false
   collect_QRcode: true
   port: 1024

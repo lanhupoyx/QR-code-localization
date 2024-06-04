@@ -131,6 +131,14 @@ double getYaw(geometry_msgs::Quaternion q){
     return yaw*180/M_PI;
 }
 
+// get yaw frome pose
+double getYawRad(geometry_msgs::Quaternion q){
+    tf::Quaternion quaternion(q.x, q.y, q.z, q.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw;
+}
+
 // get yaw frome TransformStamped
 double getYaw(geometry_msgs::TransformStamped trans){
     tf::Quaternion q(   trans.transform.rotation.x, 
@@ -175,8 +183,8 @@ public:
     std::string odommapTopic;
     std::string odomqrmapTopic;
     std::string msgTopic;
-    bool useLidar;
-    bool calTrans;
+    double realVelDt;
+    int mode;
     bool show_msg;
     bool collect_QRcode;
     std::string port;
@@ -190,8 +198,8 @@ public:
         nh.param<std::string>("ep_qrcode_loc/odom4mapTopic", odommapTopic, "ep_qrcode_loc/odom_map");
         nh.param<std::string>("ep_qrcode_loc/odom4qrmapTopic", odomqrmapTopic, "ep_qrcode_loc/odom_qrmap");
         nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
-        nh.param<bool>("ep_qrcode_loc/useLidar", useLidar, false);
-        nh.param<bool>("ep_qrcode_loc/calTrans", calTrans, false);
+        nh.param<double>("ep_qrcode_loc/realVelDt", realVelDt, 0.01);
+        nh.param<int>("ep_qrcode_loc/mode", mode, 3);
         nh.param<bool>("ep_qrcode_loc/show_msg", show_msg, false);
         nh.param<bool>("ep_qrcode_loc/collect_QRcode", collect_QRcode, false);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
