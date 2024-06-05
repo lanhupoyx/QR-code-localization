@@ -18,6 +18,11 @@ ep_qrcode_loc:
   log_dir: "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/log/"
   cfg_dir: "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/"
 
+  realVelRatio_x: 1.035 #0.93458
+  realVelRatio_z: 1.0
+  realVelOffset_x: 0.0
+  realVelOffset_z: 0.0
+
   #qrmap2mapTrans: [26.0745, 2.03618, 0, 0, 0, 0.999419, -0.0340756] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
   # qrmap2mapTrans: [11.4943, -0.0305323, 0, 0, 0, 0.999919, 0.0127641] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
   # qrmap2mapTrans: [11.5092, -0.0253609, 0, 0, 0, 0.999919, 0.0127504] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)

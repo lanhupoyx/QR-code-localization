@@ -194,6 +194,11 @@ public:
     geometry_msgs::Pose pose_qrmap2mapcopy;
     std::ofstream log_file;
 
+    double realVelRatio_x;
+    double realVelRatio_z;
+    double realVelOffset_x;
+    double realVelOffset_z;
+
     ParamServer(){
         nh.param<std::string>("ep_qrcode_loc/odom4mapTopic", odommapTopic, "ep_qrcode_loc/odom_map");
         nh.param<std::string>("ep_qrcode_loc/odom4qrmapTopic", odomqrmapTopic, "ep_qrcode_loc/odom_qrmap");
@@ -213,6 +218,10 @@ public:
         pose_qrmap2mapcopy.orientation.y = qrmap2mapTrans[4];
         pose_qrmap2mapcopy.orientation.z = qrmap2mapTrans[5];
         pose_qrmap2mapcopy.orientation.w = qrmap2mapTrans[6];
+        nh.param<double>("ep_qrcode_loc/realVelRatio_x", realVelRatio_x, 1.0);
+        nh.param<double>("ep_qrcode_loc/realVelRatio_z", realVelRatio_z, 1.0);
+        nh.param<double>("ep_qrcode_loc/realVelOffset_x", realVelOffset_x, 0.0);
+        nh.param<double>("ep_qrcode_loc/realVelOffset_z", realVelOffset_z, 0.0);
 
         // // 日志文件初始化
         // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";

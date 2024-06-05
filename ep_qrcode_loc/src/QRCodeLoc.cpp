@@ -300,7 +300,7 @@ public:
 
                 u_int32_t d = convert_16_to_10(frame->hex.substr(6, 2));
                 frame->duration = d / 1000.0;
-                frame->stamp = now - ros::Duration(frame->duration);
+                frame->stamp = now; // - ros::Duration(frame->duration);
 
                 frame->code = convert_16_to_10(frame->hex.substr(14, 2) + frame->hex.substr(12, 2) + frame->hex.substr(10, 2) + frame->hex.substr(8, 2));
 
@@ -562,12 +562,13 @@ public:
             std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
             const geometry_msgs::Twist twist = *msg;
             ros::Duration lost_diff = now - lost_time;
-            if (lost_diff.toSec() < 3.0)
+            double lost_diff_sec = lost_diff.toSec();
+            if ((0.011 < lost_diff_sec) && (lost_diff_sec < 6.0))
             {
                 double dt = (now - odom_map.header.stamp).toSec();
-                double yaw = getYawRad(odom_map.pose.pose.orientation) + twist.angular.z * dt;
-                odom_map.pose.pose.position.x += twist.linear.x * dt * cos(yaw);
-                odom_map.pose.pose.position.y += twist.linear.x * dt * sin(yaw);
+                double yaw = getYawRad(odom_map.pose.pose.orientation) + (twist.angular.z + realVelOffset_z) * realVelRatio_z * dt;
+                odom_map.pose.pose.position.x += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
+                odom_map.pose.pose.position.y += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
                 tf::Quaternion q;
                 q.setRPY(0.0, 0.0, yaw);
                 tf::quaternionTFToMsg(q, odom_map.pose.pose.orientation);
@@ -584,15 +585,15 @@ public:
             }
             else
             {
-                odom_qrmap.header.stamp = now;
-                odom_map.header.stamp = now;
+                // odom_qrmap.header.stamp = now;
+                // odom_map.header.stamp = now;
 
-                odom_qrmap.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-                odom_map.pose.covariance[0] = 0;   // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
+                // odom_qrmap.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
+                // odom_map.pose.covariance[0] = 0;   // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
 
-                pub_odom_qrmap.publish(odom_qrmap);
-                pub_odom_map.publish(odom_map);
-                save_log(odom_map, pic.code);
+                // pub_odom_qrmap.publish(odom_qrmap);
+                // pub_odom_map.publish(odom_map);
+                // save_log(odom_map, pic.code);
             }
         }
     }
@@ -722,6 +723,7 @@ public:
     {
         if (1 == mode) //使用SVD计算qmap与lidarmap间的转换关系
         {
+            ROS_INFO("mode: 1");
             std::vector<double> trans = calTrans_SVD();
             for (std::vector<double>::iterator it = trans.begin(); it != trans.end(); it++)
             {
@@ -732,6 +734,7 @@ public:
         }
         else if (2 == mode) //采集二维码位姿
         {
+            ROS_INFO("mode: 2");
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
@@ -778,6 +781,7 @@ public:
         }
         else if (3 == mode) //不使用论速计递推
         {
+            ROS_INFO("mode: 3");
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
@@ -829,6 +833,7 @@ public:
         }
         else if (4 == mode) //使用论速计递推
         {
+            ROS_INFO("mode: 4 ");
             QRcodeInfo code_info;     // 查询二维码坐标
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
@@ -858,7 +863,7 @@ public:
                         odom_map.pose.covariance[0] = 1;            // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
                         odom_map.pose.covariance[1] = pic.duration; // 相机处理图像用时(s)
 
-                        needRecursive = false;
+                        //needRecursive = false;
                         lost_time = ros::Time::now();
                         pub_odom_qrmap.publish(odom_qrmap);
                         pub_odom_map.publish(odom_map);
