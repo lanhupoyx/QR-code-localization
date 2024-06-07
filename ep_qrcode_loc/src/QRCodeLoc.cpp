@@ -369,11 +369,14 @@ public:
     std::mutex mtx;
 
     nav_msgs::Odometry odom_map;
+    nav_msgs::Odometry odom_map_last;
+    nav_msgs::Odometry odom_map_last_last;
     nav_msgs::Odometry odom_qrmap;
     std::list<nav_msgs::Odometry> odom_his;
 
     bool needRecursive;
     ros::Time lost_time;
+    geometry_msgs::Twist vel; //当前论速记数据
 
     CameraFrame pic; // 相机数据
 
@@ -553,48 +556,47 @@ public:
         return output;
     }
 
+    void velRecursive(ros::Time time)
+    {
+        std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
+        const geometry_msgs::Twist twist = vel;
+        ros::Duration lost_diff = time - lost_time;
+        double lost_diff_sec = lost_diff.toSec();
+        if (lost_diff_sec > 1000.0)
+        {
+            return;
+        }
+        double dt = (time - odom_map.header.stamp).toSec();
+        double yaw = getYawRad(odom_map.pose.pose.orientation) + (twist.angular.z + realVelOffset_z) * realVelRatio_z * dt;
+        odom_map.pose.pose.position.x += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
+        odom_map.pose.pose.position.y += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
+        tf::Quaternion q;
+        q.setRPY(0.0, 0.0, yaw);
+        tf::quaternionTFToMsg(q, odom_map.pose.pose.orientation);
+
+        odom_qrmap.header.stamp = time;
+        odom_map.header.stamp = time;
+
+        odom_qrmap.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
+        odom_map.pose.covariance[0] = 2;   // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
+
+        pub_odom_qrmap.publish(odom_qrmap);
+        pub_odom_map.publish(odom_map);
+        save_log(odom_map, pic.code);
+        odom_map_last_last = odom_map_last;
+        odom_map_last = odom_map;
+    }
+
     // callback获取/realvel
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &msg)
     {
-        ros::Time now = ros::Time::now();
         if (needRecursive)
         {
-            std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
-            const geometry_msgs::Twist twist = *msg;
-            ros::Duration lost_diff = now - lost_time;
-            double lost_diff_sec = lost_diff.toSec();
-            if ((0.011 < lost_diff_sec) && (lost_diff_sec < 6.0))
-            {
-                double dt = (now - odom_map.header.stamp).toSec();
-                double yaw = getYawRad(odom_map.pose.pose.orientation) + (twist.angular.z + realVelOffset_z) * realVelRatio_z * dt;
-                odom_map.pose.pose.position.x += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
-                odom_map.pose.pose.position.y += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
-                tf::Quaternion q;
-                q.setRPY(0.0, 0.0, yaw);
-                tf::quaternionTFToMsg(q, odom_map.pose.pose.orientation);
+            mtx.lock();
+            vel = *msg;
+            mtx.unlock();
 
-                odom_qrmap.header.stamp = now;
-                odom_map.header.stamp = now;
-
-                odom_qrmap.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-                odom_map.pose.covariance[0] = 2;   // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-
-                pub_odom_qrmap.publish(odom_qrmap);
-                pub_odom_map.publish(odom_map);
-                save_log(odom_map, pic.code);
-            }
-            else
-            {
-                // odom_qrmap.header.stamp = now;
-                // odom_map.header.stamp = now;
-
-                // odom_qrmap.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-                // odom_map.pose.covariance[0] = 0;   // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-
-                // pub_odom_qrmap.publish(odom_qrmap);
-                // pub_odom_map.publish(odom_map);
-                // save_log(odom_map, pic.code);
-            }
+            velRecursive(ros::Time::now());
         }
     }
 
@@ -636,10 +638,10 @@ public:
                << "," << msg.pose.covariance[0];
         logger->log(stream.str());
 
-        std::cout << format_time(msg.header.stamp)
-                  << " " << code << std::fixed << std::setprecision(6)
-                  << " " << sqrt(pow(xerror, 2) + pow(yerror, 2))
-                  << std::endl;
+        // std::cout << format_time(msg.header.stamp)
+        //           << " " << code << std::fixed << std::setprecision(6)
+        //           << " " << sqrt(pow(xerror, 2) + pow(yerror, 2))
+        //           << std::endl;
     }
 
     geometry_msgs::Pose get_pose_lidarmap(CameraFrame pic, QRcodeInfo code_info)
@@ -842,6 +844,14 @@ public:
                 {
                     if (QRmap_tab->onlyfind(pic, &code_info))
                     {
+                        static double lastQRCodeTime = 0.0;
+                        //连续两次都是递推坐标
+                        double time_dis = pic.stamp.toSec() - lastQRCodeTime;
+                        if(time_dis > 0.02)
+                        {
+                            velRecursive(pic.stamp);
+                        }
+
                         std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
                         std::vector<geometry_msgs::Pose> pose = get_pose_qrcodemap(pic, code_info);
 
@@ -860,12 +870,39 @@ public:
                         odom_map.child_frame_id = "base_link";
                         odom_map.header.seq = pic.index;
                         odom_map.pose.pose = pose[1];
-                        odom_map.pose.covariance[0] = 1;            // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
                         odom_map.pose.covariance[1] = pic.duration; // 相机处理图像用时(s)
 
-                        //needRecursive = false;
-                        lost_time = ros::Time::now();
+                        if(time_dis > 0.02)
+                        {
+                            double xerr = odom_map.pose.pose.position.x - odom_map_last.pose.pose.position.x;
+                            double yerr = odom_map.pose.pose.position.y - odom_map_last.pose.pose.position.y;
+
+                            std::cout << format_time(odom_map.header.stamp)
+                                << "," << pic.code << std::fixed << std::setprecision(3)
+                                << "," << odom_map.header.stamp.toSec() - lastQRCodeTime
+                                << "," << sqrt(pow(xerr, 2) + pow(yerr, 2))
+                                << "," << xerr
+                                << "," << yerr
+                                << "," << getYaw(odom_map.pose.pose) - getYaw(odom_map_last.pose.pose)
+                                << "," << odom_map.header.stamp.toSec()
+                                << "," << odom_map.pose.pose.position.x
+                                << "," << odom_map.pose.pose.position.y
+                                << "," << getYaw(odom_map.pose.pose)
+                                << "," << odom_map_last.header.stamp.toSec()
+                                << "," << odom_map_last.pose.pose.position.x
+                                << "," << odom_map_last.pose.pose.position.y
+                                << "," << getYaw(odom_map_last.pose.pose)
+                                << "," << std::endl;
+                        }
+                        odom_map_last_last = odom_map_last;
+                        odom_map_last = odom_map;
+                        lastQRCodeTime = odom_map.header.stamp.toSec();
+                        //std::cout << "11111" << std::endl;
+
+                        //needRecursive = false; 
+                        lost_time = odom_map.header.stamp;
                         pub_odom_qrmap.publish(odom_qrmap);
+                        odom_map.pose.covariance[0] = 1;            // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
                         pub_odom_map.publish(odom_map);
                         save_log(odom_map, pic.code);
                         
