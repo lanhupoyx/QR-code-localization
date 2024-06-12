@@ -26,8 +26,12 @@
 #include <geometry_msgs/PoseStamped.h>
 #include "message_filters/subscriber.h"
 #include "tf2_ros/buffer.h"
+#include "tf2/convert.h"
 #include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
+
+// #include "ch3/eskf.hpp"
+// #include "ch3/static_imu_init.h"
 
 // 数据帧转换到16进制
 std::string charArrayToHex(std::array<char, 1024> array, size_t size)
@@ -148,6 +152,22 @@ double getYaw(geometry_msgs::TransformStamped trans){
     double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
     tf::Matrix3x3(q).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
     return yaw*180/M_PI;
+}
+
+geometry_msgs::Pose poseInverse(geometry_msgs::Pose source)
+{
+    geometry_msgs::Pose result;
+    tf::Quaternion q;
+    q.setRPY(0.0, 0.0, -getYawRad(source.orientation));
+    tf::quaternionTFToMsg(q, result.orientation);
+    tf::Matrix3x3 m(q);
+    tf::Matrix3x3 inv_m(m);
+    tf::Vector3 v(source.position.x, source.position.y, 0.0);
+    inv_m.inverse();                                         // 求逆
+    result.position.x = -inv_m.getRow(0).dot(v); //(row0(0)*v.getX() + inv_m(0,1)*v.getX() +inv_m(0,2)*v.getZ());
+    result.position.y = -inv_m.getRow(1).dot(v); //-(inv_m(1,0)*v.getX() + inv_m(1,1)*v.getX() +inv_m(1,2)*v.getZ());
+    result.position.z = 0.0;
+    return result;
 }
 
 // 扫码相机数据帧格式

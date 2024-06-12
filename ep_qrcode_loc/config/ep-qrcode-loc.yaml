@@ -11,7 +11,7 @@ ep_qrcode_loc:
   odom4qrmapTopic: "ep_qrcode_loc/odom_qrmap"
   msgTopic: "ep_qrcode_loc/msg"
   realVelDt: 0.01 
-  mode: 4   # 1:计算qrmap2mapTrans; 2:采集二维码坐标; 3:运行模式（不第推）; 4:运行模式（第推）
+  mode: 4   # 1:计算qrmap2mapTrans; 2:采集二维码坐标; 3:运行模式（不第推）; 4:运行模式（第推）；5:使用ESKF、IMU、论速计递推
   show_msg: false
   collect_QRcode: true
   port: 1024

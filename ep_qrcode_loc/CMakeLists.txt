@@ -9,6 +9,9 @@ set(CMAKE_CXX_FLAGS "-std=c++14 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
 
 find_package(catkin REQUIRED COMPONENTS
+  tf2_geometry_msgs
+  tf2_ros
+  tf2
   tf
   roscpp
   std_msgs
@@ -46,6 +49,10 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
   "/opt/libs-x86_64-Linux/eigen/eigen3"
+  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf"
+  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/ch3"
+  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/common"
+  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/sophus"
 )
 
 # link directories
