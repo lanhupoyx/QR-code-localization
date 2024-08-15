@@ -212,6 +212,8 @@ public:
     std::string log_dir;
     std::string cfg_dir;
     std::vector<double> qrmap2mapTrans;
+    std::vector<float> enableArea;
+    float maxRecursiveDis;
     geometry_msgs::Pose pose_qrmap2mapcopy;
     std::ofstream log_file;
 
@@ -243,6 +245,8 @@ public:
         nh.param<double>("ep_qrcode_loc/realVelRatio_z", realVelRatio_z, 1.0);
         nh.param<double>("ep_qrcode_loc/realVelOffset_x", realVelOffset_x, 0.0);
         nh.param<double>("ep_qrcode_loc/realVelOffset_z", realVelOffset_z, 0.0);
+        nh.param<std::vector<float>>("ep_qrcode_loc/enableArea", enableArea, std::vector<float>());
+        nh.param<float>("ep_qrcode_loc/maxRecursiveDis", maxRecursiveDis, 2.0);
 
         // // 日志文件初始化
         // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";

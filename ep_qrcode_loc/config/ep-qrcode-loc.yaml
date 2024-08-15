@@ -7,26 +7,45 @@
 ep_qrcode_loc:
   verision: "v-0.0.1"
   
+  # 运行模式
+  mode: 3   # 1:采集二维码坐标; 
+            # 2:计算qrmap2mapTrans; 
+            # 3:论速计递推运行；
+
+  # 发布消息的名称
   odom4mapTopic: "ep_qrcode_loc/odom_map"
   odom4qrmapTopic: "ep_qrcode_loc/odom_qrmap"
   msgTopic: "ep_qrcode_loc/msg"
+
   realVelDt: 0.01 
-  mode: 4   # 1:计算qrmap2mapTrans; 2:采集二维码坐标; 3:运行模式（不第推）; 4:运行模式（第推）；5:使用ESKF、IMU、论速计递推
   show_msg: false
   collect_QRcode: true
+
+  # 最大递推距离
+  maxRecursiveDis: 2.0
+
+  # 相机网络所用端口
   port: 1024
+
+  # 文件路径
   log_dir: "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/log/"
   cfg_dir: "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/"
 
+  # 论速记补偿系数
   realVelRatio_x: 1.035 #0.93458
   realVelRatio_z: 1.0
   realVelOffset_x: 0.0
   realVelOffset_z: 0.0
 
-  #qrmap2mapTrans: [26.0745, 2.03618, 0, 0, 0, 0.999419, -0.0340756] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
-  # qrmap2mapTrans: [11.4943, -0.0305323, 0, 0, 0, 0.999919, 0.0127641] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
-  # qrmap2mapTrans: [11.5092, -0.0253609, 0, 0, 0, 0.999919, 0.0127504] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
-  # qrmap2mapTrans: [11.4888, -0.0223434, 0, 0, 0, 0.999919, 0.0127218] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
-  qrmap2mapTrans: [311.613, -188.321, 0, 0, 0, -0.717352, 0.696711] #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
+  # lidar坐标系与二维码坐标系之间的转换关系 #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
+  qrmap2mapTrans: [311.613, -188.321, 0, 0, 0, -0.717352, 0.696711] 
+
+  # 启用二维码定位的区域，顶点首尾相接组成一个多边形区域[x1,y1, x2,y2, ....]
+  enableArea: [ -27.13, -194.9, 
+                -27.13, -194.9,
+                -27.13, -194.9,
+                -27.13, -194.9,
+                -27.13, -194.9]
+
   
   
