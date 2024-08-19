@@ -19,6 +19,7 @@
 
 #include "std_msgs/String.h"
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <tf2_msgs/TFMessage.h>
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/message_filter.h"
@@ -194,6 +195,7 @@ struct QRcodeInfo
     double x;
     double y;
     double yaw;
+    CameraFrame frame;
 };
 
 class ParamServer
@@ -201,9 +203,15 @@ class ParamServer
 public:
     ros::NodeHandle nh;
 
-    std::string odommapTopic;
-    std::string odomqrmapTopic;
+    std::string odomMapBase;
+    std::string odomMapCamera;
+    std::string pathMapBase;
+    std::string pathMapCamera;
+
+    std::string odomQrmapBase;
+    std::string odomQrmapCamera;
     std::string msgTopic;
+
     double realVelDt;
     int mode;
     bool show_msg;
@@ -213,7 +221,7 @@ public:
     std::string cfg_dir;
     std::vector<double> qrmap2mapTrans;
     std::vector<float> enableArea;
-    float maxRecursiveDis;
+    float maxEstimationDis;
     geometry_msgs::Pose pose_qrmap2mapcopy;
     std::ofstream log_file;
 
@@ -223,8 +231,14 @@ public:
     double realVelOffset_z;
 
     ParamServer(){
-        nh.param<std::string>("ep_qrcode_loc/odom4mapTopic", odommapTopic, "ep_qrcode_loc/odom_map");
-        nh.param<std::string>("ep_qrcode_loc/odom4qrmapTopic", odomqrmapTopic, "ep_qrcode_loc/odom_qrmap");
+        nh.param<std::string>("ep_qrcode_loc/odomMapBase",   odomMapBase,   "ep_qrcode_loc/odometry/base");
+        nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
+        nh.param<std::string>("ep_qrcode_loc/pathMapBase",   pathMapBase,   "ep_qrcode_loc/path/base");
+        nh.param<std::string>("ep_qrcode_loc/pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
+
+        nh.param<std::string>("ep_qrcode_loc/odomQrmapBase",   odomQrmapBase,   "ep_qrcode_loc/qrmap/odometry/base");
+        nh.param<std::string>("ep_qrcode_loc/odomQrmapCamera", odomQrmapCamera, "ep_qrcode_loc/qrmap/odometry/locCamera");
+
         nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
         nh.param<double>("ep_qrcode_loc/realVelDt", realVelDt, 0.01);
         nh.param<int>("ep_qrcode_loc/mode", mode, 3);
@@ -246,7 +260,7 @@ public:
         nh.param<double>("ep_qrcode_loc/realVelOffset_x", realVelOffset_x, 0.0);
         nh.param<double>("ep_qrcode_loc/realVelOffset_z", realVelOffset_z, 0.0);
         nh.param<std::vector<float>>("ep_qrcode_loc/enableArea", enableArea, std::vector<float>());
-        nh.param<float>("ep_qrcode_loc/maxRecursiveDis", maxRecursiveDis, 2.0);
+        nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 2.0);
 
         // // 日志文件初始化
         // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";

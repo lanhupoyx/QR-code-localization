@@ -44,7 +44,7 @@ public:
             tferr = false;
             try
             {
-                trans_camera2base = buffer.lookupTransform("base_link", "sc2005am_link", ros::Time(0));
+                trans_camera2base = buffer.lookupTransform("base_link", "locCamera_link", ros::Time(0));
             }
             catch (tf::TransformException &exception)
             {
@@ -56,9 +56,9 @@ public:
         }
         if (1 == mode)
         {
-            sub_pos = nh.subscribe<nav_msgs::Odometry>( "/ep_localization/odometry/lidar", 1, 
-                                                        &QRcodeTable::tfCallback, this, 
-                                                        ros::TransportHints().tcpNoDelay());
+            sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+                                                       &QRcodeTable::tfCallback, this,
+                                                       ros::TransportHints().tcpNoDelay());
         }
     }
 
@@ -71,6 +71,7 @@ public:
         if (it != map.end())
         {
             *info = (*it).second;
+            info->frame = frame;
             return true;
         }
         else
@@ -91,6 +92,7 @@ public:
         if (it != map.end())
         {
             *info = (*it).second;
+            info->frame = frame;
             return true;
         }
         else
@@ -144,6 +146,7 @@ public:
                    << new_qrcode.y << " "
                    << new_qrcode.yaw;
             logger->log(stream.str());
+            std::cout << stream.str() << std::endl;
         }
 
         return true;
@@ -439,35 +442,53 @@ class QRcodeLoc : public ParamServer
 {
 public:
     // 发布器
+    ros::Publisher pub_odom_map_base;
+    ros::Publisher pub_odom_map_camera;
+    ros::Publisher pub_path_map_base;
+    ros::Publisher pub_path_map_camera;
+
+    ros::Publisher pub_odom_qrmap_base;
+    ros::Publisher pub_odom_qrmap_camera;
     ros::Publisher pub_qrCodeMsg;
-    ros::Publisher pub_odom_map;
-    ros::Publisher pub_odom_qrmap;
+
+    // 接收器
     ros::Subscriber sub_realvel;
     ros::Subscriber sub_pos;
 
     QRcodeTable *QRmap_tab;
     QRcodeTable *Lidarmap_tab;
     MV_SC2005AM *camera;
-    Polygon     *operating_area;
+    Polygon *operating_area;
 
     std::ofstream log_err;
     Logger *logger;
     std::stringstream stream;
 
     geometry_msgs::TransformStamped trans_base2camera;
+    geometry_msgs::TransformStamped trans_camera2base;
 
     tf2_ros::Buffer buffer;
     tf2_ros::TransformListener *tfListener;
     geometry_msgs::TransformStamped trans_base2map;
 
     std::mutex mtx;
+    std::mutex odom_init_mtx;
+    nav_msgs::Odometry odom_estimation_init;
+    
+    nav_msgs::Odometry odom_map_base;
+    nav_msgs::Odometry odom_map_camera;
+    nav_msgs::Path     path_map_base;
+    nav_msgs::Path     path_map_camera;
+
+    nav_msgs::Odometry odom_qrmap_base;
+    nav_msgs::Odometry odom_qrmap_camera;
 
     nav_msgs::Odometry odom_map;
     nav_msgs::Odometry odom_map_last;
     nav_msgs::Odometry odom_map_last_last;
     nav_msgs::Odometry odom_qrmap;
     std::list<nav_msgs::Odometry> odom_his;
-    
+
     CameraFrame pic; // 相机数据
 
     bool start;
@@ -483,18 +504,23 @@ public:
         logger->log(stream.str());
 
         // 初始化发布器
+        pub_odom_map_base = nh.advertise<nav_msgs::Odometry>(odomMapBase, 2000);
+        pub_odom_map_camera = nh.advertise<nav_msgs::Odometry>(odomMapCamera, 2000);
+        pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 2000);
+        pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 2000);
+
+        pub_odom_qrmap_base = nh.advertise<nav_msgs::Odometry>(odomQrmapBase, 2000);
+        pub_odom_qrmap_camera = nh.advertise<nav_msgs::Odometry>(odomQrmapCamera, 2000);
         pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic, 1000);
-        pub_odom_map = nh.advertise<nav_msgs::Odometry>(odommapTopic, 2000);
-        pub_odom_qrmap = nh.advertise<nav_msgs::Odometry>(odomqrmapTopic, 2000);
 
         // 订阅轮速计消息
-        if (3 == mode) //使用论速计递推
+        if (3 == mode) // 使用论速计递推
         {
             sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &QRcodeLoc::realvelCallback,
-                                                            this, ros::TransportHints().tcpNoDelay());
+                                                             this, ros::TransportHints().tcpNoDelay());
         }
 
-        // 实例化两个表格和定位相机
+        // 实例化两个表格、定位相机、运行区域
         QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
         Lidarmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-LidarMapTable.txt");
         camera = new MV_SC2005AM();
@@ -508,7 +534,8 @@ public:
             tferr = false;
             try
             {
-                trans_base2camera = buffer.lookupTransform("sc2005am_link", "base_link", ros::Time(0));
+                trans_base2camera = buffer.lookupTransform("locCamera_link", "base_link", ros::Time(0));
+                trans_camera2base = buffer.lookupTransform("base_link", "locCamera_link", ros::Time(0));
             }
             catch (tf::TransformException &exception)
             {
@@ -532,7 +559,7 @@ public:
         delete camera;
     }
 
-    // 计算lidar坐标系与二维码坐标系之间的转换关系
+    // 计算lidar坐标系与二维码坐标系之间的转换关系，奇异值分解法
     std::vector<double> calTrans_SVD()
     {
         // 读取Lidarmap_table.txt
@@ -660,93 +687,169 @@ public:
         return output;
     }
 
-    // 使用轮速进行位姿递推
-    void velRecursive(geometry_msgs::Twist vel, ros::Time time)
+    // 设置递推初始值
+    void setEstimationInitialPose(nav_msgs::Odometry odom)
     {
-        std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
+        std::lock_guard<std::mutex> locker(QRcodeLoc::odom_init_mtx);
+        odom_estimation_init = odom;
+    }
+    
+    // 获取递推初始值
+    nav_msgs::Odometry getEstimationInitialPose()
+    {
+        std::lock_guard<std::mutex> locker(QRcodeLoc::odom_init_mtx);
+        return odom_estimation_init;
+    }
 
-        // 输入轮速信息
-        const geometry_msgs::Twist twist = vel;
+    // 使用轮速进行位姿递推
+    nav_msgs::Odometry poseEstimation(nav_msgs::Odometry odom_init, geometry_msgs::Twist vel, ros::Time time_now)
+    {
+        nav_msgs::Odometry odom_final;
 
         // 计算时间间隔，更新时间戳
-        double dt = (time - odom_map.header.stamp).toSec();
-        odom_map.header.stamp = time;
-
+        double dt = (time_now - odom_init.header.stamp).toSec();
+        
         // 方向递推
-        double yaw = getYawRad(odom_map.pose.pose.orientation) + (twist.angular.z + realVelOffset_z) * realVelRatio_z * dt;
+        double yaw = getYawRad(odom_init.pose.pose.orientation) + (vel.angular.z + realVelOffset_z) * realVelRatio_z * dt;
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, yaw);
-        tf::quaternionTFToMsg(q, odom_map.pose.pose.orientation);
+        tf::quaternionTFToMsg(q, odom_final.pose.pose.orientation);
 
         // 位置递推
-        odom_map.pose.pose.position.x += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
-        odom_map.pose.pose.position.y += (twist.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
+        odom_final.pose.pose.position.x = odom_init.pose.pose.position.x + (vel.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
+        odom_final.pose.pose.position.y = odom_init.pose.pose.position.y + (vel.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
 
-        // 记录此帧
-        save_log(odom_map, pic.code);
-        
         // 数据来源
-        odom_map.pose.covariance[1] = 1;   // 此帧数据来源，0：二维码 1：轮速计递推
-        
-        // 发布递推后的位姿
-        pubOdomMap();        
+        odom_final.pose.covariance[2] = 1; // 此帧数据来源，0：二维码 1：轮速计递推
+
+        // 时间戳
+        odom_final.header.stamp = time_now;
+
+        // 返回值
+        return odom_final;
     }
 
-    // callback获取/realvel
+    // 获取/realvel的回调函数
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &velmsg)
     {
-        if (3 == mode) //使用论速计递推
+        if (3 == mode) // 使用轮速计递推
         {
-            geometry_msgs::Twist vel; //当前论速记数据
+            // 获取轮速(base_link)
+            geometry_msgs::Twist vel; // 当前论速记数据
             vel = *velmsg;
-            velRecursive(vel, ros::Time::now());
+
+            // 获取初始位姿
+            nav_msgs::Odometry odom_init = getEstimationInitialPose();
+
+            // 估计base当前时刻位姿(map--->base_link)
+            nav_msgs::Odometry odom_est = poseEstimation(odom_init, vel, ros::Time::now());
+            std::vector<nav_msgs::Odometry> v_odom;
+            v_odom.push_back(odom_est);
+
+            // 计算定位相机当前时刻位姿(map--->locCamera_link)
+            geometry_msgs::Pose pose_camera2map;
+            std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
+            tf2::doTransform(t2p(trans_camera2base), pose_camera2map, p2t(odom_est.pose.pose));
+            odom_est.pose.pose = pose_camera2map;
+            odom_est.child_frame_id = "locCamera_link";
+            v_odom.push_back(odom_est);
+
+            // 发布递推后的位姿
+            pubOdom(v_odom);
         }
     }
 
-    // 发布map坐标系定位结果
-    void pubOdomMap()
+    // 发布定位结果
+    void pubOdom(std::vector<nav_msgs::Odometry> v_odom)
     {
-        static nav_msgs::Odometry last_odom_qrcode;
+        // 主要需要输出的消息
+        nav_msgs::Odometry odom_map_base = v_odom[0];
+        nav_msgs::Odometry odom_map_camera = v_odom[1];
 
-        // 更新由二维码得到的位姿
-        if(0 == odom_map.pose.covariance[1])
+        // 更新由扫描二维码得到的位姿
+        static nav_msgs::Odometry odom_hook;
+        if (0 == odom_map_base.pose.covariance[2])
         {
-            last_odom_qrcode = odom_map;
+            odom_hook = odom_map_base;
         }
 
-        // 计算递推的距离
-        float dis = sqrt( pow((odom_map.pose.pose.position.x - last_odom_qrcode.pose.pose.position.x), 2) +
-                          pow((odom_map.pose.pose.position.y - last_odom_qrcode.pose.pose.position.y), 2));
+        // 计算当前已经递推的距离
+        float dis = sqrt(pow((odom_map.pose.pose.position.x - odom_hook.pose.pose.position.x), 2) +
+                         pow((odom_map.pose.pose.position.y - odom_hook.pose.pose.position.y), 2));
 
-        // 递推的距离首否超限
-        if(dis > maxRecursiveDis)
+        // 若递推的距离超限，则定位数据不可用
+        if (dis > maxEstimationDis)
         {
-            odom_map.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+            // map--->base_link
+            odom_map_base.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+            odom_map_base.pose.covariance[1] = 1; // 此帧数据不可用的原因：0：离开运行区域 1：递推长度超出限制
+            // map--->locCamera_link
+            odom_map_camera.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+            odom_map_camera.pose.covariance[1] = 1; // 此帧数据不可用的原因：0：离开运行区域 1：递推长度超出限制
         }
-        else
+        else // 递推的距离未超限
         {
-            // 是否在运行区域内
-            if (operating_area->isInArea(odom_map.pose.pose.position.x, odom_map.pose.pose.position.y))
+            // 检测是否在运行区域内
+            if (operating_area->isInArea(odom_map_base.pose.pose.position.x, odom_map_base.pose.pose.position.y))
             {
-                odom_map.pose.covariance[0] = 1; // 此帧数据是否可用，0：不可用 1：可用
+                // map--->base_link
+                odom_map_base.pose.covariance[0] = 1; // 此帧数据是否可用，0：不可用 1：可用
+                // map--->locCamera_link
+                odom_map_camera.pose.covariance[0] = 1; // 此帧数据是否可用，0：不可用 1：可用
             }
             else
             {
-                odom_map.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+                // map--->base_link
+                odom_map_base.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+                odom_map_base.pose.covariance[1] = 0; // 此帧数据不可用的原因：0：离开运行区域 1：递推长度超出限制
+                // map--->locCamera_link
+                odom_map_camera.pose.covariance[0] = 0; // 此帧数据是否可用，0：不可用 1：可用
+                odom_map_camera.pose.covariance[1] = 0; // 此帧数据不可用的原因：0：离开运行区域 1：递推长度超出限制
             }
         }
 
-        // 发布消息
-        pub_odom_map.publish(odom_map);
-    }
+        // 发布odom消息
+        pub_odom_map_base.publish(odom_map_base);
+        pub_odom_map_camera.publish(odom_map_camera);
 
-    // 发布qmap坐标系定位结果
-    void pubOdomQmap(){
-        pub_odom_qrmap.publish(odom_qrmap);
+        // 输出的路线消息
+        static nav_msgs::Path path_map_base;
+        static nav_msgs::Path path_map_camera;
+
+        if(1 == odom_map_base.pose.covariance[0]) // 此帧数据是否可用，不可用不计入路线消息
+        {
+            geometry_msgs::PoseStamped poseStamped;
+
+            path_map_base.header = odom_map_base.header;
+            poseStamped.header = odom_map_base.header;
+            poseStamped.pose = odom_map_base.pose.pose;
+            path_map_base.poses.push_back(poseStamped);
+            pub_path_map_base.publish(path_map_base);
+
+            path_map_camera.header = odom_map_camera.header;
+            poseStamped.header = odom_map_camera.header;
+            poseStamped.pose = odom_map_camera.pose.pose;
+            path_map_camera.poses.push_back(poseStamped);
+            pub_path_map_camera.publish(path_map_camera);
+        }
+
+        if(4 == v_odom.size()) // 4个odom，扫二维码得到
+        {
+            // 测试需要输出的消息
+            nav_msgs::Odometry odom_qrmap_base = v_odom[2];
+            nav_msgs::Odometry odom_qrmap_camera = v_odom[3];
+
+            pub_odom_qrmap_base.publish(odom_qrmap_base);
+            pub_odom_qrmap_camera.publish(odom_qrmap_camera);
+        }
+
+        // 保存到log
+        save_log(odom_map, pic.code);
     }
 
     // 发布TF
-    void pubTf(const nav_msgs::Odometry odom){
+    void pubTf(const nav_msgs::Odometry odom)
+    {
         // 定义变换
         tf::Transform transform;
         static nav_msgs::Odometry odom_history;
@@ -761,9 +864,9 @@ public:
                                         odom.pose.pose.position.y,
                                         odom.pose.pose.position.z));
         transform.setRotation(tf::Quaternion(odom.pose.pose.orientation.x,
-                                                odom.pose.pose.orientation.y,
-                                                odom.pose.pose.orientation.z,
-                                                odom.pose.pose.orientation.w));
+                                             odom.pose.pose.orientation.y,
+                                             odom.pose.pose.orientation.z,
+                                             odom.pose.pose.orientation.w));
         br.sendTransform(tf::StampedTransform(transform, odom.header.stamp, "odom", "base_link"));
 
         double xerror = odom.pose.pose.position.x - odom_history.pose.pose.position.x;
@@ -789,56 +892,54 @@ public:
     {
         static std::list<nav_msgs::Odometry> odom_map_history;
 
-        //保存历史帧
+        // 保存历史帧
         odom_map_history.push_back(msg);
 
-        //控制数量
+        // 控制数量
         uint8_t frame_num = 40;
-        if(odom_map_history.size() > frame_num)
+        if (odom_map_history.size() > frame_num)
         {
             odom_map_history.pop_front();
         }
 
-        if(odom_map_history.size() < 2)
+        if (odom_map_history.size() < 2)
         {
             return;
         }
-        //筛选情况，记录跳变
-        if(1 == odom_map_history.back().pose.covariance[0])
+        // 筛选情况，记录跳变
+        if (1 == odom_map_history.back().pose.covariance[0])
         {
             int sum = 0;
-            for(std::list<nav_msgs::Odometry>::iterator it = odom_map_history.begin(); it != odom_map_history.end(); it++)
+            for (std::list<nav_msgs::Odometry>::iterator it = odom_map_history.begin(); it != odom_map_history.end(); it++)
             {
                 sum += it->pose.covariance[0];
             }
-            if(frame_num*2-1 == sum)
+            if (frame_num * 2 - 1 == sum)
             {
                 nav_msgs::Odometry BackofJump = odom_map_history.back();
                 odom_map_history.pop_back();
                 nav_msgs::Odometry BeforeofJump = odom_map_history.back();
                 odom_map_history.push_back(BackofJump);
 
-                double xerror = BackofJump.pose.pose.position.x 
-                              - BeforeofJump.pose.pose.position.x;
-                double yerror = BackofJump.pose.pose.position.y 
-                              - BeforeofJump.pose.pose.position.y;
+                double xerror = BackofJump.pose.pose.position.x - BeforeofJump.pose.pose.position.x;
+                double yerror = BackofJump.pose.pose.position.y - BeforeofJump.pose.pose.position.y;
 
                 std::stringstream stream;
                 stream.str("");
                 stream << format_time(BackofJump.header.stamp)
-                    << "," << code << std::fixed << std::setprecision(4)
-                    << "," << BackofJump.header.stamp.toSec()
-                    << "," << sqrt(pow(xerror, 2) + pow(yerror, 2))
-                    << "," << xerror
-                    << "," << yerror
-                    << "," << getYaw(BackofJump.pose.pose) - getYaw(BeforeofJump.pose.pose)
-                    << "," << BackofJump.pose.pose.position.x
-                    << "," << BackofJump.pose.pose.position.y
-                    << "," << getYaw(BackofJump.pose.pose)
-                    << "," << BeforeofJump.header.stamp.toSec()
-                    << "," << BeforeofJump.pose.pose.position.x
-                    << "," << BeforeofJump.pose.pose.position.y
-                    << "," << getYaw(BeforeofJump.pose.pose);
+                       << "," << code << std::fixed << std::setprecision(4)
+                       << "," << BackofJump.header.stamp.toSec()
+                       << "," << sqrt(pow(xerror, 2) + pow(yerror, 2))
+                       << "," << xerror
+                       << "," << yerror
+                       << "," << getYaw(BackofJump.pose.pose) - getYaw(BeforeofJump.pose.pose)
+                       << "," << BackofJump.pose.pose.position.x
+                       << "," << BackofJump.pose.pose.position.y
+                       << "," << getYaw(BackofJump.pose.pose)
+                       << "," << BeforeofJump.header.stamp.toSec()
+                       << "," << BeforeofJump.pose.pose.position.x
+                       << "," << BeforeofJump.pose.pose.position.y
+                       << "," << getYaw(BeforeofJump.pose.pose);
                 logger->log(stream.str());
             }
         }
@@ -847,6 +948,7 @@ public:
     // 保存log
     void save_log(const nav_msgs::Odometry msg, uint32_t code)
     {
+        // 获取当前定位
         try
         {
             trans_base2map = buffer.lookupTransform("odom", "base_link", ros::Time(0));
@@ -894,12 +996,11 @@ public:
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, code_info.yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_qrcode2map.orientation);
-        // double yaw_qrcode2map = getYaw(pose_qrcode2map);
+
         //  相机到二维码变换关系
         geometry_msgs::Pose pose_camera2qrcode;
         q.setRPY(0.0, 0.0, pic.error_yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_camera2qrcode.orientation);
-        // double yaw_camera2qrcode = getYaw(pose_camera2qrcode);
         tf::Matrix3x3 m(q);
         tf::Matrix3x3 inv_m(m);
         tf::Vector3 v(pic.error_x / 1000.0, pic.error_y / -1000.0, 0.0);
@@ -919,7 +1020,7 @@ public:
     }
 
     // 计算base_link在qrmap和map坐标系下的坐标
-    std::vector<geometry_msgs::Pose> get_pose_qrcodemap(CameraFrame pic, QRcodeInfo code_info)
+    std::vector<geometry_msgs::Pose> get_pose(QRcodeInfo code_info)
     {
         // 二维码到QRmap
         geometry_msgs::Pose pose_qrcode2qrmap;
@@ -929,35 +1030,40 @@ public:
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, code_info.yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_qrcode2qrmap.orientation);
-        // double yaw_qrcode2qrmap = getYaw(pose_qrcode2qrmap);
+
         //  相机到二维码
         geometry_msgs::Pose pose_camera2qrcode;
-        q.setRPY(0.0, 0.0, pic.error_yaw * M_PI / 180);
+        q.setRPY(0.0, 0.0, code_info.frame.error_yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_camera2qrcode.orientation);
-        // double yaw_camera2qrcode = getYaw(pose_camera2qrcode);
         tf::Matrix3x3 m(q);
         tf::Matrix3x3 inv_m(m);
-        tf::Vector3 v(pic.error_x / 1000.0, pic.error_y / -1000.0, 0.0);
+        tf::Vector3 v(code_info.frame.error_x / 1000.0, code_info.frame.error_y / -1000.0, 0.0);
         inv_m.inverse();                                         // 求逆
         pose_camera2qrcode.position.x = -inv_m.getRow(0).dot(v); //(row0(0)*v.getX() + inv_m(0,1)*v.getX() +inv_m(0,2)*v.getZ());
         pose_camera2qrcode.position.y = -inv_m.getRow(1).dot(v); //-(inv_m(1,0)*v.getX() + inv_m(1,1)*v.getX() +inv_m(1,2)*v.getZ());
         pose_camera2qrcode.position.z = 0.0;
+
         // 相机到QRmap
         geometry_msgs::Pose pose_camera2qrmap;
         tf2::doTransform(pose_camera2qrcode, pose_camera2qrmap, p2t(pose_qrcode2qrmap));
-        // double yaw_camera2qrmap = getYaw(pose_camera2qrmap);
+
+        // 相机到map_copy
+        geometry_msgs::Pose pose_camera2mapcopy;
+        tf2::doTransform(pose_camera2qrmap, pose_camera2mapcopy, p2t(pose_qrmap2mapcopy));
+
         //  base_link到QRmap
         geometry_msgs::Pose pose_base2qrmap;
         tf2::doTransform(t2p(trans_base2camera), pose_base2qrmap, p2t(pose_camera2qrmap));
-        // double yaw_base2qrmap = getYaw(pose_base2qrmap);
+
         //  base_link到map_copy
         geometry_msgs::Pose pose_base2mapcopy;
         tf2::doTransform(pose_base2qrmap, pose_base2mapcopy, p2t(pose_qrmap2mapcopy));
-        // double yaw_base2mapcopy = getYaw(pose_base2mapcopy);
 
         std::vector<geometry_msgs::Pose> output;
-        output.push_back(pose_base2qrmap);
         output.push_back(pose_base2mapcopy);
+        output.push_back(pose_camera2mapcopy);
+        output.push_back(pose_base2qrmap);
+        output.push_back(pose_camera2qrmap);
 
         return output;
     }
@@ -965,7 +1071,7 @@ public:
     // 主循环
     void mainloopThread()
     {
-        if (1 == mode) //采集二维码位姿
+        if (1 == mode) // 采集二维码位姿
         {
             ROS_INFO("mode: 1");
             ros::Rate loop_rate(100); // 主循环 100Hz
@@ -979,18 +1085,6 @@ public:
                     {
                         geometry_msgs::Pose pose_base2map = get_pose_lidarmap(pic, code_info);
 
-                        // 发布base_link坐标
-                        odom_map.header.stamp = pic.stamp;
-                        odom_map.header.frame_id = "map";
-                        odom_map.child_frame_id = "base_link";
-                        odom_map.header.seq = pic.index;
-                        odom_map.pose.pose = pose_base2map;
-                        odom_map.pose.covariance[0] = 1;            // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-                        odom_map.pose.covariance[1] = pic.duration; // 相机处理图像用时(s)
-                        pub_odom_map.publish(odom_map);
-
-                        save_log(odom_map, pic.code);
-
                         // 发布 /qrCodeMsg
                         if (show_msg)
                         {
@@ -1002,17 +1096,12 @@ public:
                             pub_qrCodeMsg.publish(msg);
                         }
                     }
-                    else
-                    {
-                        odom_map.pose.covariance[0] = 0; // 此帧数据来源，0：数据不可用 1：扫码得到，2:递推得到
-                        pub_odom_map.publish(odom_map);
-                    }
                 }
                 loop_rate.sleep();
                 ros::spinOnce();
             }
         }
-        else if (2 == mode) //使用SVD计算qmap与lidarmap间的转换关系
+        else if (2 == mode) // 使用SVD计算qmap与lidarmap间的转换关系
         {
             ROS_INFO("mode: 2");
             std::vector<double> trans = calTrans_SVD();
@@ -1023,7 +1112,7 @@ public:
             std::cout << std::endl;
             return;
         }
-        else if (3 == mode) //使用论速计递推
+        else if (3 == mode) // 使用论速计递推
         {
             ROS_INFO("mode: 3 ");
             QRcodeInfo code_info;     // 查询二维码坐标
@@ -1037,28 +1126,46 @@ public:
                         std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
 
                         // 计算base_link在qrmap坐标和map坐标的坐标
-                        std::vector<geometry_msgs::Pose> pose = get_pose_qrcodemap(pic, code_info);
+                        std::vector<geometry_msgs::Pose> pose = get_pose(code_info);
 
-                        // base_link到qrmap坐标
-                        odom_qrmap.header.stamp = pic.stamp;
-                        odom_qrmap.header.frame_id = "qrmap";
-                        odom_qrmap.child_frame_id = "base_link";
-                        odom_qrmap.header.seq = pic.index;
-                        odom_qrmap.pose.pose = pose[0];
-                        pubOdomQmap();
+                        // 定义变量
+                        std::vector<nav_msgs::Odometry> v_odom;
+                        nav_msgs::Odometry odom;
 
-                        // base_link到map坐标
-                        odom_map.header.stamp = pic.stamp;
-                        odom_map.header.frame_id = "map";
-                        odom_map.child_frame_id = "base_link";
-                        odom_map.header.seq = pic.index;
-                        odom_map.pose.pose = pose[1];
-                        odom_map.pose.covariance[1] = 0;   // 此帧数据来源，0：二维码 1：轮速计递推
-                        // 发布坐标
-                        pubOdomMap();
-                        
-                        // 保存到log
-                        //save_log(odom_map, pic.code);
+                        // 相同的项
+                        odom.header.stamp = pic.stamp;
+                        odom.header.seq = pic.index;
+                        odom.pose.covariance[2] = 0; // 此帧数据来源，0：二维码 1：轮速计递推  
+
+                        // map ---> base_link
+                        odom.header.frame_id = "map";
+                        odom.child_frame_id = "base_link";
+                        odom.pose.pose = pose[0];
+                        v_odom.push_back(odom);
+
+                        // 设置轮速计递推的初始值
+                        setEstimationInitialPose(odom);
+
+                        // map ---> locCamera_link
+                        odom.header.frame_id = "map";
+                        odom.child_frame_id = "locCamera_link";
+                        odom.pose.pose = pose[1];
+                        v_odom.push_back(odom);
+
+                        // qrmap ---> base_link
+                        odom.header.frame_id = "qrmap";
+                        odom.child_frame_id = "base_link";
+                        odom.pose.pose = pose[2];
+                        v_odom.push_back(odom);
+
+                        // qrmap ---> locCamera_link
+                        odom.header.frame_id = "qrmap";
+                        odom.child_frame_id = "locCamera_link";
+                        odom.pose.pose = pose[3];
+                        v_odom.push_back(odom);
+
+                        // 发布消息
+                        pubOdom(v_odom);
                     }
                 }
 
