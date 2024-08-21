@@ -418,6 +418,7 @@ public:
     // 判定该点是否为本区域内的点，区域内部点出发的射线与区域边相交的次数为奇数
     bool isInArea(float x, float y)
     {
+        return true;
         int corss_num = 0;
         for (std::list<LineSegment>::iterator it = linelist.begin(); it != linelist.end(); it++)
         {
@@ -477,8 +478,6 @@ public:
     
     nav_msgs::Odometry odom_map_base;
     nav_msgs::Odometry odom_map_camera;
-    nav_msgs::Path     path_map_base;
-    nav_msgs::Path     path_map_camera;
 
     nav_msgs::Odometry odom_qrmap_base;
     nav_msgs::Odometry odom_qrmap_camera;
@@ -743,6 +742,7 @@ public:
 
             // 估计base当前时刻位姿(map--->base_link)
             nav_msgs::Odometry odom_est = poseEstimation(odom_init, vel, ros::Time::now());
+            setEstimationInitialPose(odom_est);
             std::vector<nav_msgs::Odometry> v_odom;
             v_odom.push_back(odom_est);
 
@@ -811,14 +811,14 @@ public:
         // 发布odom消息
         pub_odom_map_base.publish(odom_map_base);
         pub_odom_map_camera.publish(odom_map_camera);
+        pubTf(odom_map_base);
 
         // 输出的路线消息
-        static nav_msgs::Path path_map_base;
-        static nav_msgs::Path path_map_camera;
-
         if(1 == odom_map_base.pose.covariance[0]) // 此帧数据是否可用，不可用不计入路线消息
         {
             geometry_msgs::PoseStamped poseStamped;
+            static nav_msgs::Path path_map_base;
+            static nav_msgs::Path path_map_camera;
 
             path_map_base.header = odom_map_base.header;
             poseStamped.header = odom_map_base.header;
@@ -844,7 +844,7 @@ public:
         }
 
         // 保存到log
-        save_log(odom_map, pic.code);
+        //save_log(odom_map, pic.code);
     }
 
     // 发布TF
@@ -885,6 +885,7 @@ public:
                << "," << getYaw(odom.pose.pose);
         logger->log(stream.str());
         odom_history = odom;
+        //std::cout << stream.str() << std::endl;
     }
 
     // 保存error
