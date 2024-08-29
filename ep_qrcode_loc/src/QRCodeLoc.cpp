@@ -3,6 +3,7 @@
 #include "polygon.hpp"
 #include "camera.hpp"
 #include "qrcode_table.hpp"
+#include "qrcode_table_v2.hpp"
 
 // 二维码定位
 class QRcodeLoc : public ParamServer
@@ -25,6 +26,8 @@ public:
     QRcodeTable *QRmap_tab;
     QRcodeTable *Lidarmap_tab;
     MV_SC2005AM *camera;
+    QRcodeTableV2 *qrcode_table;
+
     Polygon *operating_area;
 
     std::ofstream log_err;
@@ -85,12 +88,6 @@ public:
                                                              this, ros::TransportHints().tcpNoDelay());
         }
 
-        // 实例化两个表格、定位相机、运行区域
-        QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
-        Lidarmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-LidarMapTable.txt");
-        camera = new MV_SC2005AM();
-        operating_area = new Polygon();
-
         // 从TF获取baselink---->camera的变换关系
         tfListener = new tf2_ros::TransformListener(buffer);
         bool tferr = true;
@@ -110,6 +107,17 @@ public:
                 continue;
             }
         }
+
+        // 实例化两个表格、定位相机、运行区域
+        QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
+        Lidarmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-LidarMapTable.txt");
+
+        qrcode_table = new QRcodeTableV2(cfg_dir + "SiteTable.txt", trans_camera2base);
+
+        camera = new MV_SC2005AM();
+        operating_area = new Polygon();
+
+
 
         stream.str("");
         stream << " init "

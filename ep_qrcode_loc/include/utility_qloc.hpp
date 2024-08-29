@@ -219,6 +219,18 @@ struct QRcodeInfo
     double y;
     double yaw;
     CameraFrame frame;
+
+    QRcodeInfo(){};
+
+    QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_)
+    {
+        code = code_;
+        x = x_;
+        y = y_;
+        yaw = yaw_;
+    }
+
+    ~QRcodeInfo(){}
 };
 
 class ParamServer
@@ -255,6 +267,11 @@ public:
 
     int yawAverageNum;
 
+    double detect_site_dis;
+    double aux_site_dis;
+    double forkaction_site_dis;
+    double site_site_dis;
+
     ParamServer(){
         nh.param<std::string>("ep_qrcode_loc/odomMapBase",   odomMapBase,   "ep_qrcode_loc/odometry/base");
         nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
@@ -287,6 +304,11 @@ public:
         nh.param<int>("ep_qrcode_loc/yawAverageNum", yawAverageNum, 5);
         nh.param<std::vector<float>>("ep_qrcode_loc/enableArea", enableArea, std::vector<float>());
         nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 2.0);
+
+        nh.param<double>("ep_qrcode_loc/detect_site_dis", detect_site_dis, 1.8);
+        nh.param<double>("ep_qrcode_loc/aux_site_dis", aux_site_dis, 1.365);
+        nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
+        nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
 
         // // 日志文件初始化
         // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";

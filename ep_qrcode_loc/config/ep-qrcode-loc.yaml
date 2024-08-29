@@ -63,5 +63,10 @@ ep_qrcode_loc:
                 350, -200, 
                 300, -200]
 
+  detect_site_dis: 1.8
+  aux_site_dis: 1.365
+  forkaction_site_dis: 0.93
+  site_site_dis: 1.36
+
 #rosbag record /lslidar_trans_points /imu /tf_static /ep_qrcode_loc/odometry/base
   

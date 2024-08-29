@@ -6,44 +6,114 @@
 // 贴在地上的二维码
 struct QRcodeGround
 {
-    uint32_t index;                                    // 序号
-    geometry_msgs::TransformStamped trans_site_qrcode; // 与绑定站点之间的变换关系
-    double x_err;                                      // x方向补偿值，单位m
-    double y_err;                                      // y方向补偿值，单位m
-    double yaw_err;                                    // yaw方向补偿值,单位角度
-    nav_msgs::Odometry pose_map_qrcode;                // 位姿
+    uint32_t index_;           // 序号
+    geometry_msgs::Pose pose_; // 位姿
+
+    double x_err_;   // x方向补偿值，单位m
+    double y_err_;   // y方向补偿值，单位m
+    double yaw_err_; // yaw方向补偿值,单位角度
 };
 
 // 库位
 struct Site
 {
-    uint32_t list_index;     // 所在列编号
-    uint32_t index;          // 库位编号
-    nav_msgs::Odometry pose; // 位姿
-    QRcodeGround action_point;
-    QRcodeGround aux_point;
-    QRcodeGround detect_point;
+    uint32_t list_index_;      // 所在列编号
+    uint32_t index_;           // 库位编号
+    geometry_msgs::Pose pose_; // 位姿
+
+    QRcodeGround detect_point_qrcode_;
+    QRcodeGround aux_point_qrcode_;
+    QRcodeGround action_point_qrcode_;
+
+    Site(uint32_t list_index,                               // 所在列编号
+         uint32_t index,                                    // 库位编号
+         geometry_msgs::Pose pose,                          // 库位位姿
+         std::vector<QRcodeGround> qrcodes,                 // 对应二维码
+         std::vector<double> dis_vec,                       // 三个距离参数
+         geometry_msgs::TransformStamped trans_base_camera) // 相机到base的变换
+    {
+        list_index_ = list_index;
+        index_ = index;
+        pose_ = pose;
+
+        detect_point_qrcode_ = qrcodes[0];
+        aux_point_qrcode_ = qrcodes[1];
+        action_point_qrcode_ = qrcodes[2];
+
+        detect_point_qrcode_.pose_ = this->move(dis_vec[0] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
+        aux_point_qrcode_.pose_    = this->move(dis_vec[1] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
+        action_point_qrcode_.pose_ = this->move(dis_vec[2] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
+    }
+
+    ~Site(){}
+
+    geometry_msgs::Pose move(double dis_front, double dis_left)
+    {
+        geometry_msgs::Pose pose_move;
+        
+        pose_move.position.x = pose_.position.x + dis_front * cos(getYaw(pose_));
+        pose_move.position.y = pose_.position.y + dis_front * sin(getYaw(pose_));
+
+        pose_move.position.x +=  dis_left * (-1)*sin(getYaw(pose_)); //cos(x+90) = -sin(x)
+        pose_move.position.y +=  dis_left * cos(getYaw(pose_)); // sin(x+90) = cos(x)
+
+        pose_move.orientation = pose_.orientation;
+        return pose_move;
+    }
 };
 
 // 库位列
 struct SiteList
 {
-    uint32_t index;                           // 库位列编号
-    nav_msgs::Odometry pose_benchmark;        // 列基准点
-    nav_msgs::Odometry pose_first_site;       // 列首库位位姿
-    uint16_t site_num;                        // 列内库位数量
-    std::list<QRcodeGround> front_aux_points; // 列首的辅助二维码
-    std::list<Site> sites;                    // 列内的库位
+    uint32_t index_; // 库位列编号
+    std::vector<double> dis_vec_;
+    double site_dis_;
+    geometry_msgs::TransformStamped trans_base_camera_;
+    std::list<Site> sites_;                    // 列内的库位
+    std::list<QRcodeGround> front_aux_points_; // 列首的辅助二维码
+    geometry_msgs::Pose pose_cross_;           // 轴线与主干道垂直交点
+
+    SiteList(uint32_t index, std::vector<double> dis_vec, geometry_msgs::TransformStamped trans_base_camera)
+    {
+        index_ = index;
+        site_dis_ = dis_vec.back();
+        dis_vec.pop_back();
+        dis_vec_ = dis_vec;
+        trans_base_camera_ = trans_base_camera;
+    }
+
+    ~SiteList() {}
+
+    void set_first_site(geometry_msgs::Pose pose, std::vector<QRcodeGround> qrcodes)
+    {
+        Site site_new(index_, sites_.size(), pose, qrcodes, dis_vec_, trans_base_camera_);
+        sites_.clear();
+        sites_.push_back(site_new);
+    }
+
+    void add_site(std::vector<QRcodeGround> qrcodes)
+    {
+        double num = -1 * int(sites_.size()) * site_dis_;
+        geometry_msgs::Pose pose_site = sites_.front().move(num, 0.0); // 库位位姿
+        Site site_new(index_, sites_.size(), pose_site, qrcodes, dis_vec_, trans_base_camera_);
+        sites_.push_back(site_new);
+    }
+
+    void add_aux_points(std::vector<QRcodeGround> qrcodes)
+    {
+        for (std::vector<QRcodeGround>::iterator it = qrcodes.begin(); it != qrcodes.end(); it++)
+        {
+            front_aux_points_.push_back(*it);
+        }
+    }
 };
 
 // 二维码坐标对照表
 class QRcodeTableV2 : public ParamServer
 {
 private:
-    geometry_msgs::TransformStamped trans_site_action; // 库位到货叉动作点变换
-    geometry_msgs::TransformStamped trans_site_aux;    // 库位到辅助点变换
-    geometry_msgs::TransformStamped trans_site_detect; // 库位到检测点变换
-    std::list<SiteList> sitelists;                     // 各个列
+            
+    std::vector<SiteList> siteList_lib; // 各个列
     std::map<uint32_t, QRcodeInfo> map;                // 最终生成的二维码位姿表
 
     std::mutex mtx;
@@ -54,7 +124,7 @@ private:
     std::ifstream ifs;
 
 public:
-    QRcodeTableV2(std::string site_info_path, std::string aux_point_info_path)
+    QRcodeTableV2(std::string site_info_path, geometry_msgs::TransformStamped trans_base_camera)
     {
         // 读取文本文件中库位相关信息
         logger = &Logger::getInstance();
@@ -64,17 +134,117 @@ public:
         {
             logger->log(site_info_path + "打开失败!");
         }
-        std::list<Site> site_lib;
+        else
+        {
+            logger->log(site_info_path + "打开成功!");
+        }
         std::string buf;               // 将数据存放到c++ 中的字符串中
         while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
         {
             std::stringstream line_ss;
             line_ss << buf;
-            Site cur_site;
-            line_ss >> info.code >> info.x >> info.y >> info.yaw;
-            map.insert(std::pair<uint32_t, QRcodeInfo>(info.code, info));
+
+            // 定义变量
+            uint32_t list_index, site_index;
+            double pose_x_first, pose_y_first, pose_yaw_first, site_dis;
+            QRcodeGround detect, aux, action;
+
+            // 提取信息
+            line_ss >> list_index >> site_index 
+                    >> pose_x_first >> pose_y_first >> pose_yaw_first >> site_dis 
+                    >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
+                    >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
+                    >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
+
+            // 新建列
+            size_t listlibsize = siteList_lib.size();
+            if ((0 == siteList_lib.size()) || list_index != siteList_lib[listlibsize - 1].index_)
+            {
+                // 几个距离参数
+                std::vector<double> dis_vec;
+                dis_vec.push_back(detect_site_dis);
+                dis_vec.push_back(aux_site_dis);
+                dis_vec.push_back(forkaction_site_dis);
+                dis_vec.push_back(site_site_dis);
+
+                // 新建列
+                SiteList siteList_new(list_index, dis_vec, trans_base_camera);
+                siteList_lib.push_back(siteList_new);
+            }
+
+            // 打包3个二维码信息
+            std::vector<QRcodeGround> qrcodes;
+            qrcodes.push_back(detect);
+            qrcodes.push_back(aux);
+            qrcodes.push_back(action);
+            
+            if(0 == site_index)
+            {
+                // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
+                siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
+            }
+            else if(1 == site_index)
+            {
+                // 列首库位pose
+                geometry_msgs::Pose pose_first_site;
+                pose_first_site.position.x = pose_x_first;
+                pose_first_site.position.y = pose_y_first;
+                tf::Quaternion q;
+                q.setRPY(0.0, 0.0, pose_yaw_first * M_PI / 180.0);
+                tf::quaternionTFToMsg(q, pose_first_site.orientation);
+
+                // 设置列首库位
+                siteList_lib[siteList_lib.size() - 1].set_first_site(pose_first_site, qrcodes);
+            }
+            else if(1 < site_index)
+            {
+                // 添加新库位
+                siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
+            }
+            else
+            {
+                std::cout << "列编号有误！" << std::endl;
+            }
         }
         ifs.close();
+        logger->log(site_info_path + "读取完毕!");
+
+        // 遍历提取每个二维码的信息
+        for (std::vector<SiteList>::iterator list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
+        {
+            // 每个库位对应的3个点
+            for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
+            {
+                // 识别点对应二维码
+                QRcodeInfo info_detect(site_it->detect_point_qrcode_.index_,
+                                       site_it->detect_point_qrcode_.pose_.position.x,
+                                       site_it->detect_point_qrcode_.pose_.position.y,
+                                       getYaw(site_it->detect_point_qrcode_.pose_));
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info_detect.code, info_detect));
+
+                // 辅助点对应二维码
+                QRcodeInfo info_aux(site_it->aux_point_qrcode_.index_,
+                                    site_it->aux_point_qrcode_.pose_.position.x,
+                                    site_it->aux_point_qrcode_.pose_.position.y,
+                                    getYaw(site_it->aux_point_qrcode_.pose_));
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info_aux.code, info_aux));
+
+                // 货叉动作点对应二维码
+                QRcodeInfo info_action(site_it->action_point_qrcode_.index_,
+                                       site_it->action_point_qrcode_.pose_.position.x,
+                                       site_it->action_point_qrcode_.pose_.position.y,
+                                       getYaw(site_it->action_point_qrcode_.pose_));
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info_action.code, info_action));
+            }
+
+            // 列首辅助二维码
+            for (std::list<QRcodeGround>::iterator it = list_it->front_aux_points_.begin(); it != list_it->front_aux_points_.end(); it++)
+            {
+                QRcodeInfo info_action(it->index_, it->pose_.position.x, it->pose_.position.y, getYaw(it->pose_));
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info_action.code, info_action));
+            }
+        }
+
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
         logger->log(stream.str());
@@ -84,15 +254,6 @@ public:
             stream << (*it).second.code << " " << (*it).second.x << " " << (*it).second.y << " " << (*it).second.yaw;
             logger->log(stream.str());
         }
-
-        // 读取文本文件中额外二维码的信息
-
-
-        // 读取参数中的变换关系
-
-
-        // 计算二维码位姿，存在map中
-
     }
 
     ~QRcodeTableV2(){}
