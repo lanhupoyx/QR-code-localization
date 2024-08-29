@@ -7,7 +7,9 @@ class LineSegment
 {
 private:
     float x1_, y1_, x2_, y2_;
-    float a_, b_;
+    float a_, b_;// y = ax+b
+    float x_; // x = n
+    float y_; // y = n
 
     Logger *logger;
 
@@ -15,12 +17,20 @@ public:
     LineSegment(float x1, float y1, float x2, float y2) : x1_(x1), y1_(y1), x2_(x2), y2_(y2)
     {
         logger = &Logger::getInstance();
-        if (x1 == x2)
+        if (x1_ == x2_)
         {
-            logger->log("error: x1 == x2");
+            // logger->log("error: x1 == x2");
+            x_ = x1_;
         }
-        a_ = (y1_ - y2_) / (x1_ - x2_);
-        b_ = y1_ - a_ * x1_;
+        else if (y1_ == y2_)
+        {
+            y_ = y1_;
+        }
+        else
+        {
+            a_ = (y1_ - y2_) / (x1_ - x2_);
+            b_ = y1_ - a_ * x1_;
+        }
     }
 
     ~LineSegment() {}
@@ -28,18 +38,48 @@ public:
     // 判定从该点出发的射线是否与本线段相交
     bool isCross(float x, float y)
     {
-        float y_cross = a_ * x + b_;
-        if (y_cross < y)
+        // 射线从(x,y)出发，沿y轴方向射出
+        if (x1_ == x2_) // 线段平行于y轴
         {
-            return false;
+            if (x == x_)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        if (((y1_ < y_cross) && (y_cross < y2_)) || ((y2_ < y_cross) && (y_cross < y1_)))
+        else if (y1_ == y2_) // 线段平行于x轴
         {
-            return true;
+            if (((x < x1_) && (x < x2_)) || ((x > x1_) && (x > x2_)))
+            {
+                return false;
+            }
+            else if (y > y_)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
-        else
+        else // 线段倾斜
         {
-            return false;
+            float y_cross = a_ * x + b_;
+            if (y_cross < y)
+            {
+                return false;
+            }
+            if (((x < x1_) && (x < x2_)) || ((x > x1_) && (x > x2_)))
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
     }
 };
@@ -60,7 +100,7 @@ public:
             LineSegment line(enableArea[i * 2], enableArea[i * 2 + 1], enableArea[i * 2 + 2], enableArea[i * 2 + 3]);
             linelist.push_back(line);
         }
-        LineSegment line2(enableArea[pointNum * 2], enableArea[pointNum * 2 + 1], enableArea[0], enableArea[1]);
+        LineSegment line2(enableArea[(pointNum-1) * 2], enableArea[(pointNum-1) * 2 + 1], enableArea[0], enableArea[1]);
         linelist.push_back(line2);
     }
 
@@ -69,7 +109,7 @@ public:
     // 判定该点是否为本区域内的点，区域内部点出发的射线与区域边相交的次数为奇数
     bool isInArea(float x, float y)
     {
-        return true;
+        //return true;
         int corss_num = 0;
         for (std::list<LineSegment>::iterator it = linelist.begin(); it != linelist.end(); it++)
         {

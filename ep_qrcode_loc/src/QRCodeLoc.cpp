@@ -69,14 +69,14 @@ public:
         logger->log(stream.str());
 
         // 初始化发布器
-        pub_odom_map_base = nh.advertise<nav_msgs::Odometry>(odomMapBase, 2000);
-        pub_odom_map_camera = nh.advertise<nav_msgs::Odometry>(odomMapCamera, 2000);
-        pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 2000);
-        pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 2000);
+        pub_odom_map_base = nh.advertise<nav_msgs::Odometry>(odomMapBase, 1);
+        pub_odom_map_camera = nh.advertise<nav_msgs::Odometry>(odomMapCamera, 1);
+        pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 1);
+        pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 1);
 
-        pub_odom_qrmap_base = nh.advertise<nav_msgs::Odometry>(odomQrmapBase, 2000);
-        pub_odom_qrmap_camera = nh.advertise<nav_msgs::Odometry>(odomQrmapCamera, 2000);
-        pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic, 1000);
+        pub_odom_qrmap_base = nh.advertise<nav_msgs::Odometry>(odomQrmapBase, 1);
+        pub_odom_qrmap_camera = nh.advertise<nav_msgs::Odometry>(odomQrmapCamera, 1);
+        pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic, 1);
 
         // 订阅轮速计消息
         if (3 == mode) // 使用论速计递推
@@ -289,6 +289,8 @@ public:
 
         // 时间戳
         odom_final.header.stamp = time_now;
+        odom_final.header.frame_id = "map";
+        odom_final.child_frame_id = "base_link";
 
         // 返回值
         return odom_final;
@@ -305,6 +307,9 @@ public:
 
             // 获取初始位姿
             nav_msgs::Odometry odom_init = getEstimationInitialPose();
+
+            // // 计算时间间隔
+            // double dt = (time_now - odom_init.header.stamp).toSec();
 
             // 估计base当前时刻位姿(map--->base_link)
             nav_msgs::Odometry odom_est = poseEstimation(odom_init, vel, ros::Time::now());
@@ -340,8 +345,8 @@ public:
         }
 
         // 计算当前已经递推的距离
-        float dis = sqrt(pow((odom_map.pose.pose.position.x - odom_hook.pose.pose.position.x), 2) +
-                         pow((odom_map.pose.pose.position.y - odom_hook.pose.pose.position.y), 2));
+        float dis = sqrt(pow((odom_map_base.pose.pose.position.x - odom_hook.pose.pose.position.x), 2) +
+                         pow((odom_map_base.pose.pose.position.y - odom_hook.pose.pose.position.y), 2));
 
         // 若递推的距离超限，则定位数据不可用
         if (dis > maxEstimationDis)
@@ -377,7 +382,7 @@ public:
         // 发布odom消息
         pub_odom_map_base.publish(odom_map_base);
         pub_odom_map_camera.publish(odom_map_camera);
-        pubTf(odom_map_base);
+        //pubTf(odom_map_base);
 
         // 输出的路线消息
         if(1 == odom_map_base.pose.covariance[0]) // 此帧数据是否可用，不可用不计入路线消息
@@ -598,9 +603,41 @@ public:
         q.setRPY(0.0, 0.0, code_info.yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_qrcode2qrmap.orientation);
 
+        //  求code_info.frame.error_yaw的均值
+        static std::list<CameraFrame> yaw_lib;
+        double yaw_average = code_info.frame.error_yaw;
+        if (0 == yaw_lib.size())
+        {
+            yaw_lib.push_back(code_info.frame);
+            yaw_average = yaw_lib.back().error_yaw;
+        }
+        else
+        {
+            if (yaw_lib.back().code != code_info.frame.code)
+            {
+                yaw_lib.clear();
+                yaw_lib.push_back(code_info.frame);
+                yaw_average = yaw_lib.back().error_yaw;
+            }
+            else
+            {
+                yaw_lib.push_back(code_info.frame);
+                if (yaw_lib.size() > yawAverageNum)
+                {
+                    yaw_lib.pop_front();
+                }
+                double yaw_sum = 0;
+                for (std::list<CameraFrame>::iterator it = yaw_lib.begin(); it != yaw_lib.end(); it++)
+                {
+                    yaw_sum += it->error_yaw;
+                }
+                yaw_average = yaw_sum / yaw_lib.size();
+            }
+        }
+
         //  相机到二维码
+        q.setRPY(0.0, 0.0, yaw_average * M_PI / 180);
         geometry_msgs::Pose pose_camera2qrcode;
-        q.setRPY(0.0, 0.0, code_info.frame.error_yaw * M_PI / 180);
         tf::quaternionTFToMsg(q, pose_camera2qrcode.orientation);
         tf::Matrix3x3 m(q);
         tf::Matrix3x3 inv_m(m);
@@ -644,7 +681,7 @@ public:
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
-                if (camera->getframe(&pic))
+                if (camera->getframe_v2(&pic))
                 {
                     // 查询二维码坐标
                     QRcodeInfo code_info;
@@ -686,7 +723,7 @@ public:
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
-                if (camera->getframe(&pic))
+                if (camera->getframe_v2(&pic))
                 {
                     if (QRmap_tab->onlyfind(pic, &code_info))
                     {
@@ -708,6 +745,9 @@ public:
                         odom.header.frame_id = "map";
                         odom.child_frame_id = "base_link";
                         odom.pose.pose = pose[0];
+                        odom.pose.covariance[3] = code_info.frame.error_x;
+                        odom.pose.covariance[4] = code_info.frame.error_y;
+                        odom.pose.covariance[4] = code_info.frame.error_yaw;
                         v_odom.push_back(odom);
 
                         // 设置轮速计递推的初始值

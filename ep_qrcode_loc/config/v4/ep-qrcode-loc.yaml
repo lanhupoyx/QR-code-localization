@@ -8,7 +8,7 @@ ep_qrcode_loc:
   verision: "v-0.0.1"
   
   # 运行模式
-  mode: 1   # 1:采集二维码坐标; 
+  mode: 3   # 1:采集二维码坐标; 
             # 2:计算qrmap2mapTrans; 
             # 3:论速计递推运行；
 
@@ -46,10 +46,8 @@ ep_qrcode_loc:
   realVelOffset_x: 0.0
   realVelOffset_z: 0.0
 
-  yawAverageNum: 15
-
   # lidar坐标系与二维码坐标系之间的转换关系 #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
-  qrmap2mapTrans: [-81.6888, 36.602, 0, 0, 0, -0.0142877, 0.999898]
+  qrmap2mapTrans: [-87.445, 25.253, 0, 0, 0, 0.0871557, 0.9961947]
   #qrmap2mapTrans: [0, 0, 0, 0, 0, 0, 1]
 
   # 启用二维码定位的区域，顶点首尾相接组成一个多边形区域[x1,y1, x2,y2, ....]
@@ -58,10 +56,10 @@ ep_qrcode_loc:
   #               5.37, 5.685, 
   #               5.37, 0.685]
 
-  enableArea: [ 300, -173, 
-                350, -173, 
-                350, -200, 
-                300, -200]
+  enableArea: [ 313.68, -174.75, 
+                313.68, -170.75, 
+                317.68, -170.75, 
+                317.68, -174.75]
 
 #rosbag record /lslidar_trans_points /imu /tf_static /ep_qrcode_loc/odometry/base
   

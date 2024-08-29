@@ -83,6 +83,25 @@ uint32_t convert_16_to_10(std::string str2)
     return uint32_t(sum);
 }
 
+std::string hexToAscii(const std::string &hex) {
+    std::string ascii;
+    std::stringstream ss;
+ 
+    // 将16进制字符串转换为整数
+    for (size_t i = 0; i < hex.length(); i += 2) {
+        std::string byte = hex.substr(i, 2);
+        unsigned int value = 0;
+        ss << std::hex << byte;
+        ss >> value;
+        ss.clear();
+ 
+        // 将整数转换为对应的ASCII字符
+        ascii += static_cast<char>(value);
+    }
+ 
+    return ascii;
+}
+
 // 时间格式化输出
 std::string format_time(ros::Time t)
 {
@@ -186,6 +205,10 @@ struct CameraFrame
     std::string sum;
     ros::Time stamp;
     std::string sender;
+
+    bool is_decode;
+    bool is_accurate_loc;
+    bool is_broad_loc;
 };
 
 // 二维码信息帧格式
@@ -230,6 +253,8 @@ public:
     double realVelOffset_x;
     double realVelOffset_z;
 
+    int yawAverageNum;
+
     ParamServer(){
         nh.param<std::string>("ep_qrcode_loc/odomMapBase",   odomMapBase,   "ep_qrcode_loc/odometry/base");
         nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
@@ -259,6 +284,7 @@ public:
         nh.param<double>("ep_qrcode_loc/realVelRatio_z", realVelRatio_z, 1.0);
         nh.param<double>("ep_qrcode_loc/realVelOffset_x", realVelOffset_x, 0.0);
         nh.param<double>("ep_qrcode_loc/realVelOffset_z", realVelOffset_z, 0.0);
+        nh.param<int>("ep_qrcode_loc/yawAverageNum", yawAverageNum, 5);
         nh.param<std::vector<float>>("ep_qrcode_loc/enableArea", enableArea, std::vector<float>());
         nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 2.0);
 
