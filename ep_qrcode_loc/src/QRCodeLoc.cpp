@@ -665,7 +665,7 @@ public:
             {
                 if (camera->getframe_v2(&pic))
                 {
-                    if (QRmap_tab->onlyfind(pic, &code_info))
+                    if (qrcode_table->onlyfind(pic, &code_info))
                     {
                         std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
 
@@ -735,17 +735,17 @@ public:
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
-                // logger->log(format_time(ros::Time::now()) + ",new loop");
+                logger->log(format_time(ros::Time::now()) + ",new loop");
 
                 // 处理二维码数据，设置轮速里程计初值
                 if (camera->getframe_v2(&pic))
                 {
-                    // std::stringstream stream;
-                    // stream.str("");
-                    // stream << format_time(ros::Time::now())
-                    //        << "," << "get pic:"
-                    //        << "," << pic.code;
-                    // logger->log(stream.str());
+                    std::stringstream stream;
+                    stream.str("");
+                    stream << format_time(ros::Time::now())
+                           << "," << "get pic:"
+                           << "," << pic.code;
+                    logger->log(stream.str());
 
                     if (qrcode_table->onlyfind(pic, &code_info))
                     {
@@ -753,7 +753,7 @@ public:
                         static double min_dis_x0 = 1000;
                         static bool catch_zero = false;
 
-                        // logger->log(format_time(ros::Time::now()) + ",find code");
+                        logger->log(format_time(ros::Time::now()) + ",find code");
 
                         //分析过程被打断的可能性与程序防护
                         
@@ -763,47 +763,46 @@ public:
                             min_dis_x0 = 1000; //mm
                             catch_zero = false;
 
-                            // logger->log(format_time(ros::Time::now()) + ",init");
+                            logger->log(format_time(ros::Time::now()) + ",init");
                         }
                         pic_last = pic;
 
-                             //std::stringstream stream;
-                            // stream.str("");
-                            // stream << format_time(ros::Time::now())
-                            //     << "," << abs(wheel_odom->get_vel_x()) << ">" << low_speed_UL
-                            //     << ",min_dis_x0 = " << min_dis_x0;
-                            // logger->log(stream.str());
+                            std::stringstream stream;
+                            stream.str("");
+                            stream << format_time(ros::Time::now())
+                                << "," << abs(wheel_odom->get_vel_x()) << ">" << low_speed_UL
+                                << ",min_dis_x0 = " << min_dis_x0;
+                            logger->log(stream.str());
 
                         //速度不在低速范围
                         bool output_this_frame = true;
                         if(abs(wheel_odom->get_vel_x()) > low_speed_UL)
                         {
-
-                            if(abs(pic.error_x) < min_dis_x0) // 距离越来越近
+                            double dis = sqrt(pic.error_x * pic.error_x + pic.error_y * pic.error_y);
+                            if (dis < min_dis_x0) // 距离越来越近
                             {
-                                min_dis_x0 = abs(pic.error_x);
+                                min_dis_x0 = dis;
                                 output_this_frame = false;
-                                // logger->log(format_time(ros::Time::now()) + ",closer");
+                                logger->log(format_time(ros::Time::now()) + ",closer");
                             }
-                            else if(false == catch_zero) // 刚刚越过0点
+                            else if (false == catch_zero) // 刚刚越过0点
                             {
                                 catch_zero = true;
                                 output_this_frame = true;
-                                // logger->log(format_time(ros::Time::now()) + ",catch");
+                                logger->log(format_time(ros::Time::now()) + ",catch");
                             }
                             else // 距离越来越远
                             {
                                 //不做处理，数据丢掉
-                                // output_this_frame = false;
-                                // logger->log(format_time(ros::Time::now()) + ",farer");
+                                output_this_frame = false;
+                                logger->log(format_time(ros::Time::now()) + ",farer");
                             }
                         }
 
-                        // std::stringstream stream;
-                        // stream.str("");
-                        // stream << format_time(ros::Time::now())
-                        //     << "," << "output_this_frame : " << output_this_frame;
-                        // logger->log(stream.str());
+                        stream.str("");
+                        stream << format_time(ros::Time::now())
+                            << "," << "output_this_frame : " << output_this_frame;
+                        logger->log(stream.str());
 
                         // 发布该帧对应的位姿
                         if(output_this_frame)

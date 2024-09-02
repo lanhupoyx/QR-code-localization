@@ -30,7 +30,7 @@ ep_qrcode_loc:
   show_msg: false
   collect_QRcode: true
 
-  is_pub_tf: false # 后续删除相关参数和代码
+  is_pub_tf: true # 后续删除相关参数和代码
   low_speed_UL: 0.1
 
   # 最大递推距离
@@ -59,13 +59,10 @@ ep_qrcode_loc:
   #               5.37, 5.685, 
   #               5.37, 0.685]
 
-  enableArea: [ 7.519, 3.033, 
-                7.747, 6.976, 
-                14.087, 6.782, 
-                13.954, 2.911]
+  enableArea: [ 313.68, -174.75, 
+                313.68, -170.75, 
+                317.68, -170.75, 
+                317.68, -174.75]
 
 #rosbag record /lslidar_trans_points /imu /tf_static /ep_qrcode_loc/odometry/base
-  detect_site_dis: 1.8
-  aux_site_dis: 1.365
-  forkaction_site_dis: 0.93
-  site_site_dis: 1.36
+  
