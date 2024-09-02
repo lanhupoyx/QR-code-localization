@@ -51,11 +51,11 @@ struct Site
     {
         geometry_msgs::Pose pose_move;
         
-        pose_move.position.x = pose_.position.x + dis_front * cos(getYaw(pose_));
-        pose_move.position.y = pose_.position.y + dis_front * sin(getYaw(pose_));
+        pose_move.position.x = pose_.position.x + dis_front * cos(getYawRad(pose_));
+        pose_move.position.y = pose_.position.y + dis_front * sin(getYawRad(pose_));
 
-        pose_move.position.x +=  dis_left * (-1)*sin(getYaw(pose_)); //cos(x+90) = -sin(x)
-        pose_move.position.y +=  dis_left * cos(getYaw(pose_)); // sin(x+90) = cos(x)
+        pose_move.position.x +=  dis_left * (-1)*sin(getYawRad(pose_)); //cos(x+90) = -sin(x)
+        pose_move.position.y +=  dis_left * cos(getYawRad(pose_)); // sin(x+90) = cos(x)
 
         pose_move.orientation = pose_.orientation;
         return pose_move;
@@ -215,6 +215,13 @@ public:
             // 每个库位对应的3个点
             for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
             {
+                stream.str("");
+                stream << site_it->index_ << " " 
+                << site_it->pose_.position.x << " " 
+                << site_it->pose_.position.y << " " 
+                << getYaw(site_it->pose_.orientation);
+                logger->log(stream.str());
+
                 // 识别点对应二维码
                 QRcodeInfo info_detect(site_it->detect_point_qrcode_.index_,
                                        site_it->detect_point_qrcode_.pose_.position.x,

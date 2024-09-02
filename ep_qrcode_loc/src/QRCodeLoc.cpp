@@ -105,7 +105,7 @@ public:
         // 实例化两个表格、定位相机、运行区域
         QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
         Lidarmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-LidarMapTable.txt");
-        //QRmap_tab = new QRcodeTableV2(cfg_dir + "SiteTable.txt", trans_camera2base);
+        qrcode_table = new QRcodeTableV2(cfg_dir + "SiteTable.txt", trans_camera2base);
 
         camera = new MV_SC2005AM();
         operating_area = new Polygon();
@@ -306,7 +306,12 @@ public:
         // 发布odom消息
         pub_odom_map_base.publish(odom_map_base);
         pub_odom_map_camera.publish(odom_map_camera);
-        // pubTf(odom_map_base);
+
+        // 发布TF
+        if(is_pub_tf)
+        {
+            pubTf(odom_map_base);
+        }
 
         // 输出的路线消息
         if(1 == odom_map_base.pose.covariance[0]) // 此帧数据是否可用，不可用不计入路线消息
@@ -366,19 +371,19 @@ public:
 
         double xerror = odom.pose.pose.position.x - odom_history.pose.pose.position.x;
         double yerror = odom.pose.pose.position.y - odom_history.pose.pose.position.y;
-        std::stringstream stream;
-        stream.str("");
-        stream << format_time(odom.header.stamp)
-               << std::fixed << std::setprecision(4)
-               << "," << sqrt(pow(xerror, 2) + pow(yerror, 2))
-               << "," << xerror
-               << "," << yerror
-               << "," << getYaw(odom.pose.pose) - getYaw(odom_history.pose.pose)
-               << "," << odom.header.stamp.toSec()
-               << "," << odom.pose.pose.position.x
-               << "," << odom.pose.pose.position.y
-               << "," << getYaw(odom.pose.pose);
-        logger->log(stream.str());
+        // std::stringstream stream;
+        // stream.str("");
+        // stream << format_time(odom.header.stamp)
+        //        << std::fixed << std::setprecision(4)
+        //        << "," << sqrt(pow(xerror, 2) + pow(yerror, 2))
+        //        << "," << xerror
+        //        << "," << yerror
+        //        << "," << getYaw(odom.pose.pose) - getYaw(odom_history.pose.pose)
+        //        << "," << odom.header.stamp.toSec()
+        //        << "," << odom.pose.pose.position.x
+        //        << "," << odom.pose.pose.position.y
+        //        << "," << getYaw(odom.pose.pose);
+        // logger->log(stream.str());
         odom_history = odom;
         //std::cout << stream.str() << std::endl;
     }
@@ -686,7 +691,7 @@ public:
                         v_odom.push_back(odom);
 
                         // 设置轮速计递推的初始值
-                        setEstimationInitialPose(odom);
+                        wheel_odom->setEstimationInitialPose(odom);
 
                         // map ---> locCamera_link
                         odom.header.frame_id = "map";
@@ -711,74 +716,111 @@ public:
                     }
                 }
 
+                // 轮速里程计递推
+                std::vector<nav_msgs::Odometry> v_odom;
+                if(wheel_odom->run_odom(v_odom))
+                {
+                    // 发布递推后的位姿
+                    pubOdom(v_odom);
+                }
+
                 loop_rate.sleep();
                 ros::spinOnce();
             }
         }
         else if (4 == mode) // 使用论速计递推
         {
-            ROS_INFO("mode: 3 ");
+            ROS_INFO("mode: 4 ");
             QRcodeInfo code_info;     // 查询二维码坐标
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
+                // logger->log(format_time(ros::Time::now()) + ",new loop");
+
                 // 处理二维码数据，设置轮速里程计初值
                 if (camera->getframe_v2(&pic))
                 {
-                    if (QRmap_tab->onlyfind(pic, &code_info))
+                    // std::stringstream stream;
+                    // stream.str("");
+                    // stream << format_time(ros::Time::now())
+                    //        << "," << "get pic:"
+                    //        << "," << pic.code;
+                    // logger->log(stream.str());
+
+                    if (qrcode_table->onlyfind(pic, &code_info))
                     {
                         static CameraFrame pic_last;
                         static double min_dis_x0 = 1000;
                         static bool catch_zero = false;
 
+                        // logger->log(format_time(ros::Time::now()) + ",find code");
+
                         //分析过程被打断的可能性与程序防护
                         
-                        //扫到同一个码,初始化
+                        //未扫到同一个码,初始化
                         if(pic_last.code != pic.code)
                         {
-                            min_dis_x0 = 1000;
-                        }
+                            min_dis_x0 = 1000; //mm
+                            catch_zero = false;
 
-                        //速度大于阈值
-                        if(wheel_odom->get_vel_x() > 0.2)
+                            // logger->log(format_time(ros::Time::now()) + ",init");
+                        }
+                        pic_last = pic;
+
+                             //std::stringstream stream;
+                            // stream.str("");
+                            // stream << format_time(ros::Time::now())
+                            //     << "," << abs(wheel_odom->get_vel_x()) << ">" << low_speed_UL
+                            //     << ",min_dis_x0 = " << min_dis_x0;
+                            // logger->log(stream.str());
+
+                        //速度不在低速范围
+                        bool output_this_frame = true;
+                        if(abs(wheel_odom->get_vel_x()) > low_speed_UL)
                         {
+
                             if(abs(pic.error_x) < min_dis_x0) // 距离越来越近
                             {
-                                min_dis_x0 = pic.error_x;
+                                min_dis_x0 = abs(pic.error_x);
+                                output_this_frame = false;
+                                // logger->log(format_time(ros::Time::now()) + ",closer");
                             }
                             else if(false == catch_zero) // 刚刚越过0点
                             {
-                                // 计算base_link在qrmap坐标和map坐标的坐标
-                                std::vector<geometry_msgs::Pose> pose = get_pose(code_info);
-
-                                // 打包生成消息
-                                std::vector<nav_msgs::Odometry> v_odom = packageMsg(pose, code_info);
-
-                                // 设置轮速里程计初值
-                                wheel_odom->setEstimationInitialPose(v_odom[0]);
-
-                                // 发布消息
-                                pubOdom(v_odom);
+                                catch_zero = true;
+                                output_this_frame = true;
+                                // logger->log(format_time(ros::Time::now()) + ",catch");
                             }
                             else // 距离越来越远
                             {
                                 //不做处理，数据丢掉
+                                // output_this_frame = false;
+                                // logger->log(format_time(ros::Time::now()) + ",farer");
                             }
                         }
-                        else
+
+                        // std::stringstream stream;
+                        // stream.str("");
+                        // stream << format_time(ros::Time::now())
+                        //     << "," << "output_this_frame : " << output_this_frame;
+                        // logger->log(stream.str());
+
+                        // 发布该帧对应的位姿
+                        if(output_this_frame)
                         {
                             // 计算base_link在qrmap坐标和map坐标的坐标
                             std::vector<geometry_msgs::Pose> pose = get_pose(code_info);
 
                             // 打包生成消息
                             std::vector<nav_msgs::Odometry> v_odom = packageMsg(pose, code_info);
-                            
+
+                            // 设置轮速里程计初值
+                            wheel_odom->setEstimationInitialPose(v_odom[0]);
+
                             // 发布消息
                             pubOdom(v_odom);
+                            logger->log(format_time(ros::Time::now()) + ",pubodom");
                         }
-                        pic_last = pic;
-
-
                     }
                 }
 

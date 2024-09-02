@@ -157,6 +157,17 @@ double getYaw(geometry_msgs::Quaternion q){
 }
 
 // get yaw frome pose
+// get yaw frome pose
+double getYawRad(geometry_msgs::Pose pose){
+    tf::Quaternion quaternion(  pose.orientation.x, 
+                                pose.orientation.y, 
+                                pose.orientation.z, 
+                                pose.orientation.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw;
+}
+
 double getYawRad(geometry_msgs::Quaternion q){
     tf::Quaternion quaternion(q.x, q.y, q.z, q.w); // 初始化四元数
     double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
@@ -251,6 +262,8 @@ public:
     int mode;
     bool show_msg;
     bool collect_QRcode;
+    bool is_pub_tf;
+    double low_speed_UL;
     std::string port;
     std::string log_dir;
     std::string cfg_dir;
@@ -286,6 +299,8 @@ public:
         nh.param<int>("ep_qrcode_loc/mode", mode, 3);
         nh.param<bool>("ep_qrcode_loc/show_msg", show_msg, false);
         nh.param<bool>("ep_qrcode_loc/collect_QRcode", collect_QRcode, false);
+        nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
+        nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
         nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/ep_qrcode_loc");
         nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params");

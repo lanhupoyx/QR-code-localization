@@ -20,6 +20,7 @@ private:
     geometry_msgs::TransformStamped trans_camera2base_;
     nav_msgs::Odometry odom_estimation_init_;
     std::list<wheel_speed> speed_data;
+    double new_speed_x;
     ros::Subscriber sub_realvel;
     std::mutex mtx;
 
@@ -37,6 +38,7 @@ public:
         trans_camera2base_ = trans_camera2base;
         sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
+        new_speed_x=0;
     }
 
     ~WheelSpeedOdometer() {}
@@ -85,6 +87,7 @@ public:
         std::lock_guard<std::mutex> locker(mtx);
         wheel_speed new_speed(ros::Time::now(), *velmsg);
         speed_data.push_back(new_speed);
+        new_speed_x=new_speed.vel_.linear.x;
     }
 
     bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
@@ -119,13 +122,8 @@ public:
 
     double get_vel_x()
     {
-        if(0 != speed_data.size())
-        {
-            return speed_data.back().vel_.linear.x;
-        }
-        else
-        {
-            return 0;
-        }
+std::lock_guard<std::mutex> locker(mtx);
+            return new_speed_x;
+        
     }
 };
