@@ -1,10 +1,5 @@
 #pragma once
 
-#include "ros/ros.h"
-#include <tf/tf.h>
-#include <ros/console.h>
-#include <boost/asio.hpp>
-
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -16,6 +11,11 @@
 #include <string>
 #include <array>
 #include <thread>
+
+#include "ros/ros.h"
+#include <tf/tf.h>
+#include <ros/console.h>
+#include <boost/asio.hpp>
 
 #include "std_msgs/String.h"
 #include <nav_msgs/Odometry.h>
@@ -31,9 +31,6 @@
 #include <tf/transform_broadcaster.h>
 #include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
-
-// #include "ch3/eskf.hpp"
-// #include "ch3/static_imu_init.h"
 
 // 数据帧转换到16进制
 std::string charArrayToHex(std::array<char, 1024> array, size_t size)
@@ -83,6 +80,7 @@ uint32_t convert_16_to_10(std::string str2)
     return uint32_t(sum);
 }
 
+// 十六进制转换为ASCII
 std::string hexToAscii(const std::string &hex) {
     std::string ascii;
     std::stringstream ss;
@@ -156,8 +154,7 @@ double getYaw(geometry_msgs::Quaternion q){
     return yaw*180/M_PI;
 }
 
-// get yaw frome pose
-// get yaw frome pose
+// get yaw(rad) frome pose
 double getYawRad(geometry_msgs::Pose pose){
     tf::Quaternion quaternion(  pose.orientation.x, 
                                 pose.orientation.y, 
@@ -168,6 +165,7 @@ double getYawRad(geometry_msgs::Pose pose){
     return yaw;
 }
 
+// get yaw(rad) frome pose
 double getYawRad(geometry_msgs::Quaternion q){
     tf::Quaternion quaternion(q.x, q.y, q.z, q.w); // 初始化四元数
     double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
@@ -186,6 +184,7 @@ double getYaw(geometry_msgs::TransformStamped trans){
     return yaw*180/M_PI;
 }
 
+// get yaw frome pose
 geometry_msgs::Pose poseInverse(geometry_msgs::Pose source)
 {
     geometry_msgs::Pose result;
@@ -230,20 +229,23 @@ struct QRcodeInfo
     double y;
     double yaw;
     CameraFrame frame;
+    bool is_head;
 
     QRcodeInfo(){};
 
-    QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_)
+    QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_, bool is_head_ = false)
     {
         code = code_;
         x = x_;
         y = y_;
         yaw = yaw_;
+        is_head = is_head_;
     }
 
     ~QRcodeInfo(){}
 };
 
+// 参数服务器
 class ParamServer
 {
 public:
@@ -339,6 +341,7 @@ public:
     }
 };
 
+// 记录服务器
 class Logger : public ParamServer
 {
 private:
@@ -382,10 +385,10 @@ public:
         logFile << message << std::endl;
     }
 };
- 
 std::ofstream Logger::logFile;
 std::mutex Logger::mutex;
 
+// 向量
 class vec  
 {
 public:

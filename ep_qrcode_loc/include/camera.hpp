@@ -21,6 +21,13 @@ public:
 
     bool getframe(CameraFrame *frame)
     {
+        return getframe_v2(frame);
+    }
+
+private:
+    // 海康定位相机，固件版本：2.5.0
+    bool getframe_v1(CameraFrame *frame)
+    {
         if (socket->available())
         {
             socket->receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
@@ -80,6 +87,7 @@ public:
         return false;
     }
 
+    // 海康定位相机，固件版本：2.7.0
     bool getframe_v2(CameraFrame *frame)
     {
         if (socket->available())
@@ -197,7 +205,7 @@ public:
                         return false;
                     }
                 }
-                std::cout << pixel_x_ascii << std::endl;
+                //std::cout << pixel_x_ascii << std::endl;
                 frame->error_x = (std::stoi(pixel_x_ascii) - 400) * 0.2125;
 
                 // 中心坐标y
@@ -228,7 +236,7 @@ public:
                         return false;
                     }
                 }
-                std::cout << pixel_y_ascii << std::endl;
+                //std::cout << pixel_y_ascii << std::endl;
                 frame->error_y = (std::stoi(pixel_y_ascii) - 300) * 0.2166667;
 
                 // 中心yaw
@@ -259,7 +267,7 @@ public:
                         return false;
                     }
                 }
-                std::cout << yaw_ascii << std::endl;
+                //std::cout << yaw_ascii << std::endl;
                 frame->error_yaw = std::stod(yaw_ascii);
 
                 // // 限制x轴方向视野，视野边缘yaw跳变比较大
@@ -279,8 +287,10 @@ public:
                     logger->log(stream.str());
                 }
 
-                std::cout << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
-                         << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw << std::endl;
+                // std::cout << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
+                //          << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw << std::endl;
+
+                std::cout << format_time(frame->stamp) << " " << frame->code << std::endl;
 
                 return true;
             }

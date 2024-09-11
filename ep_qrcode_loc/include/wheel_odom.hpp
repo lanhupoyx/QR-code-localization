@@ -24,14 +24,6 @@ private:
     ros::Subscriber sub_realvel;
     std::mutex mtx;
 
-private:
-    // 获取递推初始值
-    nav_msgs::Odometry getEstimationInitialPose()
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        return odom_estimation_init_;
-    }
-
 public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
     {
@@ -43,8 +35,22 @@ public:
 
     ~WheelSpeedOdometer() {}
 
+    // 获取递推状态值
+    nav_msgs::Odometry getCurOdom()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return odom_estimation_init_;
+    }
+
     // 设置递推初始值
     void setEstimationInitialPose(nav_msgs::Odometry odom)
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        odom_estimation_init_ = odom;
+    }
+
+    // 设置递推状态值
+    void setCurOdom(nav_msgs::Odometry odom)
     {
         std::lock_guard<std::mutex> locker(mtx);
         odom_estimation_init_ = odom;
@@ -59,7 +65,7 @@ public:
         double dt = (time_now - odom_init.header.stamp).toSec();
 
         // 方向递推
-        double yaw = getYawRad(odom_init.pose.pose.orientation) + (vel.angular.z + realVelOffset_z) * realVelRatio_z * dt;
+        double yaw = getYawRad(odom_init.pose.pose.orientation) + vel.angular.z * realVelRatio_z * dt;
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, yaw);
         tf::quaternionTFToMsg(q, odom_final.pose.pose.orientation);
@@ -102,11 +108,11 @@ public:
         speed_data.pop_front();
 
         // 获取初始位姿
-        nav_msgs::Odometry odom_init = getEstimationInitialPose();
+        nav_msgs::Odometry odom_init = getCurOdom();
 
         // 估计base当前时刻位姿(map--->base_link)
         nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.vel_, cur_speed.timestamp_);
-        setEstimationInitialPose(odom_est);
+        setCurOdom(odom_est);
         v_odom.clear();
         v_odom.push_back(odom_est);
 

@@ -30,7 +30,7 @@ ep_qrcode_loc:
   show_msg: false
   collect_QRcode: true
 
-  is_pub_tf: false # 后续删除相关参数和代码
+  is_pub_tf: true # 后续删除相关参数和代码
   low_speed_UL: 0.1
 
   # 最大递推距离

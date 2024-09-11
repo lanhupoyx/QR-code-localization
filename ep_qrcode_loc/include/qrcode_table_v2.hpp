@@ -12,6 +12,15 @@ struct QRcodeGround
     double x_err_;   // x方向补偿值，单位m
     double y_err_;   // y方向补偿值，单位m
     double yaw_err_; // yaw方向补偿值,单位角度
+
+    void turn(double d_yaw)
+    {
+        double yaw = getYawRad(pose_.orientation);
+        yaw += d_yaw * M_PI / 180.0;
+        tf::Quaternion q;
+        q.setRPY(0.0, 0.0, yaw);
+        tf::quaternionTFToMsg(q, pose_.orientation);
+    }
 };
 
 // 库位
@@ -36,13 +45,22 @@ struct Site
         index_ = index;
         pose_ = pose;
 
+        // 三个对应的二维码
         detect_point_qrcode_ = qrcodes[0];
         aux_point_qrcode_ = qrcodes[1];
         action_point_qrcode_ = qrcodes[2];
 
-        detect_point_qrcode_.pose_ = this->move(dis_vec[0] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
-        aux_point_qrcode_.pose_    = this->move(dis_vec[1] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
-        action_point_qrcode_.pose_ = this->move(dis_vec[2] + trans_base_camera.transform.translation.x, trans_base_camera.transform.translation.y);
+        // 计算二维码位姿
+        detect_point_qrcode_.pose_ = this->move(dis_vec[0] + trans_base_camera.transform.translation.x + detect_point_qrcode_.x_err_, 
+                                                             trans_base_camera.transform.translation.y + detect_point_qrcode_.y_err_);
+        aux_point_qrcode_.pose_    = this->move(dis_vec[1] + trans_base_camera.transform.translation.x + aux_point_qrcode_.x_err_, 
+                                                             trans_base_camera.transform.translation.y + aux_point_qrcode_.y_err_);
+        action_point_qrcode_.pose_ = this->move(dis_vec[2] + trans_base_camera.transform.translation.x + action_point_qrcode_.x_err_, 
+                                                             trans_base_camera.transform.translation.y + action_point_qrcode_.y_err_);
+        // 增加二维码位姿补偿
+        detect_point_qrcode_.turn(detect_point_qrcode_.yaw_err_);
+        aux_point_qrcode_.turn(aux_point_qrcode_.yaw_err_);
+        action_point_qrcode_.turn(action_point_qrcode_.yaw_err_);
     }
 
     ~Site(){}
@@ -60,6 +78,8 @@ struct Site
         pose_move.orientation = pose_.orientation;
         return pose_move;
     }
+
+
 };
 
 // 库位列
@@ -146,20 +166,19 @@ public:
 
             // 定义变量
             uint32_t list_index, site_index;
-            double pose_x_first, pose_y_first, pose_yaw_first, site_dis;
+            double site_x_first, site_y_first, site_yaw_first, site_dis;
             QRcodeGround detect, aux, action;
 
             // 提取信息
-            line_ss >> list_index >> site_index 
-                    >> pose_x_first >> pose_y_first >> pose_yaw_first >> site_dis 
+            line_ss >> list_index >> site_index ;
+
+            if(1 == site_index)
+            {
+                line_ss >> site_x_first >> site_y_first >> site_yaw_first >> site_dis 
                     >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
                     >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
                     >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
-
-            // 新建列
-            size_t listlibsize = siteList_lib.size();
-            if ((0 == siteList_lib.size()) || list_index != siteList_lib[listlibsize - 1].index_)
-            {
+                
                 // 几个距离参数
                 std::vector<double> dis_vec;
                 dis_vec.push_back(detect_site_dis);
@@ -170,34 +189,47 @@ public:
                 // 新建列
                 SiteList siteList_new(list_index, dis_vec, trans_base_camera);
                 siteList_lib.push_back(siteList_new);
-            }
 
-            // 打包3个二维码信息
-            std::vector<QRcodeGround> qrcodes;
-            qrcodes.push_back(detect);
-            qrcodes.push_back(aux);
-            qrcodes.push_back(action);
-            
-            if(0 == site_index)
-            {
-                // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
-                siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
-            }
-            else if(1 == site_index)
-            {
                 // 列首库位pose
                 geometry_msgs::Pose pose_first_site;
-                pose_first_site.position.x = pose_x_first;
-                pose_first_site.position.y = pose_y_first;
+                pose_first_site.position.x = site_x_first;
+                pose_first_site.position.y = site_y_first;
                 tf::Quaternion q;
-                q.setRPY(0.0, 0.0, pose_yaw_first * M_PI / 180.0);
+                q.setRPY(0.0, 0.0, site_yaw_first);
                 tf::quaternionTFToMsg(q, pose_first_site.orientation);
+
+                // 打包3个二维码信息
+                std::vector<QRcodeGround> qrcodes;
+                qrcodes.push_back(detect);
+                qrcodes.push_back(aux);
+                qrcodes.push_back(action);
 
                 // 设置列首库位
                 siteList_lib[siteList_lib.size() - 1].set_first_site(pose_first_site, qrcodes);
             }
-            else if(1 < site_index)
+            else if(0 == site_index)
             {
+                line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
+                        >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
+
+                std::vector<QRcodeGround> qrcodes;
+                qrcodes.push_back(detect);
+                qrcodes.push_back(aux);
+
+                // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
+                siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
+            }
+            if(1 < site_index)
+            {
+                line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
+                        >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
+                        >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
+
+                std::vector<QRcodeGround> qrcodes;
+                qrcodes.push_back(detect);
+                qrcodes.push_back(aux);
+                qrcodes.push_back(action);
+
                 // 添加新库位
                 siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
             }
@@ -247,8 +279,8 @@ public:
             // 列首辅助二维码
             for (std::list<QRcodeGround>::iterator it = list_it->front_aux_points_.begin(); it != list_it->front_aux_points_.end(); it++)
             {
-                QRcodeInfo info_action(it->index_, it->pose_.position.x, it->pose_.position.y, getYaw(it->pose_));
-                map.insert(std::pair<uint32_t, QRcodeInfo>(info_action.code, info_action));
+                QRcodeInfo info_head(it->index_, it->pose_.position.x, it->pose_.position.y, getYaw(it->pose_), true);
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info_head.code, info_head));
             }
         }
 
