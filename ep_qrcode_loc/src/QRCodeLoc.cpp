@@ -811,7 +811,7 @@ public:
                                 catch_zero = true;
                                 output_this_frame = true;
                                 is_jump_point = true;
-                                logger->log(format_time(ros::Time::now()) + ",catch");
+                                // logger->log(format_time(ros::Time::now()) + ",catch");
                             }
                             else // 距离越来越远
                             {
@@ -847,11 +847,25 @@ public:
                             // 跳跃点，计算二维码角度补偿值
                             if(is_jump_point)
                             {
+				                static double y_err_b_last = 0;
+                                double y_err_b = cur_odom.pose.pose.position.y*1000 - last_odom.pose.pose.position.y*1000;
                                 stream.str("");
                                 stream << format_time(ros::Time::now())
-                                    << "y_err_b = " << cur_odom.pose.pose.position.y - last_odom.pose.pose.position.y
-                                    << "index : " << pic.code;
+                                    << " y_err_b= " << y_err_b
+                                    << " index: " << pic.code;
                                 logger->log(stream.str());
+
+                                
+                                if(y_err_b > 0)
+                                {
+                                    //qrcode_table->jiaozheng(pic.code, y_err_b);
+                                }
+                                else
+                                {
+                                    
+                                }
+                                                
+                                y_err_b_last = y_err_b;
                             }
                         }
                     }

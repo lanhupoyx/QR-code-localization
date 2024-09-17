@@ -295,6 +295,8 @@ public:
             }
         }
 
+        readYawErr();
+
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
         logger->log(stream.str());
@@ -304,6 +306,7 @@ public:
             stream << (*it).second.code << " " << (*it).second.x << " " << (*it).second.y << " " << (*it).second.yaw;
             logger->log(stream.str());
         }
+
     }
 
     ~QRcodeTableV2(){}
@@ -324,5 +327,59 @@ public:
             std::cout << "can not identify code:" << frame.code << std::endl;
         }
         return false;
+    }
+
+    bool jiaozheng(uint32_t code, double y_err)
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        std::map<uint32_t, QRcodeInfo>::iterator it = map.find(code);
+        if (it != map.end())
+        {
+            it->second.yaw += y_err;
+            return true;
+        }
+        else
+        {
+            std::cout << "can not identify code:" << code << std::endl;
+        }
+        return false;
+    }
+
+    void readYawErr()
+    {
+        std::string yaw_err_path = "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/yawerr.csv";
+        logger->log("QRcodeTable Start");
+        ifs.open(yaw_err_path, std::ios::in);
+        if (!ifs.is_open())
+        {
+            logger->log(yaw_err_path + "打开失败!");
+        }
+        else
+        {
+            logger->log(yaw_err_path + "打开成功!");
+        }
+        std::string buf;               // 将数据存放到c++ 中的字符串中
+        while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+        {
+            std::stringstream line_ss;
+            line_ss << buf;
+
+            // 跳过空行
+            if("" == buf)
+            {
+                continue;
+            }
+
+            // 定义变量
+            uint32_t list_index, site_index;
+            double site_x_first, site_y_first, site_yaw_first;
+            QRcodeGround detect, aux, action;
+
+            // 提取信息
+            line_ss >> list_index >> site_index ;
+
+        }
+        ifs.close();
+        logger->log(yaw_err_path + "读取完毕!");
     }
 };
