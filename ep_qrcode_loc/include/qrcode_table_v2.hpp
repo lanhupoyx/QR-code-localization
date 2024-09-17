@@ -123,7 +123,12 @@ struct SiteList
     {
         for (std::vector<QRcodeGround>::iterator it = qrcodes.begin(); it != qrcodes.end(); it++)
         {
-            front_aux_points_.push_back(*it);
+            geometry_msgs::Pose pose_code = sites_.front().move(it->x_err_, it->y_err_); // 库位位姿
+            QRcodeGround newcode;
+            newcode.index_ = it->index_;
+            newcode.pose_ = pose_code;
+            newcode.turn(it->yaw_err_);
+            front_aux_points_.push_back(newcode);
         }
     }
 };
@@ -164,9 +169,15 @@ public:
             std::stringstream line_ss;
             line_ss << buf;
 
+            // 跳过空行
+            if("" == buf)
+            {
+                continue;
+            }
+
             // 定义变量
             uint32_t list_index, site_index;
-            double site_x_first, site_y_first, site_yaw_first, site_dis;
+            double site_x_first, site_y_first, site_yaw_first;
             QRcodeGround detect, aux, action;
 
             // 提取信息
@@ -174,7 +185,7 @@ public:
 
             if(1 == site_index)
             {
-                line_ss >> site_x_first >> site_y_first >> site_yaw_first >> site_dis 
+                line_ss >> site_x_first >> site_y_first >> site_yaw_first
                     >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
                     >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
                     >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
@@ -219,7 +230,7 @@ public:
                 // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
                 siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
             }
-            if(1 < site_index)
+            else if(1 < site_index)
             {
                 line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
                         >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 

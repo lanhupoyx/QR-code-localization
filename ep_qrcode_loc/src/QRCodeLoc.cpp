@@ -268,6 +268,10 @@ public:
         {
             odom_hook = odom_map_base;
         }
+        else
+        {
+            odom_map_base.pose.covariance[3] = 0; //递推得到，不是列首二维码
+        }
 
         // 计算当前已经递推的距离
         float dis = sqrt(pow((odom_map_base.pose.pose.position.x - odom_hook.pose.pose.position.x), 2) +
@@ -370,8 +374,8 @@ public:
                                              odom.pose.pose.orientation.w));
         br.sendTransform(tf::StampedTransform(transform, odom.header.stamp, "odom", "base_link"));
 
-        double xerror = odom.pose.pose.position.x - odom_history.pose.pose.position.x;
-        double yerror = odom.pose.pose.position.y - odom_history.pose.pose.position.y;
+        // double xerror = odom.pose.pose.position.x - odom_history.pose.pose.position.x;
+        // double yerror = odom.pose.pose.position.y - odom_history.pose.pose.position.y;
         // std::stringstream stream;
         // stream.str("");
         // stream << format_time(odom.header.stamp)
@@ -579,13 +583,21 @@ public:
         // 相同的项
         odom.header.stamp = pic.stamp;
         odom.header.seq = pic.index;
-        odom.pose.covariance[2] = 0; // 此帧数据来源，0：二维码 1：轮速计递推  
+        if(true == code_info.is_head)
+        {
+            odom.pose.covariance[3] = 1; // 是否列首二维码，0：否 1：是
+        }
+        else
+        {
+            odom.pose.covariance[3] = 0; // 是否列首二维码，0：否 1：是
+        }
+        
 
         // map ---> base_link
         odom.header.frame_id = "map";
         odom.child_frame_id = "base_link";
         odom.pose.pose = pose[0];
-        odom.pose.covariance[3] = code_info.frame.error_x;
+        //odom.pose.covariance[3] = code_info.frame.error_x;
         odom.pose.covariance[4] = code_info.frame.error_y;
         odom.pose.covariance[5] = code_info.frame.error_yaw;
         v_odom.push_back(odom);
@@ -693,7 +705,7 @@ public:
                         odom.header.frame_id = "map";
                         odom.child_frame_id = "base_link";
                         odom.pose.pose = pose[0];
-                        odom.pose.covariance[3] = code_info.frame.error_x;
+                        //odom.pose.covariance[3] = code_info.frame.error_x;
                         odom.pose.covariance[4] = code_info.frame.error_y;
                         odom.pose.covariance[5] = code_info.frame.error_yaw;
                         v_odom.push_back(odom);
