@@ -105,7 +105,7 @@ public:
 
         // 实例化两个表格、定位相机、运行区域
         // QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
-        qrcode_table = new QRcodeTableV2(cfg_dir + "SiteTable.txt", trans_camera2base);
+        qrcode_table = new QRcodeTableV2(cfg_dir + "SiteTable.csv", trans_camera2base);
 
         camera = new MV_SC2005AM();
         operating_area = new Polygon();
@@ -626,8 +626,7 @@ public:
     // 采集二维码位姿模式
     void CollectQRCodePose_mode()
     {
-        ROS_INFO("Mode: Collect QR-Code Pose");
-        Lidarmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-LidarMapTable.txt");
+        Lidarmap_tab = new QRcodeTable(cfg_dir + "CaptureTable.csv");
         ros::Rate loop_rate(100); // 主循环 100Hz
         while (ros::ok())
         {
@@ -663,95 +662,37 @@ public:
         if (1 == mode) 
         {
             // 采集二维码位姿
+            ROS_INFO("Mode: Collect QR-Code Pose");
             CollectQRCodePose_mode();
         }
         else if (2 == mode) // 使用SVD计算qmap与lidarmap间的转换关系
         {
-            ROS_INFO("mode: 2");
-            std::vector<double> trans = calTrans_SVD();
-            for (std::vector<double>::iterator it = trans.begin(); it != trans.end(); it++)
-            {
-                std::cout << *it << ", ";
-            }
-            std::cout << std::endl;
-            return;
-        }
-        else if (3 == mode) // 使用论速计递推
-        {
-            ROS_INFO("mode: 3 ");
-            QRcodeInfo code_info;     // 查询二维码坐标
+            ROS_INFO("Mode: Collect QR-Code index");
+            logger->log("Start Collect QR-Code");
+
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
+                static uint32_t code_last = 0;
                 if (camera->getframe(&pic))
                 {
-                    if (qrcode_table->onlyfind(pic, &code_info))
+                    if(code_last != pic.code)
                     {
-                        std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
+                        std::stringstream stream;
+                        stream.str("");
+                        stream << pic.code;
+                        logger->log(stream.str());
 
-                        // 计算base_link在qrmap坐标和map坐标的坐标
-                        std::vector<geometry_msgs::Pose> pose = get_pose(code_info);
-
-                        // 定义变量
-                        std::vector<nav_msgs::Odometry> v_odom;
-                        nav_msgs::Odometry odom;
-
-                        // 相同的项
-                        odom.header.stamp = pic.stamp;
-                        odom.header.seq = pic.index;
-                        odom.pose.covariance[2] = 0; // 此帧数据来源，0：二维码 1：轮速计递推  
-
-                        // map ---> base_link
-                        odom.header.frame_id = "map";
-                        odom.child_frame_id = "base_link";
-                        odom.pose.pose = pose[0];
-                        //odom.pose.covariance[3] = code_info.frame.error_x;
-                        odom.pose.covariance[4] = code_info.frame.error_y;
-                        odom.pose.covariance[5] = code_info.frame.error_yaw;
-                        v_odom.push_back(odom);
-
-                        // 设置轮速计递推的初始值
-                        wheel_odom->setEstimationInitialPose(odom);
-
-                        // map ---> locCamera_link
-                        odom.header.frame_id = "map";
-                        odom.child_frame_id = "locCamera_link";
-                        odom.pose.pose = pose[1];
-                        v_odom.push_back(odom);
-
-                        // qrmap ---> base_link
-                        odom.header.frame_id = "qrmap";
-                        odom.child_frame_id = "base_link";
-                        odom.pose.pose = pose[2];
-                        v_odom.push_back(odom);
-
-                        // qrmap ---> locCamera_link
-                        odom.header.frame_id = "qrmap";
-                        odom.child_frame_id = "locCamera_link";
-                        odom.pose.pose = pose[3];
-                        v_odom.push_back(odom);
-
-                        // 发布消息
-                        pubOdom(v_odom);
+                        code_last = pic.code;
                     }
                 }
-
-                // 轮速里程计递推
-                std::vector<nav_msgs::Odometry> v_odom;
-                if(wheel_odom->run_odom(v_odom))
-                {
-                    // 发布递推后的位姿
-                    pubOdom(v_odom);
-                }
-
-                loop_rate.sleep();
-                ros::spinOnce();
             }
         }
-        else if (4 == mode) // 使用论速计递推
+        else if (3 == mode) // 使用论速计递推
         {
-            ROS_INFO("mode: 4 ");
+            ROS_INFO("Mode: Normal Run ");
             QRcodeInfo code_info;     // 查询二维码坐标
+            bool is_inited = false;
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
             {
@@ -839,6 +780,7 @@ public:
                             nav_msgs::Odometry last_odom = wheel_odom->getCurOdom();
                             wheel_odom->setEstimationInitialPose(v_odom[0]);
                             nav_msgs::Odometry cur_odom = wheel_odom->getCurOdom();
+                            is_inited = true;
 
                             // 发布消息
                             pubOdom(v_odom);
@@ -847,7 +789,7 @@ public:
                             // 跳跃点，计算二维码角度补偿值
                             if(is_jump_point)
                             {
-				                static double y_err_b_last = 0;
+				                //static double y_err_b_last = 0;
                                 double y_err_b = cur_odom.pose.pose.position.y*1000 - last_odom.pose.pose.position.y*1000;
                                 stream.str("");
                                 stream << format_time(ros::Time::now())
@@ -865,21 +807,96 @@ public:
                                     
                                 }
                                                 
-                                y_err_b_last = y_err_b;
+                                //y_err_b_last = y_err_b;
                             }
                         }
                     }
                 }
 
                 // 轮速里程计递推
-                std::vector<nav_msgs::Odometry> v_odom;
-                if(wheel_odom->run_odom(v_odom))
+                if(is_inited)
                 {
-                    // 发布递推后的位姿
-                    pubOdom(v_odom);
+                    std::vector<nav_msgs::Odometry> v_odom;
+                    if(wheel_odom->run_odom(v_odom))
+                    {
+                        // 发布递推后的位姿
+                        pubOdom(v_odom);
+                    }
                 }
 
                 // 循环控制延时函数
+                loop_rate.sleep();
+                ros::spinOnce();
+            }
+        }
+        else if (4 == mode) // 使用论速计递推
+        {
+            ROS_INFO("Mode: Only QR-Code ");
+            QRcodeInfo code_info;     // 查询二维码坐标
+            ros::Rate loop_rate(100); // 主循环 100Hz
+            while (ros::ok())
+            {
+                if (camera->getframe(&pic))
+                {
+                    if (qrcode_table->onlyfind(pic, &code_info))
+                    {
+                        std::lock_guard<std::mutex> locker(QRcodeLoc::mtx);
+
+                        // 计算base_link在qrmap坐标和map坐标的坐标
+                        std::vector<geometry_msgs::Pose> pose = get_pose(code_info);
+
+                        // 定义变量
+                        std::vector<nav_msgs::Odometry> v_odom;
+                        nav_msgs::Odometry odom;
+
+                        // 相同的项
+                        odom.header.stamp = pic.stamp;
+                        odom.header.seq = pic.index;
+                        odom.pose.covariance[2] = 0; // 此帧数据来源，0：二维码 1：轮速计递推  
+
+                        // map ---> base_link
+                        odom.header.frame_id = "map";
+                        odom.child_frame_id = "base_link";
+                        odom.pose.pose = pose[0];
+                        //odom.pose.covariance[3] = code_info.frame.error_x;
+                        odom.pose.covariance[4] = code_info.frame.error_y;
+                        odom.pose.covariance[5] = code_info.frame.error_yaw;
+                        v_odom.push_back(odom);
+
+                        // 设置轮速计递推的初始值
+                        wheel_odom->setEstimationInitialPose(odom);
+
+                        // map ---> locCamera_link
+                        odom.header.frame_id = "map";
+                        odom.child_frame_id = "locCamera_link";
+                        odom.pose.pose = pose[1];
+                        v_odom.push_back(odom);
+
+                        // qrmap ---> base_link
+                        odom.header.frame_id = "qrmap";
+                        odom.child_frame_id = "base_link";
+                        odom.pose.pose = pose[2];
+                        v_odom.push_back(odom);
+
+                        // qrmap ---> locCamera_link
+                        odom.header.frame_id = "qrmap";
+                        odom.child_frame_id = "locCamera_link";
+                        odom.pose.pose = pose[3];
+                        v_odom.push_back(odom);
+
+                        // 发布消息
+                        pubOdom(v_odom);
+                    }
+                }
+
+                // // 轮速里程计递推
+                // std::vector<nav_msgs::Odometry> v_odom;
+                // if(wheel_odom->run_odom(v_odom))
+                // {
+                //     // 发布递推后的位姿
+                //     pubOdom(v_odom);
+                // }
+
                 loop_rate.sleep();
                 ros::spinOnce();
             }

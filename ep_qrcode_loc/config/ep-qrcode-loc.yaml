@@ -6,11 +6,15 @@
 
 ep_qrcode_loc:
   verision: "v-0.0.1"
+
+  logLevel: "DEBUG"      #   日志级别 "FATAL" "ERROR" "WARN" "INFO" "DEBUG"
   
   # 运行模式
-  mode: 4   # 1:采集二维码坐标; 
-            # 2:计算qrmap2mapTrans; 
-            # 3:论速计递推运行；
+  mode: 3   # 1:采集二维码坐标（长时间停在二维码上方）; 
+            # 2:采集二维码编号（快速扫过）；
+            # 3:正常运行；
+            # 4:只扫码，不递推；
+
 
   # 最终发布的消息 # covariance[0]: 此帧数据是否可用，0：不可用 1：可用
                   # covariance[1]: 此帧数据不可用的原因：0：其它 1：递推长度超出限制
@@ -41,8 +45,8 @@ ep_qrcode_loc:
   port: 1024
 
   # 文件路径
-  log_dir: "/home/zl/work/ep-qrcode-loc/log/"
-  cfg_dir: "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/"
+  log_dir: "/var/xmover/log/QR_code_loc/"
+  cfg_dir: "/var/xmover/params/ep-qrcode-loc/"
 
   # 论速记补偿系数
   realVelRatio_x: 1.035 #0.93458
@@ -54,10 +58,10 @@ ep_qrcode_loc:
   qrmap2mapTrans: [0, 0, 0, 0, 0, 0, 1]
 
   # 启用二维码定位的区域，顶点首尾相接组成一个多边形区域[x1,y1, x2,y2, ....]
-  enableArea: [ 23.893, 4.258, 
-                24.057, -12.548, 
-                -3.595, -12.762, 
-                -3.760, 4.023]
+  enableArea: [ -4.181, 3.940, 
+                27.869, 4.508, 
+                28.011, -13.198
+                -4.037, -13.065]
 
 #rosbag record /lslidar_trans_points /imu /tf_static /ep_qrcode_loc/odometry/base
   detect_site_dis: 1.9

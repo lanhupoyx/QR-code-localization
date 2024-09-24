@@ -86,6 +86,7 @@ struct Site
 struct SiteList
 {
     uint32_t index_; // 库位列编号
+    geometry_msgs::Pose first_pose_; // 列首库位位姿
     std::vector<double> dis_vec_;
     double site_dis_;
     geometry_msgs::TransformStamped trans_base_camera_;
@@ -93,9 +94,10 @@ struct SiteList
     std::list<QRcodeGround> front_aux_points_; // 列首的辅助二维码
     geometry_msgs::Pose pose_cross_;           // 轴线与主干道垂直交点
 
-    SiteList(uint32_t index, std::vector<double> dis_vec, geometry_msgs::TransformStamped trans_base_camera)
+    SiteList(uint32_t index, geometry_msgs::Pose first_pose, std::vector<double> dis_vec, geometry_msgs::TransformStamped trans_base_camera)
     {
         index_ = index;
+        first_pose_ = first_pose;
         site_dis_ = dis_vec.back();
         dis_vec.pop_back();
         dis_vec_ = dis_vec;
@@ -113,8 +115,18 @@ struct SiteList
 
     void add_site(std::vector<QRcodeGround> qrcodes)
     {
-        double num = -1 * int(sites_.size()) * site_dis_;
-        geometry_msgs::Pose pose_site = sites_.front().move(num, 0.0); // 库位位姿
+        geometry_msgs::Pose pose_site;
+
+        if(0 == sites_.size())
+        {
+            pose_site = first_pose_;
+        }
+        else
+        {
+            double num = -1 * int(sites_.size()) * site_dis_;
+            pose_site = sites_.front().move(num, 0.0); // 库位位姿
+        }
+
         Site site_new(index_, sites_.size(), pose_site, qrcodes, dis_vec_, trans_base_camera_);
         sites_.push_back(site_new);
     }
@@ -123,14 +135,27 @@ struct SiteList
     {
         for (std::vector<QRcodeGround>::iterator it = qrcodes.begin(); it != qrcodes.end(); it++)
         {
-            geometry_msgs::Pose pose_code = sites_.front().move(it->x_err_, it->y_err_); // 库位位姿
             QRcodeGround newcode;
             newcode.index_ = it->index_;
-            newcode.pose_ = pose_code;
+            newcode.pose_ = poseMove(first_pose_, it->x_err_, it->y_err_);
             newcode.turn(it->yaw_err_);
             front_aux_points_.push_back(newcode);
         }
     }
+
+    geometry_msgs::Pose poseMove(geometry_msgs::Pose pose, double dis_front, double dis_left)
+    {
+        geometry_msgs::Pose pose_move;
+        
+        pose_move.position.x = pose.position.x + dis_front * cos(getYawRad(pose));
+        pose_move.position.y = pose.position.y + dis_front * sin(getYawRad(pose));
+
+        pose_move.position.x +=  dis_left * (-1)*sin(getYawRad(pose)); //cos(x+90) = -sin(x)
+        pose_move.position.y +=  dis_left * cos(getYawRad(pose)); // sin(x+90) = cos(x)
+
+        pose_move.orientation = pose.orientation;
+        return pose_move;
+    }    
 };
 
 // 二维码坐标对照表
@@ -176,73 +201,76 @@ public:
             }
 
             // 定义变量
-            uint32_t list_index, site_index;
+            uint32_t list_index, site_index, code_index;
             double site_x_first, site_y_first, site_yaw_first;
             QRcodeGround detect, aux, action;
 
             // 提取信息
-            line_ss >> list_index >> site_index ;
+            line_ss >> list_index >> site_index >> code_index;
 
-            if(1 == site_index)
+            if(0 == site_index)
             {
-                line_ss >> site_x_first >> site_y_first >> site_yaw_first
-                    >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
-                    >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
-                    >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
-                
-                // 几个距离参数
-                std::vector<double> dis_vec;
-                dis_vec.push_back(detect_site_dis);
-                dis_vec.push_back(aux_site_dis);
-                dis_vec.push_back(forkaction_site_dis);
-                dis_vec.push_back(site_site_dis);
+                if(0 == code_index)
+                {
+                    line_ss >> site_x_first >> site_y_first >> site_yaw_first;
 
-                // 新建列
-                SiteList siteList_new(list_index, dis_vec, trans_base_camera);
-                siteList_lib.push_back(siteList_new);
+                    // 列首库位pose
+                    geometry_msgs::Pose pose_first_site;
+                    pose_first_site.position.x = site_x_first;
+                    pose_first_site.position.y = site_y_first;
+                    tf::Quaternion q;
+                    q.setRPY(0.0, 0.0, site_yaw_first);
+                    tf::quaternionTFToMsg(q, pose_first_site.orientation);
 
-                // 列首库位pose
-                geometry_msgs::Pose pose_first_site;
-                pose_first_site.position.x = site_x_first;
-                pose_first_site.position.y = site_y_first;
-                tf::Quaternion q;
-                q.setRPY(0.0, 0.0, site_yaw_first);
-                tf::quaternionTFToMsg(q, pose_first_site.orientation);
+                    // 几个距离参数
+                    std::vector<double> dis_vec;
+                    dis_vec.push_back(detect_site_dis);
+                    dis_vec.push_back(aux_site_dis);
+                    dis_vec.push_back(forkaction_site_dis);
+                    dis_vec.push_back(site_site_dis);
 
-                // 打包3个二维码信息
-                std::vector<QRcodeGround> qrcodes;
-                qrcodes.push_back(detect);
-                qrcodes.push_back(aux);
-                qrcodes.push_back(action);
+                    // 新建列
+                    SiteList siteList_new(list_index, pose_first_site, dis_vec, trans_base_camera);
+                    siteList_lib.push_back(siteList_new);
 
-                // 设置列首库位
-                siteList_lib[siteList_lib.size() - 1].set_first_site(pose_first_site, qrcodes);
+                }
+                else
+                {
+                    line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
+
+                    std::vector<QRcodeGround> qrcodes;
+                    qrcodes.push_back(aux);
+
+                    // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
+                    siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
+                }
             }
-            else if(0 == site_index)
+            else if(0 < site_index)
             {
-                line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
-                        >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
+                static std::vector<QRcodeGround> qrcodes;
 
-                std::vector<QRcodeGround> qrcodes;
-                qrcodes.push_back(detect);
-                qrcodes.push_back(aux);
+                if(1 == code_index)
+                {
+                    line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ ;
+                    qrcodes.push_back(detect);
+                }
+                else if(2 == code_index)
+                {
+                    line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ ;
+                    qrcodes.push_back(aux);
+                }
+                else if(3 == code_index)
+                {
+                    line_ss >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
+                    qrcodes.push_back(action);
 
-                // 列首添加额外辅助点---------需添加计算这些点位姿的程序！！！！
-                siteList_lib[siteList_lib.size() - 1].add_aux_points(qrcodes);
-            }
-            else if(1 < site_index)
-            {
-                line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ 
-                        >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ 
-                        >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
-
-                std::vector<QRcodeGround> qrcodes;
-                qrcodes.push_back(detect);
-                qrcodes.push_back(aux);
-                qrcodes.push_back(action);
-
-                // 添加新库位
-                siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
+                    siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
+                    qrcodes.clear();
+                }
+                else
+                {
+                    std::cout << "code_index 编号有误！" << std::endl;
+                }            
             }
             else
             {
@@ -259,7 +287,8 @@ public:
             for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
             {
                 stream.str("");
-                stream << site_it->index_ << " " 
+                stream << site_it->list_index_ << " " 
+                << site_it->index_ << " " 
                 << site_it->pose_.position.x << " " 
                 << site_it->pose_.position.y << " " 
                 << getYaw(site_it->pose_.orientation);
@@ -295,7 +324,7 @@ public:
             }
         }
 
-        readYawErr();
+        //readYawErr();
 
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
@@ -345,41 +374,41 @@ public:
         return false;
     }
 
-    void readYawErr()
-    {
-        std::string yaw_err_path = "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/yawerr.csv";
-        logger->log("QRcodeTable Start");
-        ifs.open(yaw_err_path, std::ios::in);
-        if (!ifs.is_open())
-        {
-            logger->log(yaw_err_path + "打开失败!");
-        }
-        else
-        {
-            logger->log(yaw_err_path + "打开成功!");
-        }
-        std::string buf;               // 将数据存放到c++ 中的字符串中
-        while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
-        {
-            std::stringstream line_ss;
-            line_ss << buf;
+    // void readYawErr()
+    // {
+    //     std::string yaw_err_path = "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/yawerr.csv";
+    //     logger->log("QRcodeTable Start");
+    //     ifs.open(yaw_err_path, std::ios::in);
+    //     if (!ifs.is_open())
+    //     {
+    //         logger->log(yaw_err_path + "打开失败!");
+    //     }
+    //     else
+    //     {
+    //         logger->log(yaw_err_path + "打开成功!");
+    //     }
+    //     std::string buf;               // 将数据存放到c++ 中的字符串中
+    //     while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+    //     {
+    //         std::stringstream line_ss;
+    //         line_ss << buf;
 
-            // 跳过空行
-            if("" == buf)
-            {
-                continue;
-            }
+    //         // 跳过空行
+    //         if("" == buf)
+    //         {
+    //             continue;
+    //         }
 
-            // 定义变量
-            uint32_t list_index, site_index;
-            double site_x_first, site_y_first, site_yaw_first;
-            QRcodeGround detect, aux, action;
+    //         // 定义变量
+    //         uint32_t list_index, site_index;
+    //         double site_x_first, site_y_first, site_yaw_first;
+    //         QRcodeGround detect, aux, action;
 
-            // 提取信息
-            line_ss >> list_index >> site_index ;
+    //         // 提取信息
+    //         line_ss >> list_index >> site_index ;
 
-        }
-        ifs.close();
-        logger->log(yaw_err_path + "读取完毕!");
-    }
+    //     }
+    //     ifs.close();
+    //     logger->log(yaw_err_path + "读取完毕!");
+    // }
 };

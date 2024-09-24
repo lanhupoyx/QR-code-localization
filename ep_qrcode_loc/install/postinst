@@ -8,23 +8,35 @@ sed -i -r 's/^User=.*/User='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-l
 sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-loc.service
 
 #检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
-#检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
-#if [ ! -f /var/xmover/params/PandarXT-16.csv ]; then
-#  mkdir -p /var/xmover/params
-#  echo "copy params file PandarXT-16.csv"
- # cp /opt/xmover/ros/melodic/ep_lidar_hesai/share/ep_lidar_hesai/PandarXT-16.csv /var/xmover/params/PandarXT-16.csv
-#  chmod 777 /var/xmover/params/PandarXT-16.csv
-#fi
-#if [ ! -f /var/xmover/params/PandarXT-32.csv ]; then
-#  mkdir -p /var/xmover/params
-#  echo "copy params file PandarXT-32.csv"
- # cp /opt/xmover/ros/melodic/ep_lidar_hesai/share/ep_lidar_hesai/PandarXT-32.csv /var/xmover/params/PandarXT-32.csv
-#  chmod 777 /var/xmover/params/PandarXT-32.csv
-#fi
+if [ ! -f /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml ]; then
+ mkdir -p /var/xmover/params/ep-qrcode-loc
+ echo "copy params file ep-qrcode-loc.yaml"
+ cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/ep-qrcode-loc.yaml /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
+ chmod 777 /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
+fi
+
+#检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
+if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.csv ]; then
+ mkdir -p /var/xmover/params/ep-qrcode-loc
+ echo "copy params file SiteTable.csv"
+ cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.csv /var/xmover/params/ep-qrcode-loc/SiteTable.csv
+ chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.csv
+fi
+
+#检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
+if [ ! -f /var/xmover/params/ep-qrcode-loc/CaptureTable.csv ]; then
+ mkdir -p /var/xmover/params/ep-qrcode-loc
+ echo "copy params file CaptureTable.csv"
+ cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/CaptureTable.csv /var/xmover/params/ep-qrcode-loc/CaptureTable.csv
+ chmod 777 /var/xmover/params/ep-qrcode-loc/CaptureTable.csv
+fi
+
+mkdir -p /var/xmover/log/QR_code_loc
+
 chown -R $USER_NAME:$USER_NAME /opt/xmover
 chown -R $USER_NAME:$USER_NAME /var/xmover
 chown $USER_NAME:$USER_NAME /usr/lib/systemd/system/ep-qrcode-loc.service
 
 systemctl daemon-reload
-systemctl disable ep-qrcode-loc  # disable  开机自启
+systemctl enable ep-qrcode-loc  # disable  开机自启
 systemctl start ep-qrcode-loc   # 安装后立即启动

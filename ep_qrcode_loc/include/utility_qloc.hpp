@@ -251,6 +251,8 @@ class ParamServer
 public:
     ros::NodeHandle nh;
 
+    std::string logLevel;
+
     std::string odomMapBase;
     std::string odomMapCamera;
     std::string pathMapBase;
@@ -288,6 +290,9 @@ public:
     double site_site_dis;
 
     ParamServer(){
+        
+        nh.param<std::string>("ep_qrcode_loc/logLevel",   logLevel,   "INFO");
+
         nh.param<std::string>("ep_qrcode_loc/odomMapBase",   odomMapBase,   "ep_qrcode_loc/odometry/base");
         nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
         nh.param<std::string>("ep_qrcode_loc/pathMapBase",   pathMapBase,   "ep_qrcode_loc/path/base");
@@ -304,8 +309,8 @@ public:
         nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
-        nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/ep_qrcode_loc");
-        nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params");
+        nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/QR_code_loc/");
+        nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params/ep-qrcode-loc/");
         nh.param<std::vector<double>>("ep_qrcode_loc/qrmap2mapTrans", qrmap2mapTrans, std::vector<double>());
         pose_qrmap2mapcopy.position.x = qrmap2mapTrans[0];
         pose_qrmap2mapcopy.position.y = qrmap2mapTrans[1];
@@ -351,7 +356,7 @@ private:
     // 私有构造函数确保不能直接创建Logger实例
     Logger() 
     {
-        init(log_dir + "/Main" + format_time(ros::Time::now()) + ".csv");
+        init(log_dir + "/" + format_time(ros::Time::now()) + "qrcode_log.csv");
     }
  
     // 防止拷贝构造和赋值
