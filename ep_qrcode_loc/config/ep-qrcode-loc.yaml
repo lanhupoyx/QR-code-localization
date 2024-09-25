@@ -1,70 +1,60 @@
-################################################
-#####        params for ep_qrcode_loc                       #######
-#####        yuanxun@ep-ep.com                              #######
-#####        updateTime:  2024.05.01                              #######
-################################################
+###################################################################################
+#####        params for ep_qrcode_loc
+#####           yuanxun@ep-ep.com
+#####        updateTime:  2024.05.01
+###################################################################################
 
 ep_qrcode_loc:
-  verision: "v-0.0.1"
+#----------------------------------------------------------------------------------
+  # 运行模式1:采集二维码坐标（长时间停在二维码上方）; 
+  # 运行模式2:采集二维码编号（快速扫过）；
+  # 运行模式3:正常运行；
+  # 运行模式4:只扫码,不递推,用于测试；
+  operating_mode: 3
 
-  logLevel: "DEBUG"      #   日志级别 "FATAL" "ERROR" "WARN" "INFO" "DEBUG"
-  
-  # 运行模式
-  mode: 3   # 1:采集二维码坐标（长时间停在二维码上方）; 
-            # 2:采集二维码编号（快速扫过）；
-            # 3:正常运行；
-            # 4:只扫码，不递推；
+#----------------------------------------------------------------------------------
+  # 日志级别 "FATAL" "ERROR" "WARN" "INFO" "DEBUG"
+  logLevel: "DEBUG"
 
-
-  # 最终发布的消息 # covariance[0]: 此帧数据是否可用，0：不可用 1：可用
-                  # covariance[1]: 此帧数据不可用的原因：0：其它 1：递推长度超出限制
-                  # covariance[2]: 此帧数据来源，0：二维码 1：轮速计递推
-                  # covariance[3]: 此帧数据是否列首二维码，0：否 1：是
-  odomMapBase: "ep_qrcode_loc/odometry/base" # nav_msgs::Odometry类型
-  odomMapCamera: "ep_qrcode_loc/odometry/locCamera" # nav_msgs::Odometry类型
-
-  pathMapBase: "ep_qrcode_loc/path/base"
-  pathMapCamera: "ep_qrcode_loc/path/locCamera"
-
-  # 测试用消息
-  odomQrmapBase: "ep_qrcode_loc/qrmap/odometry/base"
-  odomQrmapCamera: "ep_qrcode_loc/qrmap/odometry/locCamera"
-  msgTopic: "ep_qrcode_loc/msg"
-
-  realVelDt: 0.01 
-  show_msg: false
-  collect_QRcode: true
-
+#----------------------------------------------------------------------------------
+  # 调试程序过程中用到参数
+  show_original_msg: false # 记录和发布相机扫到二维码的原始信息
   is_pub_tf: false # 后续删除相关参数和代码
+  ignore_area: true # 无视可运行区域限制
+
+#----------------------------------------------------------------------------------
+  # 低速界限,运行模式3中,高于该速度时每次只取一帧二维码数据
   low_speed_UL: 0.1
 
-  # 最大递推距离
-  maxEstimationDis: 1.1
+#----------------------------------------------------------------------------------
+  # 最大递推距离,超多该距离则将输出帧标记为不可用
+  maxEstimationDis: 1.1 
 
-  # 相机网络所用端口
+#----------------------------------------------------------------------------------
+  # 相机网络所用端口,与相机内设置的一致
   port: 1024
 
-  # 文件路径
-  log_dir: "/var/xmover/log/QR_code_loc/"
-  cfg_dir: "/var/xmover/params/ep-qrcode-loc/"
-
-  # 论速记补偿系数
+#----------------------------------------------------------------------------------
+  # 轮速记补偿系数
   realVelRatio_x: 1.035 #0.93458
   realVelRatio_z: 1.0
   realVelOffset_x: 0.0
   realVelOffset_z: 0.0
 
+#----------------------------------------------------------------------------------
   # lidar坐标系与二维码坐标系之间的转换关系 #(t_x, t_y, t_z, q_x, q_y, q_z, q_w)
   qrmap2mapTrans: [0, 0, 0, 0, 0, 0, 1]
 
+#----------------------------------------------------------------------------------
   # 启用二维码定位的区域，顶点首尾相接组成一个多边形区域[x1,y1, x2,y2, ....]
   enableArea: [ -4.181, 3.940, 
                 27.869, 4.508, 
                 28.011, -13.198
                 -4.037, -13.065]
-
-#rosbag record /lslidar_trans_points /imu /tf_static /ep_qrcode_loc/odometry/base
-  detect_site_dis: 1.9
-  aux_site_dis: 1.4
-  forkaction_site_dis: 0.93
-  site_site_dis: 1.36
+                
+#----------------------------------------------------------------------------------
+  # 库位设置中的相关尺寸
+  detect_site_dis: 1.9      # 识别点距离
+  aux_site_dis: 1.4         # 辅助点距离
+  forkaction_site_dis: 0.93 # 货叉动作点距离
+  site_site_dis: 1.36       # 库位前后距离

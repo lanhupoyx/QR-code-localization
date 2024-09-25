@@ -262,11 +262,10 @@ public:
     std::string odomQrmapCamera;
     std::string msgTopic;
 
-    double realVelDt;
-    int mode;
-    bool show_msg;
-    bool collect_QRcode;
+    int operating_mode;
+    bool show_original_msg;
     bool is_pub_tf;
+    bool ignore_area;
     double low_speed_UL;
     std::string port;
     std::string log_dir;
@@ -297,16 +296,15 @@ public:
         nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
         nh.param<std::string>("ep_qrcode_loc/pathMapBase",   pathMapBase,   "ep_qrcode_loc/path/base");
         nh.param<std::string>("ep_qrcode_loc/pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
-
         nh.param<std::string>("ep_qrcode_loc/odomQrmapBase",   odomQrmapBase,   "ep_qrcode_loc/qrmap/odometry/base");
         nh.param<std::string>("ep_qrcode_loc/odomQrmapCamera", odomQrmapCamera, "ep_qrcode_loc/qrmap/odometry/locCamera");
-
         nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
-        nh.param<double>("ep_qrcode_loc/realVelDt", realVelDt, 0.01);
-        nh.param<int>("ep_qrcode_loc/mode", mode, 3);
-        nh.param<bool>("ep_qrcode_loc/show_msg", show_msg, false);
-        nh.param<bool>("ep_qrcode_loc/collect_QRcode", collect_QRcode, false);
+  
+        nh.param<int>("ep_qrcode_loc/operating_mode", operating_mode, 3);
+        nh.param<bool>("ep_qrcode_loc/show_original_msg", show_original_msg, false);
         nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
+        
+        nh.param<bool>("ep_qrcode_loc/ignore_area", ignore_area, false);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
         nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/QR_code_loc/");
@@ -332,17 +330,6 @@ public:
         nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
         nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
 
-        // // 日志文件初始化
-        // std::string log_name = log_dir + "/" + format_time(ros::Time::now()) + ".txt";
-        // log_file.open(log_name);
-        // if (!log_file.is_open())
-        // {
-        //     std::cout << "can't open: " << log_name << std::endl;
-        // }
-        // else
-        // {
-        //     std::cout << "open: " << log_name << std::endl;
-        // }
     }
 };
 
@@ -350,13 +337,15 @@ public:
 class Logger : public ParamServer
 {
 private:
-    static std::ofstream logFile;
+    static std::ofstream logFile_;
     static std::mutex mutex;
+    std::string loglevel_;
  
     // 私有构造函数确保不能直接创建Logger实例
     Logger() 
     {
         init(log_dir + "/" + format_time(ros::Time::now()) + "qrcode_log.csv");
+        loglevel_ = logLevel;
     }
  
     // 防止拷贝构造和赋值
@@ -366,8 +355,8 @@ private:
     // 静态成员函数，用于初始化静态变量
     static void init(std::string log_name) 
     {
-        logFile.open(log_name, std::ios::app);
-        if (!logFile.is_open()) 
+        logFile_.open(log_name, std::ios::app);
+        if (!logFile_.is_open()) 
         {
             std::cout << "can't open: " << log_name << std::endl;
         }
@@ -387,10 +376,38 @@ public:
     // 记录日志的方法
     void log(const std::string& message) {
         std::lock_guard<std::mutex> lock(mutex); // 线程安全
-        logFile << message << std::endl;
+        logFile_ << message << std::endl;
+    }
+// "FATAL" "ERROR" "WARN" "INFO" "DEBUG"
+    void fatal(const std::string& message) {
+        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        logFile_ << format_time(ros::Time::now()) << "[FATAL]" << message << std::endl;
+    }
+
+    void error(const std::string& message) {
+        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        logFile_ << format_time(ros::Time::now()) << " [ERROR] " << message << std::endl;
+    }
+
+    void warn(const std::string& message) {
+        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        logFile_ << format_time(ros::Time::now()) << " [WARN] " << message << std::endl;
+    }
+
+    void info(const std::string& message) {
+        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        logFile_ << format_time(ros::Time::now()) << " [INFO] " << message << std::endl;
+    }
+
+    void debug(const std::string& message) {
+        if("DEBUG" == loglevel_)
+        {
+            std::lock_guard<std::mutex> lock(mutex); // 线程安全
+            logFile_ << format_time(ros::Time::now()) << " [DEBUG] " << message << std::endl;
+        }
     }
 };
-std::ofstream Logger::logFile;
+std::ofstream Logger::logFile_;
 std::mutex Logger::mutex;
 
 // 向量

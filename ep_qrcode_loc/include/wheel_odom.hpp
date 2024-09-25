@@ -23,6 +23,7 @@ private:
     double new_speed_x;
     ros::Subscriber sub_realvel;
     std::mutex mtx;
+    Logger *logger;
 
 public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
@@ -31,6 +32,7 @@ public:
         sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
         new_speed_x=0;
+        logger = &Logger::getInstance();
     }
 
     ~WheelSpeedOdometer() {}
@@ -90,6 +92,7 @@ public:
     // 获取/realvel的回调函数
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &velmsg)
     {
+        logger->debug("realvelCallback() : start");
         std::lock_guard<std::mutex> locker(mtx);
         wheel_speed new_speed(ros::Time::now(), *velmsg);
         speed_data.push_back(new_speed);
@@ -98,8 +101,10 @@ public:
 
     bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
     {
+        logger->debug("run_odom() : start");
         if (0 == speed_data.size())
         {
+            logger->debug("run_odom() : 0 == speed_data.size(), return false");
             return false;
         }
 
@@ -123,6 +128,7 @@ public:
         odom_est.child_frame_id = "locCamera_link";
         v_odom.push_back(odom_est);
 
+        logger->debug("run_odom() : return true");
         return true;
     }
 

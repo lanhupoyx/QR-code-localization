@@ -66,7 +66,7 @@ private:
                     return false;
                 }
 
-                if (show_msg)
+                if (show_original_msg)
                 {
                     stream.str("");
                     stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
@@ -279,7 +279,7 @@ private:
                 // }
 
                 // log
-                if (show_msg)
+                if (show_original_msg)
                 {
                     stream.str("");
                     stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip

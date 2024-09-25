@@ -55,7 +55,7 @@ public:
                 continue;
             }
         }
-        if (1 == mode)
+        if (1 == operating_mode)
         {
             sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                        &QRcodeTable::tfCallback, this,
