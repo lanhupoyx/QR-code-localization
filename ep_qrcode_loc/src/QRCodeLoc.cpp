@@ -809,6 +809,7 @@ public:
                 if(is_inited)
                 {
                     logger->debug("wheel odom is_inited");
+                    wheel_odom->start();
                     std::vector<nav_msgs::Odometry> v_odom;
                     if(wheel_odom->run_odom(v_odom))
                     {
