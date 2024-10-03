@@ -781,25 +781,29 @@ public:
                             {
                                 logger->debug("is_jump_point");
 
-				                //static double y_err_b_last = 0;
-                                double y_err_b = cur_odom.pose.pose.position.y*1000 - last_odom.pose.pose.position.y*1000;
-                                stream.str("");
-                                stream << format_time(ros::Time::now())
-                                    << " y_err_b= " << y_err_b
-                                    << " index: " << pic.code;
-                                logger->log(stream.str());
+                                if(save_y_err)
+                                {
+                                    //static double y_err_b_last = 0;
+                                    double y_err_b = cur_odom.pose.pose.position.y*100 - last_odom.pose.pose.position.y*100;
+                                    stream.str("");
+                                    stream << format_time(ros::Time::now())
+                                        << " index: " << pic.code
+                                        << " y_err_b(cm)= " << y_err_b
+                                        << " camera_error_x= " << pic.error_x
+                                        << " camera_error_y= " << pic.error_y;
+                                    logger->log(stream.str());
 
-                                
-                                if(y_err_b > 0)
-                                {
-                                    //qrcode_table->jiaozheng(pic.code, y_err_b);
+                                    if(y_err_b > 0)
+                                    {
+                                        //qrcode_table->jiaozheng(pic.code, y_err_b);
+                                    }
+                                    else
+                                    {
+                                        
+                                    }
+                                                    
+                                    //y_err_b_last = y_err_b;
                                 }
-                                else
-                                {
-                                    
-                                }
-                                                
-                                //y_err_b_last = y_err_b;
                             }
                         }
                     }
