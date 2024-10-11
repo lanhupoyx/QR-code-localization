@@ -10,11 +10,11 @@ public:
     {
         path = dir; // 文件位置
         logger = &Logger::getInstance();
-        logger->log("QRcodeTable Start");
+        logger->info("QRcodeTable Start");
         ifs.open(dir, std::ios::in);
         if (!ifs.is_open())
         {
-            logger->log(dir + "打开失败!");
+            logger->info(dir + "打开失败!");
         }
         std::string buf;               // 将数据存放到c++ 中的字符串中
         while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
@@ -28,12 +28,12 @@ public:
         ifs.close();
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
-        logger->log(stream.str());
+        logger->info(stream.str());
         for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
         {
             stream.str("");
             stream << (*it).second.code << " " << (*it).second.x << " " << (*it).second.y << " " << (*it).second.yaw;
-            logger->log(stream.str());
+            logger->info(stream.str());
         }
 
         // baselink---->camera的变换关系
@@ -79,7 +79,7 @@ public:
         {
             // stream.str("");
             // stream  << "can not identify code:" << frame.code;
-            // logger->log(stream.str());
+            // logger->info(stream.str());
             std::cout << "can not identify code:" << frame.code << std::endl;
             add(frame);
         }
@@ -100,7 +100,7 @@ public:
         {
             // stream.str("");
             // stream  << "can not identify code:" << frame.code;
-            // logger->log(stream.str());
+            // logger->info(stream.str());
             std::cout << "can not identify code:" << frame.code << std::endl;
         }
         return false;
@@ -146,7 +146,7 @@ public:
                    << new_qrcode.x << " "
                    << new_qrcode.y << " "
                    << new_qrcode.yaw;
-            logger->log(stream.str());
+            logger->info(stream.str());
             std::cout << stream.str() << std::endl;
         }
 
@@ -247,7 +247,7 @@ private:
         stream.str("");
         stream << "sum.code: "
                << sum.code;
-        logger->log(stream.str());
+        logger->info(stream.str());
         return (average);
     }
 

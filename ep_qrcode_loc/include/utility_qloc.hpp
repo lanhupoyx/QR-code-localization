@@ -278,6 +278,8 @@ public:
 
     bool save_y_err;
 
+    double err_ratio;
+
     double realVelRatio_x;
     double realVelRatio_z;
     double realVelOffset_x;
@@ -306,6 +308,8 @@ public:
         nh.param<bool>("ep_qrcode_loc/show_original_msg", show_original_msg, false);
         nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
         nh.param<bool>("ep_qrcode_loc/save_y_err", save_y_err, false);
+
+        nh.param<double>("ep_qrcode_loc/err_ratio", err_ratio, -1.0);
         
         nh.param<bool>("ep_qrcode_loc/ignore_area", ignore_area, false);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);

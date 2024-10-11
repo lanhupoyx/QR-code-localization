@@ -159,8 +159,7 @@ public:
 
     double get_vel_x()
     {
-std::lock_guard<std::mutex> locker(mtx);
-            return new_speed_x;
-        
+        std::lock_guard<std::mutex> locker(mtx);
+        return new_speed_x;
     }
 };

@@ -5,6 +5,8 @@
 #include "camera.hpp"
 #include "qrcode_table.hpp"
 #include "qrcode_table_v2.hpp"
+#include "div.hpp"
+#include "err.hpp"
 
 // 二维码定位
 class QRcodeLoc : public ParamServer
@@ -27,6 +29,7 @@ public:
     QRcodeTable *Lidarmap_tab;
     MV_SC2005AM *camera;
     QRcodeTableV2 *qrcode_table;
+    err *err_y;
 
     Polygon *operating_area;
     WheelSpeedOdometer *wheel_odom;
@@ -69,7 +72,7 @@ public:
     {
         // 发布器
         logger = &Logger::getInstance();
-        logger->log("QRcodeLoc Start");
+        logger->info("QRcodeLoc Start");
 
         // 初始化发布器
         pub_odom_map_base = nh.advertise<nav_msgs::Odometry>(odomMapBase, 1);
@@ -103,18 +106,17 @@ public:
 
         // 实例化两个表格、定位相机、运行区域
         // QRmap_tab = new QRcodeTable(cfg_dir + "ep-qrcode-QRCodeMapTable.txt");
-        qrcode_table = new QRcodeTableV2(cfg_dir + "SiteTable.csv", trans_camera2base);
+        qrcode_table = new QRcodeTableV2(cfg_dir, trans_camera2base);
 
         camera = new MV_SC2005AM();
         operating_area = new Polygon();
         wheel_odom = new WheelSpeedOdometer(trans_camera2base);
-
-
+        err_y = new err(cfg_dir);
 
         stream.str("");
         stream << " init "
                << std::endl;
-        logger->log(stream.str());
+        logger->info(stream.str());
     }
 
     // 析构函数
@@ -386,7 +388,7 @@ public:
         //        << "," << odom.pose.pose.position.x
         //        << "," << odom.pose.pose.position.y
         //        << "," << getYaw(odom.pose.pose);
-        // logger->log(stream.str());
+        // logger->info(stream.str());
         odom_history = odom;
         //std::cout << stream.str() << std::endl;
     }
@@ -444,7 +446,7 @@ public:
                        << "," << BeforeofJump.pose.pose.position.x
                        << "," << BeforeofJump.pose.pose.position.y
                        << "," << getYaw(BeforeofJump.pose.pose);
-                logger->log(stream.str());
+                logger->info(stream.str());
             }
         }
     }
@@ -462,7 +464,7 @@ public:
             ROS_WARN("%s; retrying...", exception.what());
             stream.str("");
             stream << exception.what() << "; retrying...";
-            logger->log(stream.str());
+            logger->info(stream.str());
             return;
         }
 
@@ -486,7 +488,7 @@ public:
                << "," << trans_base2map.transform.translation.y
                << "," << getYaw(trans_base2map.transform.rotation)
                << "," << msg.pose.covariance[0];
-        logger->log(stream.str());
+        logger->info(stream.str());
     }
 
     // 计算base_link在map坐标系下的坐标
@@ -665,7 +667,7 @@ public:
         else if (2 == operating_mode) // 采集二维码编号
         {
             ROS_INFO("Mode: Collect QR-Code index");
-            logger->log("Start Collect QR-Code");
+            logger->info("Start Collect QR-Code");
 
             ros::Rate loop_rate(100); // 主循环 100Hz
             while (ros::ok())
@@ -678,7 +680,7 @@ public:
                         std::stringstream stream;
                         stream.str("");
                         stream << pic.code;
-                        logger->log(stream.str());
+                        logger->info(stream.str());
 
                         code_last = pic.code;
                     }
@@ -722,7 +724,7 @@ public:
                             min_dis_x0 = 1000; //mm
                             catch_zero = false;
 
-                            //logger->log(format_time(ros::Time::now()) + ",init");
+                            //logger->info(format_time(ros::Time::now()) + ",init");
                         }
                         pic_last = pic;
 
@@ -783,26 +785,20 @@ public:
 
                                 if(save_y_err)
                                 {
-                                    //static double y_err_b_last = 0;
-                                    double y_err_b = cur_odom.pose.pose.position.y*100 - last_odom.pose.pose.position.y*100;
-                                    stream.str("");
-                                    stream << format_time(ros::Time::now())
-                                        << " index: " << pic.code
-                                        << " y_err_b(cm)= " << y_err_b
-                                        << " camera_error_x= " << pic.error_x
-                                        << " camera_error_y= " << pic.error_y;
-                                    logger->log(stream.str());
+                                    err_y->add(ros::Time::now(),
+                                               pic.code,
+                                               wheel_odom->get_vel_x(),
+                                               last_odom.pose.pose.position.y,
+                                               cur_odom.pose.pose.position.y,
+                                               pic.error_x,
+                                               pic.error_y);
+                                    logger->debug("save_y_err");
 
-                                    if(y_err_b > 0)
+                                    if (wheel_odom->get_vel_x() > 0.2)
                                     {
-                                        //qrcode_table->jiaozheng(pic.code, y_err_b);
+                                        double y_err = cur_odom.pose.pose.position.y - last_odom.pose.pose.position.y;
+                                        qrcode_table->jiaozheng(pic.code, y_err * err_ratio);
                                     }
-                                    else
-                                    {
-                                        
-                                    }
-                                                    
-                                    //y_err_b_last = y_err_b;
                                 }
                             }
                         }
@@ -913,6 +909,8 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "qrcode_loc");
 
+    // Div div("/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/config/data/");
+    // ros::spinOnce();
     QRcodeLoc QLoc;
 
     std::thread loopthread(&QRcodeLoc::mainloopThread, &QLoc);

@@ -19,7 +19,7 @@ public:
         logger = &Logger::getInstance();
         if (x1_ == x2_)
         {
-            // logger->log("error: x1 == x2");
+            // logger->info("error: x1 == x2");
             x_ = x1_;
         }
         else if (y1_ == y2_)

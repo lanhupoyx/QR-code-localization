@@ -12,7 +12,7 @@ public:
         stream.str("");
         stream << "MV_SC2005AM Start"
                << std::endl;
-        logger->log(stream.str());
+        logger->info(stream.str());
 
         // UDP端口监测初始化
         socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(port.c_str())));
@@ -71,7 +71,7 @@ private:
                     stream.str("");
                     stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
                            << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw;
-                    logger->log(stream.str());
+                    logger->info(stream.str());
                 }
 
                 // std::cout << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
@@ -82,7 +82,7 @@ private:
             // log_file << "error receiving UDP data: " << error.message().c_str() << std::endl;
             stream.str("");
             stream << "error receiving UDP data: " << error.message().c_str();
-            logger->log(stream.str());
+            logger->info(stream.str());
         }
         return false;
     }
@@ -284,7 +284,7 @@ private:
                     stream.str("");
                     stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
                            << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw;
-                    logger->log(stream.str());
+                    logger->info(stream.str());
                 }
 
                 // std::cout << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
@@ -297,7 +297,7 @@ private:
             // 接收到的数据异常
             stream.str("");
             stream << "error receiving UDP data: " << error.message().c_str();
-            logger->log(stream.str());
+            logger->info(stream.str());
         }
         return false;
     }
