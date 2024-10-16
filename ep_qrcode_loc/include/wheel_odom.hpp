@@ -79,7 +79,7 @@ public:
         double dt = (time_now - odom_init.header.stamp).toSec();
 
         // 方向递推
-        double yaw = getYawRad(odom_init.pose.pose.orientation) + vel.angular.z * realVelRatio_z * dt;
+        double yaw = getYawRad(odom_init.pose.pose.orientation) + vel.angular.z * realVelRatio_z * dt + realVelAdd_z;
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, yaw);
         tf::quaternionTFToMsg(q, odom_final.pose.pose.orientation);
@@ -90,7 +90,6 @@ public:
 
         // 数据来源
         odom_final.pose.covariance = odom_init.pose.covariance;
-        odom_final.pose.covariance[2] = 1; // 此帧数据来源，0：二维码 1：轮速计递推
 
         // 时间戳
         odom_final.header.stamp = time_now;
@@ -102,17 +101,75 @@ public:
     }
 
     // 获取/realvel的回调函数
-    void realvelCallback(const geometry_msgs::Twist::ConstPtr &velmsg)
+    void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
     {
         logger->debug("realvelCallback() : start");
         if(state_)
         {
             std::lock_guard<std::mutex> locker(mtx);
-            wheel_speed new_speed(ros::Time::now(), *velmsg);
+
+            geometry_msgs::Twist vel_msg = *p_velmsg;
+
+            logger->debug("realvelCallback(): vel_msg: " 
+                        + ' ' + std::to_string(vel_msg.linear.x)
+                        + ' ' + std::to_string(vel_msg.angular.z));
+
+            // 自行车模型
+            // geometry_msgs::Twist vel_new;
+            // double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
+            // double wheel_rpm = vel_msg.angular.y;
+            // double wheel_vel = M_PI * wheel_diameter * wheel_rpm / 60.0;
+            // vel_new.angular.z = wheel_vel * std::atan(wheel_angular) / wheel_base_dis;
+            // vel_new.linear.x = wheel_vel * std::cos(wheel_angular);
+
+            geometry_msgs::Twist vel_new;
+
+            double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
+            logger->debug("wheel_angular: " + std::to_string(wheel_angular));
+            double wheel_rpm = vel_msg.linear.z;
+            logger->debug("wheel_rpm: " + std::to_string(wheel_rpm));
+            double wheel_vel = M_PI * wheel_diameter * wheel_rpm / 60.0;
+            logger->debug("wheel_vel: " + std::to_string(wheel_vel));
+
+            if (abs(wheel_angular) < 0.001)
+            {
+                logger->debug("abs(wheel_angular) < 0.001");
+                vel_new.linear.x = wheel_vel;
+                vel_new.angular.z = 0;
+                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
+                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
+            }
+            else if (abs(wheel_angular) < 1.570)
+            {
+                logger->debug("abs(wheel_angular) < 1.570");
+                vel_new.angular.z = wheel_vel * std::sin(wheel_angular) / wheel_base_dis;
+                vel_new.linear.x = vel_new.angular.z * (wheel_base_dis / std::tan(wheel_angular));
+                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
+                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
+            }
+            else
+            {
+                logger->debug("abs(wheel_angular) > 1.570");
+                if (wheel_angular > 0)
+                {
+                    vel_new.angular.z = wheel_vel / wheel_base_dis;
+                }
+                else
+                {
+                    vel_new.angular.z = -1 * wheel_vel / wheel_base_dis;
+                }
+                vel_new.linear.x = 0;
+
+                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
+                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
+            }
+
+            // 加入队列
+            wheel_speed new_speed(ros::Time::now(), vel_new);
             speed_data.push_back(new_speed);
             new_speed_x=new_speed.vel_.linear.x;
 
-            logger->debug("realvelCallback(): new msg: " 
+            logger->debug("realvelCallback(): new_speed: " 
                         + ' ' + std::to_string(new_speed.vel_.linear.x)
                         + ' ' + std::to_string(new_speed.vel_.angular.z));
 
@@ -126,10 +183,10 @@ public:
 
     bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
     {
-        logger->debug("run_odom() : start");
+        //logger->debug("run_odom() : start");
         if (0 == speed_data.size())
         {
-            logger->debug("run_odom() : 0 == speed_data.size(), return false");
+            //logger->debug("run_odom() : 0 == speed_data.size(), return false");
             return false;
         }
 
@@ -153,7 +210,7 @@ public:
         odom_est.child_frame_id = "locCamera_link";
         v_odom.push_back(odom_est);
 
-        logger->debug("run_odom() : return true");
+        //logger->debug("run_odom() : return true");
         return true;
     }
 

@@ -20,7 +20,7 @@ public:
         logger = &Logger::getInstance();
         logger->info("Err Start");
 
-        std::string csv_path = path + "err.csv";
+        std::string csv_path = path + "y_err.csv";
         data_ofs.open(csv_path, std::ios::app);
 
         logger->info(csv_path + "打开完毕!");
@@ -33,11 +33,11 @@ public:
         double des_err = end - start;
 
         data_ofs <<  format_time(time) 
-                + ',' + std::to_string(index)
-                + ',' + std::to_string(vel_x)
-                + ',' + std::to_string(des_err)
-                + ',' + std::to_string(camera_error_x)
-                + ',' + std::to_string(camera_error_y)
+                + ' ' + std::to_string(index)
+                + ' ' + std::to_string(vel_x)
+                + ' ' + std::to_string(des_err)
+                + ' ' + std::to_string(camera_error_x)
+                + ' ' + std::to_string(camera_error_y)
                 << std::endl;
 
         logger->debug("err add");

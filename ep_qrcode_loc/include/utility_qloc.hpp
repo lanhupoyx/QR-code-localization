@@ -115,6 +115,17 @@ std::string format_time(ros::Time t)
     return ss.str();
 }
 
+// 日期格式化输出
+std::string format_date(ros::Time t)
+{
+    std::stringstream ss;
+    ros::WallTime wall_time = ros::WallTime(t.toSec());
+    ss << wall_time.toBoost().date().year() << '-';
+    ss << wall_time.toBoost().date().month() << '-';
+    ss << wall_time.toBoost().date().day();
+    return ss.str();
+}
+
 // pose to transform
 geometry_msgs::TransformStamped p2t(geometry_msgs::Pose pose){
     geometry_msgs::TransformStamped trans;
@@ -228,8 +239,14 @@ struct QRcodeInfo
     double x;
     double y;
     double yaw;
+    double yaw_init;
+    double yaw_err_average;
+    uint32_t yaw_err_num;
+
     CameraFrame frame;
     bool is_head;
+
+    uint8_t type; // 列内 0， 列首 1
 
     QRcodeInfo(){};
 
@@ -240,6 +257,7 @@ struct QRcodeInfo
         y = y_;
         yaw = yaw_;
         is_head = is_head_;
+        type = 0;
     }
 
     ~QRcodeInfo(){}
@@ -277,8 +295,17 @@ public:
     std::ofstream log_file;
 
     bool save_y_err;
+    bool cal_yaw_err;
+    bool read_yaw_err;
 
-    double err_ratio;
+    double rec_p1;
+    double wheel_diameter;
+    double wheel_base_dis;
+    double realVelAdd_z;
+    double wheel_angular_offset;
+
+    double err_ratio_offline;
+    double err_ratio_online;
 
     double realVelRatio_x;
     double realVelRatio_z;
@@ -308,8 +335,17 @@ public:
         nh.param<bool>("ep_qrcode_loc/show_original_msg", show_original_msg, false);
         nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
         nh.param<bool>("ep_qrcode_loc/save_y_err", save_y_err, false);
+        nh.param<bool>("ep_qrcode_loc/cal_yaw_err", cal_yaw_err, false);
+        nh.param<bool>("ep_qrcode_loc/read_yaw_err", read_yaw_err, false);
 
-        nh.param<double>("ep_qrcode_loc/err_ratio", err_ratio, -1.0);
+        nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, -0.5);
+        nh.param<double>("ep_qrcode_loc/err_ratio_online", err_ratio_online, 0.0);
+
+        nh.param<double>("ep_qrcode_loc/rec_p1", rec_p1, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_diameter", wheel_diameter, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_base_dis", wheel_base_dis, 0.0);
+        nh.param<double>("ep_qrcode_loc/realVelAdd_z", realVelAdd_z, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_angular_offset", wheel_angular_offset, 0.0);
         
         nh.param<bool>("ep_qrcode_loc/ignore_area", ignore_area, false);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
@@ -345,13 +381,14 @@ class Logger : public ParamServer
 {
 private:
     static std::ofstream logFile_;
+    static std::ofstream poseFile_;
     static std::mutex mutex;
     std::string loglevel_;
  
     // 私有构造函数确保不能直接创建Logger实例
     Logger() 
     {
-        init(log_dir + "/" + format_time(ros::Time::now()) + "qrcode_log.csv");
+        init(log_dir);
         loglevel_ = logLevel;
     }
  
@@ -360,16 +397,30 @@ private:
     Logger& operator=(const Logger&) = delete;
  
     // 静态成员函数，用于初始化静态变量
-    static void init(std::string log_name) 
+    static void init(std::string log_dir_) 
     {
-        logFile_.open(log_name, std::ios::app);
+        // log文件
+        std::string log_path = log_dir_ + "/" + format_time(ros::Time::now()) + "_qrcode_log.csv";
+        logFile_.open(log_path, std::ios::app);
         if (!logFile_.is_open()) 
         {
-            std::cout << "can't open: " << log_name << std::endl;
+            std::cout << "can't open: " << log_path << std::endl;
         }
         else
         {
-            std::cout << "open: " << log_name << std::endl;
+            std::cout << "open: " << log_path << std::endl;
+        }
+
+        // pose文件
+        std::string pose_path = log_dir_ + "/" + format_date(ros::Time::now()) + "_qrcode_pose.csv";
+        poseFile_.open(pose_path, std::ios::app);
+        if (!poseFile_.is_open()) 
+        {
+            std::cout << "can't open: " << pose_path << std::endl;
+        }
+        else
+        {
+            std::cout << "open: " << pose_path << std::endl;
         }
     }
  
@@ -413,8 +464,14 @@ public:
             logFile_ << format_time(ros::Time::now()) << " [DEBUG] " << message << std::endl;
         }
     }
+
+    void pose(const std::string& message) 
+    {
+        logFile_ << format_time(ros::Time::now()) << "," << message << std::endl;
+    }
 };
 std::ofstream Logger::logFile_;
+std::ofstream Logger::poseFile_;
 std::mutex Logger::mutex;
 
 // 向量

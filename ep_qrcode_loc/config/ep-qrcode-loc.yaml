@@ -21,8 +21,19 @@ ep_qrcode_loc:
   show_original_msg: false # 记录和发布相机扫到二维码的原始信息
   is_pub_tf: false # 后续删除相关参数和代码
   ignore_area: true # 无视可运行区域限制
-  save_y_err: true
-  err_ratio: -0.5
+  save_y_err: true # 记录横向偏差
+  cal_yaw_err: true # 计算地码方向角补偿值
+  read_yaw_err: true # 读取地码方向角补偿值
+  err_ratio_offline: -0.5
+  err_ratio_online: -0.5
+
+  rec_p1: 0.4 #x,y预测权重
+
+#----------------------------------------------------------------------------------
+  # 轮速参数
+  wheel_diameter: 0.343
+  wheel_base_dis: 1.524
+  wheel_angular_offset: 1.0  # 单位：度
 
 #----------------------------------------------------------------------------------
   # 低速界限,运行模式3中,高于该速度时每次只取一帧二维码数据

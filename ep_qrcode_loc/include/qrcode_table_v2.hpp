@@ -10,6 +10,8 @@ struct QRcodeGround
     uint32_t index_;           // 序号
     geometry_msgs::Pose pose_; // 位姿
 
+    uint8_t type;
+
     double x_err_;   // x方向补偿值，单位m
     double y_err_;   // y方向补偿值，单位m
     double yaw_err_; // yaw方向补偿值,单位角度
@@ -138,6 +140,7 @@ struct SiteList
         for (std::vector<QRcodeGround>::iterator it = qrcodes.begin(); it != qrcodes.end(); it++)
         {
             QRcodeGround newcode;
+            newcode.type = 1;
             newcode.index_ = it->index_;
             newcode.pose_ = poseMove(first_pose_, it->x_err_, it->y_err_);
             newcode.turn(it->yaw_err_);
@@ -158,6 +161,13 @@ struct SiteList
         pose_move.orientation = pose.orientation;
         return pose_move;
     }    
+};
+
+// 偏差值信息
+struct err_val
+{
+    double err;
+    uint32_t num;
 };
 
 // 二维码坐标对照表
@@ -188,7 +198,7 @@ public:
         logger = &Logger::getInstance();
         logger->info("QRcodeTable Start");
 
-        std::string site_info_path = cfg_path + "SiteTable.csv";
+        std::string site_info_path = cfg_path + "SiteTable.txt";
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
         {
@@ -247,7 +257,7 @@ public:
                 else
                 {
                     line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
-                    aux.yaw_err_ *= err_ratio;
+                    aux.yaw_err_ *= err_ratio_offline;
 
                     std::vector<QRcodeGround> qrcodes;
                     qrcodes.push_back(aux);
@@ -263,19 +273,19 @@ public:
                 if(1 == code_index)
                 {
                     line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ ;
-                    detect.yaw_err_ *= err_ratio;
+                    detect.yaw_err_ *= err_ratio_offline;
                     qrcodes.push_back(detect);
                 }
                 else if(2 == code_index)
                 {
                     line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ ;
-                    aux.yaw_err_ *= err_ratio;
+                    aux.yaw_err_ *= err_ratio_offline;
                     qrcodes.push_back(aux);
                 }
                 else if(3 == code_index)
                 {
                     line_ss >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
-                    action.yaw_err_ *= err_ratio;
+                    action.yaw_err_ *= err_ratio_offline;
                     qrcodes.push_back(action);
 
                     siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
@@ -334,11 +344,23 @@ public:
             for (std::list<QRcodeGround>::iterator it = list_it->front_aux_points_.begin(); it != list_it->front_aux_points_.end(); it++)
             {
                 QRcodeInfo info_head(it->index_, it->pose_.position.x, it->pose_.position.y, getYaw(it->pose_), true);
+                info_head.type = 1;
                 map.insert(std::pair<uint32_t, QRcodeInfo>(info_head.code, info_head));
             }
         }
 
-        //readYawErr();
+        // 二维码方向角矫正
+        if(cal_yaw_err)
+        {
+            // 根据偏差记录计算、并保存矫正值
+            calYawErr(cfg_path_);
+        }
+
+        if(read_yaw_err)
+        {
+            // 读取矫正值
+            readYawErr(cfg_path_);
+        }
 
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
@@ -376,10 +398,10 @@ public:
     {
         std::lock_guard<std::mutex> locker(mtx);
         std::map<uint32_t, QRcodeInfo>::iterator it = map.find(code);
-        if (it != map.end())
+        if ((it != map.end()) &&(1 != it->second.type))
         {
-            it->second.yaw += yaw_err;
-            logger->debug("jiaozheng: " +
+            it->second.yaw += yaw_err*180/M_PI;
+            logger->info("jiaozheng: " +
                           std::to_string(code) + " " +
                           std::to_string(yaw_err) + " " +
                           std::to_string(it->second.yaw));
@@ -418,14 +440,13 @@ public:
             }
 
             // 定义变量
-            std::string time;
-            uint32_t index;
+            uint32_t index, num;
             double yaw_err;
 
             // 提取信息
-            line_ss >> time >> index >> yaw_err ;
+            line_ss >> index >> yaw_err >> num;
 
-            jiaozheng(index, yaw_err);
+            jiaozheng(index, yaw_err * err_ratio_offline);
 
         }
         ifs.close();
@@ -459,5 +480,95 @@ public:
 
         logger->info(csv_path + "写入完毕!");
         return true;
+    }
+
+    void calYawErr(std::string cfg_path)
+    {
+        // 定义数据库
+        std::map<uint32_t, err_val> yaw_err_database;
+
+        // 打开输入文件 - err.csv
+        std::string y_err_path = cfg_path + "y_err.csv";
+        logger->debug("calYawErr Start");
+        std::ifstream y_err_ifs;
+        y_err_ifs.open(y_err_path, std::ios::in);
+        if (!y_err_ifs.is_open())
+        {
+            logger->info(y_err_path + "打开失败!");
+        }
+        else
+        {
+            logger->info(y_err_path + "打开成功!");
+        }
+
+        // 读取数据
+        std::string buf;                     // 将数据存放到c++ 中的字符串中
+        while (std::getline(y_err_ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+        {
+            std::stringstream line_ss;
+            line_ss << buf;
+
+            // 跳过空行
+            if ("" == buf)
+            {
+                continue;
+            }
+
+            // 定义变量
+            std::string time;
+            uint32_t index;
+            double vel_x, y_err, camera_error_x, camera_error_y;
+
+            // 提取每条信息
+            line_ss >> time >> index >> vel_x >> y_err >> camera_error_x >> camera_error_y;
+
+            // 速度限制
+            if (vel_x < 0.2)
+            {
+                continue;
+            }
+
+            // 信息写入数据库
+            std::map<uint32_t, err_val>::iterator it = yaw_err_database.find(index);
+            if (it != yaw_err_database.end())
+            {
+                it->second.err = (it->second.err * it->second.num + y_err) / (it->second.num + 1);
+                it->second.num += 1;
+            }
+            else
+            {
+                err_val new_err;
+                new_err.err = y_err;
+                new_err.num = 1;
+                yaw_err_database.insert(std::pair<uint32_t, err_val>(index, new_err));
+            }
+        }
+        y_err_ifs.close();
+        logger->info(y_err_path + "读取完毕!");
+
+        // 打开输出文件 - yaw_err.csv
+        std::string yaw_err_path = cfg_path_ + "yaw_err.csv";
+        std::ofstream yaw_err_ofs;
+        yaw_err_ofs.open(yaw_err_path, std::ios::out);
+        if (!yaw_err_ofs.is_open())
+        {
+            logger->info(yaw_err_path + "打开失败!");
+        }
+        else
+        {
+            logger->info(yaw_err_path + "打开成功!");
+        }
+
+        // 保存信息
+        for (std::map<uint32_t, err_val>::iterator it = yaw_err_database.begin(); it != yaw_err_database.end(); it++)
+        {
+            yaw_err_ofs << std::to_string(it->first) + ' ' +
+                               std::to_string(it->second.err) + ' ' +
+                               std::to_string(it->second.num)
+                        << std::endl;
+        }
+
+        yaw_err_ofs.close();
+        logger->info(yaw_err_path + "读取完毕!");
     }
 };

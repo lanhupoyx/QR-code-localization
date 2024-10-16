@@ -78,7 +78,7 @@ if __name__ == "__main__":
     txt_file = "/home/hzz/zlProjects/read_excel/err2.csv"
     excel_file = "/home/hzz/zlProjects/read_excel/demo_output2.xlsx"
     final_file = "/home/hzz/zlProjects/read_excel/final_2csv"
-    target_file = "/home/hzz/zlProjects/read_excel/SiteTable.csv"
+    target_file = "/home/hzz/zlProjects/read_excel/SiteTable.txt"
     csv2xlsx(txt_file, excel_file)
     process_(excel_file,final_file,target_file)
     
