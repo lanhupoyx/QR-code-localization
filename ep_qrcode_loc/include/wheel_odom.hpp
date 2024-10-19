@@ -104,10 +104,10 @@ public:
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
     {
         logger->debug("realvelCallback() : start");
+        std::lock_guard<std::mutex> locker(mtx);
+
         if(state_)
         {
-            std::lock_guard<std::mutex> locker(mtx);
-
             geometry_msgs::Twist vel_msg = *p_velmsg;
 
             logger->debug("realvelCallback(): vel_msg: " 
@@ -178,6 +178,10 @@ public:
             {
                 speed_data.pop_front();
             }
+        }
+        else
+        {
+            new_speed_x = p_velmsg->linear.x;
         }
     }
 

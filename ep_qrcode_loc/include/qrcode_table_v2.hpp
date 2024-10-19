@@ -188,6 +188,9 @@ private:
     ros::ServiceServer srvSaveMap;
     std::string cfg_path_;
 
+    ros::Subscriber sub_pos;
+    std::list<nav_msgs::Odometry> tf_buffer;
+
 public:
     QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera)
     {
@@ -372,6 +375,14 @@ public:
             logger->info(stream.str());
         }
 
+        if (5 == operating_mode)
+        {
+            sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+                                                       &QRcodeTableV2::tfCallback, this,
+                                                       ros::TransportHints().tcpNoDelay());
+            logger->debug("subscribe: /ep_localization/odometry/lidar");
+        }
+
     }
 
     ~QRcodeTableV2(){}
@@ -400,7 +411,7 @@ public:
         std::map<uint32_t, QRcodeInfo>::iterator it = map.find(code);
         if ((it != map.end()) &&(1 != it->second.type))
         {
-            it->second.yaw += yaw_err*180/M_PI;
+            it->second.yaw += yaw_err; // 单位：角度
             logger->info("jiaozheng: " +
                           std::to_string(code) + " " +
                           std::to_string(yaw_err) + " " +
@@ -409,14 +420,14 @@ public:
         }
         else
         {
-            std::cout << "can not identify code:" << code << std::endl;
+            logger->info("jiaozheng() can not identify code: " + std::to_string(code));
         }
         return false;
     }
 
     void readYawErr(std::string cfg_path)
     {
-        std::string yaw_err_path = cfg_path + "yaw_err.csv";
+        std::string yaw_err_path = cfg_path + "yaw_err.txt";
         logger->debug("readYawErr Start");
         ifs.open(yaw_err_path, std::ios::in);
         if (!ifs.is_open())
@@ -440,11 +451,12 @@ public:
             }
 
             // 定义变量
-            uint32_t index, num;
+            std::string time;
+            uint32_t index;
             double yaw_err;
 
             // 提取信息
-            line_ss >> index >> yaw_err >> num;
+            line_ss >> time >> index >> yaw_err ;
 
             jiaozheng(index, yaw_err * err_ratio_offline);
 
@@ -456,7 +468,7 @@ public:
     bool saveYawErrService(ep_qrcode_loc::yaw_err_srvRequest &req, ep_qrcode_loc::yaw_err_srvResponse &res)
     {
         logger->info("saveYawErrService Start");
-        std::string csv_path = cfg_path_ + "yaw_err.csv";
+        std::string csv_path = cfg_path_ + "yaw_err.txt";
         std::ofstream yaw_err_ofs;
         yaw_err_ofs.open(csv_path, std::ios::out);
         if (!yaw_err_ofs.is_open())
@@ -487,8 +499,8 @@ public:
         // 定义数据库
         std::map<uint32_t, err_val> yaw_err_database;
 
-        // 打开输入文件 - err.csv
-        std::string y_err_path = cfg_path + "y_err.csv";
+        // 打开输入文件 - err.txt
+        std::string y_err_path = cfg_path + "y_err.txt";
         logger->debug("calYawErr Start");
         std::ifstream y_err_ifs;
         y_err_ifs.open(y_err_path, std::ios::in);
@@ -520,13 +532,14 @@ public:
             double vel_x, y_err, camera_error_x, camera_error_y;
 
             // 提取每条信息
-            line_ss >> time >> index >> vel_x >> y_err >> camera_error_x >> camera_error_y;
+            //line_ss >> time >> index >> vel_x >> y_err >> camera_error_x >> camera_error_y;
+            line_ss >> time >> index >> y_err;
 
-            // 速度限制
-            if (vel_x < 0.2)
-            {
-                continue;
-            }
+            // // 速度限制
+            // if (vel_x < 0.2)
+            // {
+            //     continue;
+            // }
 
             // 信息写入数据库
             std::map<uint32_t, err_val>::iterator it = yaw_err_database.find(index);
@@ -546,8 +559,8 @@ public:
         y_err_ifs.close();
         logger->info(y_err_path + "读取完毕!");
 
-        // 打开输出文件 - yaw_err.csv
-        std::string yaw_err_path = cfg_path_ + "yaw_err.csv";
+        // 打开输出文件 - yaw_err.txt
+        std::string yaw_err_path = cfg_path_ + "yaw_err.txt";
         std::ofstream yaw_err_ofs;
         yaw_err_ofs.open(yaw_err_path, std::ios::out);
         if (!yaw_err_ofs.is_open())
@@ -570,5 +583,32 @@ public:
 
         yaw_err_ofs.close();
         logger->info(yaw_err_path + "读取完毕!");
+    }
+
+    // callback获取baselink位姿
+    void tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        const nav_msgs::Odometry transform = *msg; //->transforms[i];
+
+        tf_buffer.push_back(transform);
+        while (20 < tf_buffer.size())
+        {
+            tf_buffer.pop_front();
+        }
+        logger->debug("QRcodeTableV2 tfCallback()");
+    }
+
+    nav_msgs::Odometry getCurLidarPose()
+    {
+        if(tf_buffer.size() > 0)
+        {
+            return tf_buffer.back();
+        }
+        else
+        {
+            nav_msgs::Odometry zero;
+            return zero;
+        }
     }
 };

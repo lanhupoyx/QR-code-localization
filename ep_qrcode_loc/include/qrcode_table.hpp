@@ -61,6 +61,13 @@ public:
                                                        &QRcodeTable::tfCallback, this,
                                                        ros::TransportHints().tcpNoDelay());
         }
+        
+        if (5 == operating_mode)
+        {
+            sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+                                                       &QRcodeTable::tfCallback, this,
+                                                       ros::TransportHints().tcpNoDelay());
+        }
     }
 
     ~QRcodeTable() {}

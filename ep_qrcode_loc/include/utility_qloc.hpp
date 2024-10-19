@@ -337,6 +337,10 @@ public:
         nh.param<bool>("ep_qrcode_loc/save_y_err", save_y_err, false);
         nh.param<bool>("ep_qrcode_loc/cal_yaw_err", cal_yaw_err, false);
         nh.param<bool>("ep_qrcode_loc/read_yaw_err", read_yaw_err, false);
+        if(5 == operating_mode)
+        {
+            read_yaw_err = false;
+        }
 
         nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, -0.5);
         nh.param<double>("ep_qrcode_loc/err_ratio_online", err_ratio_online, 0.0);
@@ -381,8 +385,17 @@ class Logger : public ParamServer
 {
 private:
     static std::ofstream logFile_;
-    static std::ofstream poseFile_;
     static std::mutex mutex;
+
+    static std::ofstream poseFile_;
+    static std::mutex mutex_pose;
+
+    static std::ofstream otherFile_;
+    static std::mutex mutex_other;
+
+    static std::ofstream yawerrFile_;
+    static std::mutex mutex_yawerr;
+    
     std::string loglevel_;
  
     // 私有构造函数确保不能直接创建Logger实例
@@ -400,7 +413,7 @@ private:
     static void init(std::string log_dir_) 
     {
         // log文件
-        std::string log_path = log_dir_ + "/" + format_time(ros::Time::now()) + "_qrcode_log.csv";
+        std::string log_path = log_dir_ + format_time(ros::Time::now()) + "_qrcode_log.txt";
         logFile_.open(log_path, std::ios::app);
         if (!logFile_.is_open()) 
         {
@@ -412,7 +425,7 @@ private:
         }
 
         // pose文件
-        std::string pose_path = log_dir_ + "/" + format_date(ros::Time::now()) + "_qrcode_pose.csv";
+        std::string pose_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_pose.txt";
         poseFile_.open(pose_path, std::ios::app);
         if (!poseFile_.is_open()) 
         {
@@ -421,6 +434,30 @@ private:
         else
         {
             std::cout << "open: " << pose_path << std::endl;
+        }
+
+        // other文件
+        std::string other_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_other.txt";
+        otherFile_.open(other_path, std::ios::app);
+        if (!otherFile_.is_open()) 
+        {
+            std::cout << "can't open: " << other_path << std::endl;
+        }
+        else
+        {
+            std::cout << "open: " << other_path << std::endl;
+        }
+
+        // yawerr文件
+        std::string yawerr_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_yawerr.txt";
+        yawerrFile_.open(yawerr_path, std::ios::app);
+        if (!yawerrFile_.is_open()) 
+        {
+            std::cout << "can't open: " << yawerr_path << std::endl;
+        }
+        else
+        {
+            std::cout << "open: " << yawerr_path << std::endl;
         }
     }
  
@@ -436,7 +473,7 @@ public:
         std::lock_guard<std::mutex> lock(mutex); // 线程安全
         logFile_ << message << std::endl;
     }
-// "FATAL" "ERROR" "WARN" "INFO" "DEBUG"
+
     void fatal(const std::string& message) {
         std::lock_guard<std::mutex> lock(mutex); // 线程安全
         logFile_ << format_time(ros::Time::now()) << "[FATAL]" << message << std::endl;
@@ -467,12 +504,30 @@ public:
 
     void pose(const std::string& message) 
     {
-        logFile_ << format_time(ros::Time::now()) << "," << message << std::endl;
+        std::lock_guard<std::mutex> lock(mutex_pose); // 线程安全
+        poseFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
+    }
+
+    void other(const std::string& message) 
+    {
+        std::lock_guard<std::mutex> lock(mutex_other); // 线程安全
+        otherFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
+    }
+
+    void yawerr(const std::string& message) 
+    {
+        std::lock_guard<std::mutex> lock(mutex_yawerr); // 线程安全
+        yawerrFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
     }
 };
 std::ofstream Logger::logFile_;
-std::ofstream Logger::poseFile_;
 std::mutex Logger::mutex;
+std::ofstream Logger::poseFile_;
+std::mutex Logger::mutex_pose;
+std::ofstream Logger::otherFile_;
+std::mutex Logger::mutex_other;
+std::ofstream Logger::yawerrFile_;
+std::mutex Logger::mutex_yawerr;
 
 // 向量
 class vec  
