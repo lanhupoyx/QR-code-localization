@@ -775,7 +775,6 @@ public:
     void NormalRun_mode()
     {
         QRcodeInfo code_info;     // 查询二维码坐标
-        bool is_inited = false;
         ros::Rate loop_rate(100); // 主循环 100Hz
         while (ros::ok())
         {
@@ -801,22 +800,17 @@ public:
 
                         // 计算base_link在qrmap坐标和map坐标的坐标
                         std::vector<geometry_msgs::Pose> v_pose_new = get_pose(code_info);
-
+                        
+                        // 观测值与预测值加权平均
+                        geometry_msgs::Pose pose_observe = v_pose_new[0];
+                        geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
                         if(code_info.is_head)
                         {
-                            // 观测值与预测值加权平均
-                            geometry_msgs::Pose pose_observe = v_pose_new[0];
-                            geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-                            geometry_msgs::Pose pose_kf = kalman_f_my(pose_recursion, 0.0, pose_observe, 1.0, 0.1);
-                            v_pose_new[0] = pose_kf;
+                            v_pose_new[0] = kalman_f_my(pose_recursion, 0.0, pose_observe, 1.0, 0.1);
                         }
                         else
                         {
-                            // 观测值与预测值加权平均
-                            geometry_msgs::Pose pose_observe = v_pose_new[0];
-                            geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-                            geometry_msgs::Pose pose_kf = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
-                            v_pose_new[0] = pose_kf;
+                            v_pose_new[0] = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
                         }
 
 
@@ -826,8 +820,8 @@ public:
                         // 设置轮速里程计初值
                         nav_msgs::Odometry last_odom = wheel_odom->getCurOdom();
                         wheel_odom->setEstimationInitialPose(v_odom[0]);
+                        wheel_odom->start();
                         nav_msgs::Odometry cur_odom = wheel_odom->getCurOdom();
-                        is_inited = true;
 
                         // 发布消息
                         pubOdom(v_odom, true);
@@ -862,10 +856,9 @@ public:
             }
 
             // 轮速里程计递推
-            if(is_inited)
+            if(wheel_odom->is_start())
             {
                 //logger->debug("wheel odom is_inited");
-                wheel_odom->start();
                 std::vector<nav_msgs::Odometry> v_odom;
                 if(wheel_odom->run_odom(v_odom))
                 {
@@ -964,7 +957,7 @@ public:
         }
     }
 
-    // 采集角度模式
+    // 补偿地码角度模式
     void GetYawErr_mode()
     {
         logger->debug("Mode: Get Yaw Error ");
@@ -978,59 +971,69 @@ public:
                 logger->debug("get pic");
                 if (qrcode_table->onlyfind(pic, &code_info))
                 {
-                    double disdis = pic.error_y * pic.error_y;
-                    if (disdis < 900) // 中心视野+-3cm范围，防止角度跳变
+                    logger->debug("find pic");
+
+                    static uint32_t code_last = 0;
+
+                    // 获取最新雷达定位值
+                    nav_msgs::Odometry base2map = qrcode_table->getCurLidarPose();
+
+                    // lidar得到的base_link(map)
+                    std::vector<geometry_msgs::Pose> v_pose_new = get_pose(code_info);
+    
+                    // lidar得到的二维码位姿(map)
+                    geometry_msgs::Pose pose_camera2map;
+                    tf2::doTransform(t2p(trans_camera2base), pose_camera2map, p2t(base2map.pose.pose));
+                    geometry_msgs::Pose pose_qrcode2camera;
+                    pose_qrcode2camera.position.x = pic.error_x / 1000.0;
+                    pose_qrcode2camera.position.y = pic.error_y / -1000.0;
+                    pose_qrcode2camera.position.z = 0.0;
+                    tf::Quaternion q1;
+                    q1.setRPY(0.0, 0.0, pic.error_yaw * M_PI / -180.0);
+                    tf::quaternionTFToMsg(q1, pose_qrcode2camera.orientation);
+                    geometry_msgs::Pose pose_qrcode2map;
+                    tf2::doTransform(pose_qrcode2camera, pose_qrcode2map, p2t(pose_camera2map));
+                    double yaw_qrcode2map = getYaw(pose_qrcode2map);
+                    QRcodeInfo cur_qrcode;
+                    cur_qrcode.x = pose_qrcode2map.position.x;
+                    cur_qrcode.y = pose_qrcode2map.position.y;
+                    cur_qrcode.yaw = yaw_qrcode2map;
+
+                    // 输出
+                    logger->other(  "," + std::to_string(pic.code) + "," +
+                                    std::to_string(wheel_odom->get_vel_x()) + "," +
+                                    std::to_string(wheel_odom->get_vel_msg().linear.z) + "," +
+                                    std::to_string(wheel_odom->get_vel_msg().angular.y) + "," +
+                                    std::to_string(base2map.pose.pose.position.x) + "," +
+                                    std::to_string(base2map.pose.pose.position.y) + "," +
+                                    std::to_string(getYaw(base2map.pose.pose.orientation)) + "," +
+                                    std::to_string(pose_camera2map.position.x) + "," +
+                                    std::to_string(pose_camera2map.position.y) + "," +
+                                    std::to_string(getYaw(pose_camera2map.orientation)) + "," +
+                                    std::to_string(v_pose_new[0].position.x) + "," +
+                                    std::to_string(v_pose_new[0].position.y) + "," +
+                                    std::to_string(getYaw(v_pose_new[0].orientation)) + "," +
+                                    std::to_string(v_pose_new[1].position.x) + "," +
+                                    std::to_string(v_pose_new[1].position.y) + "," +
+                                    std::to_string(getYaw(v_pose_new[1].orientation)) + "," +
+                                    std::to_string(cur_qrcode.x) + "," +
+                                    std::to_string(cur_qrcode.y) + "," +
+                                    std::to_string(cur_qrcode.yaw) + "," +
+                                    std::to_string(code_info.x) + "," +
+                                    std::to_string(code_info.y) + "," +
+                                    std::to_string(code_info.yaw) + "," +
+                                    std::to_string(pic.error_x) + "," +
+                                    std::to_string(pic.error_y) + "," +
+                                    std::to_string(pic.error_yaw)   );
+
+                    // 计算yaw_err均值
+                    if(wheel_odom->get_vel_x() > 0.0)
                     {
-                        logger->debug("find pic");
-
-                        static uint32_t code_last = 0;
-
-                        // 获取最新雷达定位值
-                        nav_msgs::Odometry base2map = qrcode_table->getCurLidarPose();
-
-                        // lidar得到的base_link(map)
-                        std::vector<geometry_msgs::Pose> v_pose_new = get_pose(code_info);
-        
-                        // lidar得到的二维码位姿(map)
-                        geometry_msgs::Pose pose_camera2map;
-                        tf2::doTransform(t2p(trans_camera2base), pose_camera2map, p2t(base2map.pose.pose));
-                        geometry_msgs::Pose pose_qrcode2camera;
-                        pose_qrcode2camera.position.x = pic.error_x / 1000.0;
-                        pose_qrcode2camera.position.y = pic.error_y / -1000.0;
-                        pose_qrcode2camera.position.z = 0.0;
-                        tf::Quaternion q1;
-                        q1.setRPY(0.0, 0.0, pic.error_yaw * M_PI / -180.0);
-                        tf::quaternionTFToMsg(q1, pose_qrcode2camera.orientation);
-                        geometry_msgs::Pose pose_qrcode2map;
-                        tf2::doTransform(pose_qrcode2camera, pose_qrcode2map, p2t(pose_camera2map));
-                        double yaw_qrcode2map = getYaw(pose_qrcode2map);
-                        QRcodeInfo cur_qrcode;
-                        cur_qrcode.x = pose_qrcode2map.position.x;
-                        cur_qrcode.y = pose_qrcode2map.position.y;
-                        cur_qrcode.yaw = yaw_qrcode2map;
-
-                        // 输出
-                        logger->other(  "," + std::to_string(pic.code) + "," +
-                                        std::to_string(wheel_odom->get_vel_x()) + "," +
-                                        std::to_string(base2map.pose.pose.position.x) + "," +
-                                        std::to_string(base2map.pose.pose.position.y) + "," +
-                                        std::to_string(getYaw(base2map.pose.pose.orientation)) + "," +
-                                        std::to_string(v_pose_new[0].position.x) + "," +
-                                        std::to_string(v_pose_new[0].position.y) + "," +
-                                        std::to_string(getYaw(v_pose_new[0].orientation)) + "," +
-                                        std::to_string(cur_qrcode.x) + "," +
-                                        std::to_string(cur_qrcode.y) + "," +
-                                        std::to_string(cur_qrcode.yaw) + "," +
-                                        std::to_string(code_info.x) + "," +
-                                        std::to_string(code_info.y) + "," +
-                                        std::to_string(code_info.yaw)   );
-                        
-                        // 计算yaw_err均值
                         static double num = 0.0;
                         static double yaw_err_average = 0.0;
 
                         // 结算
-                        if(code_last != pic.code)
+                        if((code_last != pic.code) && (code_last != 0))
                         {
                             logger->yawerr(std::to_string(code_last) + " " +std::to_string(yaw_err_average));
                             num = 0.0;
@@ -1069,12 +1072,12 @@ public:
             ROS_INFO("Mode: Collect QR-Code index");
             CollectQRCodeIndex_mode();
         }
-        else if (3 == operating_mode) // 正常模式，使用论速计递推
+        else if (3 == operating_mode) // 正常模式，使用轮速计递推
         {
             ROS_INFO("Mode: Normal Run ");
             NormalRun_mode();
         }
-        else if (4 == operating_mode) // 测试模式，只输出二维码得到的定位值，不使用论速计递推
+        else if (4 == operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
         {
             ROS_INFO("Mode: Only QR-Code ");
             TestRun_mode();

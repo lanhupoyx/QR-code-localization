@@ -437,7 +437,7 @@ private:
         }
 
         // other文件
-        std::string other_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_other.txt";
+        std::string other_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_other.csv";
         otherFile_.open(other_path, std::ios::app);
         if (!otherFile_.is_open()) 
         {

@@ -208,6 +208,13 @@ private:
                 //std::cout << pixel_x_ascii << std::endl;
                 frame->error_x = (std::stoi(pixel_x_ascii) - 400) * 0.2125;
 
+                // 中心视野x+-7cm范围，防止角度跳变
+                double disdis_x = frame->error_x * frame->error_x;
+                if(disdis_x > 4900)
+                {
+                    return false;
+                }
+
                 // 中心坐标y
                 band_num = 0;
                 while ('x' != keyinfo[0]) // 起始字符
@@ -238,6 +245,13 @@ private:
                 }
                 //std::cout << pixel_y_ascii << std::endl;
                 frame->error_y = (std::stoi(pixel_y_ascii) - 300) * 0.2166667;
+
+                // 中心视野y+-5cm范围，防止角度跳变
+                double disdis_y = frame->error_y * frame->error_y;
+                if(disdis_y > 2500)
+                {
+                    return false;
+                }
 
                 // 中心yaw
                 band_num = 0;

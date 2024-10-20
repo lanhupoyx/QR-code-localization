@@ -21,6 +21,7 @@ private:
     nav_msgs::Odometry odom_estimation_init_;
     std::list<wheel_speed> speed_data;
     double new_speed_x;
+    geometry_msgs::Twist new_msg;
     ros::Subscriber sub_realvel;
     std::mutex mtx;
     Logger *logger;
@@ -39,13 +40,24 @@ public:
 
     ~WheelSpeedOdometer() {}
 
+    // 启动轮速递推器
     void start()
     {
+        std::lock_guard<std::mutex> locker(mtx);
         state_ = true;
     }
 
+    // 确认轮速递推器启动状态
+    bool is_start()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return state_;
+    }
+
+    // 关闭轮速递推器
     void close()
     {
+        std::lock_guard<std::mutex> locker(mtx);
         state_ = false;
     }
 
@@ -182,6 +194,7 @@ public:
         else
         {
             new_speed_x = p_velmsg->linear.x;
+            new_msg = *p_velmsg;
         }
     }
 
@@ -222,5 +235,11 @@ public:
     {
         std::lock_guard<std::mutex> locker(mtx);
         return new_speed_x;
+    }
+
+    geometry_msgs::Twist get_vel_msg()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return new_msg;
     }
 };

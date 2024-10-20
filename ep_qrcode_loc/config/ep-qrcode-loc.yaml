@@ -1,7 +1,7 @@
 ###################################################################################
 #####        params for ep_qrcode_loc
 #####           yuanxun@ep-ep.com
-#####        updateTime:  2024.05.01
+#####        updateTime:  2024.10.19
 ###################################################################################
 
 ep_qrcode_loc:
@@ -10,6 +10,7 @@ ep_qrcode_loc:
   # 运行模式2:采集二维码编号（快速扫过）；
   # 运行模式3:正常运行；
   # 运行模式4:只扫码,不递推,用于测试；
+  # 运行模式5:补偿地码角度模式
   operating_mode: 3
 
 #----------------------------------------------------------------------------------
@@ -21,11 +22,10 @@ ep_qrcode_loc:
   show_original_msg: false # 记录和发布相机扫到二维码的原始信息
   is_pub_tf: false # 后续删除相关参数和代码
   ignore_area: true # 无视可运行区域限制
-  save_y_err: true # 记录横向偏差
-  cal_yaw_err: true # 计算地码方向角补偿值
+  save_y_err: false # 记录横向偏差
+  cal_yaw_err: false # 计算地码方向角补偿值
   read_yaw_err: true # 读取地码方向角补偿值
-  err_ratio_offline: -0.5
-  err_ratio_online: -0.5
+  err_ratio_offline: 1.0
 
   rec_p1: 0.4 #x,y预测权重
 
@@ -33,7 +33,7 @@ ep_qrcode_loc:
   # 轮速参数
   wheel_diameter: 0.343
   wheel_base_dis: 1.524
-  wheel_angular_offset: 1.0  # 单位：度
+  wheel_angular_offset: 0.0  # 单位：度
 
 #----------------------------------------------------------------------------------
   # 低速界限,运行模式3中,高于该速度时每次只取一帧二维码数据
