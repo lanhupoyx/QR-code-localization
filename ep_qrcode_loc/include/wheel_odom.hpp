@@ -2,30 +2,31 @@
 
 #include "utility_qloc.hpp"
 
-struct wheel_speed
-{
-    ros::Time timestamp_;
-    geometry_msgs::Twist vel_;
+// struct wheel_speed
+// {
+//     ros::Time timestamp_;
+//     geometry_msgs::Twist vel_;
 
-    wheel_speed(ros::Time timestamp, geometry_msgs::Twist vel)
-    {
-        timestamp_ = timestamp;
-        vel_ = vel;
-    }
-};
+//     wheel_speed(ros::Time timestamp, geometry_msgs::Twist vel)
+//     {
+//         timestamp_ = timestamp;
+//         vel_ = vel;
+//     }
+// };
 
 class WheelSpeedOdometer : public ParamServer
 {
 private:
-    geometry_msgs::TransformStamped trans_camera2base_;
-    nav_msgs::Odometry odom_estimation_init_;
-    std::list<wheel_speed> speed_data;
-    double new_speed_x;
-    geometry_msgs::Twist new_msg;
-    ros::Subscriber sub_realvel;
-    std::mutex mtx;
-    Logger *logger;
-    bool state_;
+    std::mutex mtx;                                     // 互斥锁
+    Logger *logger;                                     // 计录器
+    bool state_;                                        // 轮速递推器状态
+    geometry_msgs::TransformStamped trans_camera2base_; // 相机到base的变换
+    nav_msgs::Odometry odom_estimation_init_;           // 轮速递推器初值
+    std::list<geometry_msgs::TwistStamped> speed_data;  // 轮速数据缓存队列
+    double new_speed_x;                                 // 最新线速度-base
+    geometry_msgs::Twist new_msg;                       // 最新/real_vel消息
+    ros::Subscriber sub_realvel;                        // /real_vel消息订阅器
+    double path_dis;                                    // 本段递推中轮子走过的路径长度
 
 public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
@@ -61,28 +62,32 @@ public:
         state_ = false;
     }
 
-    // 获取递推状态值
+    // 使用二维码定位结果设置递推初值
+    void setEstimationInitialPose(nav_msgs::Odometry odom)
+    {
+        logger->debug("setEstimationInitialPose()");
+        std::lock_guard<std::mutex> locker(mtx);
+        odom_estimation_init_ = odom;
+        path_dis = 0;
+        state_ = true;
+        logger->debug("setEstimationInitialPose() return");
+    }
+
+    // 获取递推初值
     nav_msgs::Odometry getCurOdom()
     {
         std::lock_guard<std::mutex> locker(mtx);
         return odom_estimation_init_;
     }
 
-    // 设置递推初始值
-    void setEstimationInitialPose(nav_msgs::Odometry odom)
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        odom_estimation_init_ = odom;
-    }
-
-    // 设置递推状态值
+    // 设置下以段递推初值
     void setCurOdom(nav_msgs::Odometry odom)
     {
         std::lock_guard<std::mutex> locker(mtx);
         odom_estimation_init_ = odom;
     }
 
-    // 使用轮速进行位姿递推
+    // 根据初值、速度、时间进行位姿递推
     nav_msgs::Odometry poseEstimation(nav_msgs::Odometry odom_init, geometry_msgs::Twist vel, ros::Time time_now)
     {
         nav_msgs::Odometry odom_final;
@@ -91,113 +96,106 @@ public:
         double dt = (time_now - odom_init.header.stamp).toSec();
 
         // 方向递推
-        double yaw = getYawRad(odom_init.pose.pose.orientation) + vel.angular.z * realVelRatio_z * dt + realVelAdd_z;
+        double yaw = getYawRad(odom_init.pose.pose.orientation) + vel.angular.z * dt;
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, yaw);
         tf::quaternionTFToMsg(q, odom_final.pose.pose.orientation);
 
         // 位置递推
-        odom_final.pose.pose.position.x = odom_init.pose.pose.position.x + (vel.linear.x + realVelOffset_x) * realVelRatio_x * dt * cos(yaw);
-        odom_final.pose.pose.position.y = odom_init.pose.pose.position.y + (vel.linear.x + realVelOffset_x) * realVelRatio_x * dt * sin(yaw);
-
-        // 数据来源
-        odom_final.pose.covariance = odom_init.pose.covariance;
-
-        // 时间戳
-        odom_final.header.stamp = time_now;
-        odom_final.header.frame_id = "map";
-        odom_final.child_frame_id = "base_link";
+        odom_final.pose.pose.position.x = odom_init.pose.pose.position.x + vel.linear.x * dt * cos(yaw);
+        odom_final.pose.pose.position.y = odom_init.pose.pose.position.y + vel.linear.x * dt * sin(yaw);
 
         // 返回值
         return odom_final;
     }
 
-    // 获取/realvel的回调函数
-    void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
-    {
-        logger->debug("realvelCallback() : start");
-        std::lock_guard<std::mutex> locker(mtx);
+    // 解析轮速数据，前主动轮模型
+    geometry_msgs::TwistStamped decode_msg(geometry_msgs::Twist vel_msg, ros::Time time)
+    {   
+        geometry_msgs::TwistStamped vel_new;
 
-        if(state_)
+        // vel_msg.linear.x  :base_link实际线速度 (m/s)
+        // vel_msg.linear.y  :舵轮目标线速度 (m/s)
+        // vel_msg.linear.z  :舵轮电机的实际转速 (rpm)
+        // vel_msg.angular.x :舵轮的目标角度 (度)
+        // vel_msg.angular.y :舵轮实际角度 (度)
+        // vel_msg.angular.z :base_link实际角速度 (rad/s)
+
+        // 获取时间
+        vel_new.header.stamp = time;
+        // 保存原始数据
+        vel_new.twist = vel_msg;
+        // 轮子角速度：弧度
+        double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
+        // 轮子进退电机转速 rpm
+        double wheel_moter_speed = vel_msg.linear.z;
+        // 轮子速度 m/s
+        double wheel_vel = M_PI * wheel_diameter * wheel_moter_speed / (wheel_reduction_ratio * 60.0);
+        // base线速度 m/s
+        double base_vel_x = 0;
+        // base角速度 red/s
+        double base_vel_yaw = 0;
+
+        // 根据轮子转角大小分情况解析
+        if (abs(wheel_angular) < 0.001) //角度过小
         {
-            geometry_msgs::Twist vel_msg = *p_velmsg;
-
-            logger->debug("realvelCallback(): vel_msg: " 
-                        + ' ' + std::to_string(vel_msg.linear.x)
-                        + ' ' + std::to_string(vel_msg.angular.z));
-
-            // 自行车模型
-            // geometry_msgs::Twist vel_new;
-            // double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
-            // double wheel_rpm = vel_msg.angular.y;
-            // double wheel_vel = M_PI * wheel_diameter * wheel_rpm / 60.0;
-            // vel_new.angular.z = wheel_vel * std::atan(wheel_angular) / wheel_base_dis;
-            // vel_new.linear.x = wheel_vel * std::cos(wheel_angular);
-
-            geometry_msgs::Twist vel_new;
-
-            double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
-            logger->debug("wheel_angular: " + std::to_string(wheel_angular));
-            double wheel_rpm = vel_msg.linear.z;
-            logger->debug("wheel_rpm: " + std::to_string(wheel_rpm));
-            double wheel_vel = M_PI * wheel_diameter * wheel_rpm / 60.0;
-            logger->debug("wheel_vel: " + std::to_string(wheel_vel));
-
-            if (abs(wheel_angular) < 0.001)
+            base_vel_x = wheel_vel;
+            base_vel_yaw = 0;
+        }
+        else if (abs(wheel_angular) < 1.570) // 一般角度
+        {
+            base_vel_yaw = wheel_vel * std::sin(wheel_angular) / wheel_base_dis;
+            base_vel_x = base_vel_yaw * (wheel_base_dis / std::tan(wheel_angular));
+        }
+        else // 角度过大
+        {
+            if (wheel_angular > 0)
             {
-                logger->debug("abs(wheel_angular) < 0.001");
-                vel_new.linear.x = wheel_vel;
-                vel_new.angular.z = 0;
-                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
-                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
-            }
-            else if (abs(wheel_angular) < 1.570)
-            {
-                logger->debug("abs(wheel_angular) < 1.570");
-                vel_new.angular.z = wheel_vel * std::sin(wheel_angular) / wheel_base_dis;
-                vel_new.linear.x = vel_new.angular.z * (wheel_base_dis / std::tan(wheel_angular));
-                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
-                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
+                base_vel_yaw = wheel_vel / wheel_base_dis;
             }
             else
             {
-                logger->debug("abs(wheel_angular) > 1.570");
-                if (wheel_angular > 0)
-                {
-                    vel_new.angular.z = wheel_vel / wheel_base_dis;
-                }
-                else
-                {
-                    vel_new.angular.z = -1 * wheel_vel / wheel_base_dis;
-                }
-                vel_new.linear.x = 0;
-
-                logger->debug("vel_new.angular.z: " + std::to_string(vel_new.angular.z));
-                logger->debug("vel_new.linear.x: " + std::to_string(vel_new.linear.x));
+                base_vel_yaw = -1 * wheel_vel / wheel_base_dis;
             }
-
-            // 加入队列
-            wheel_speed new_speed(ros::Time::now(), vel_new);
-            speed_data.push_back(new_speed);
-            new_speed_x=new_speed.vel_.linear.x;
-
-            logger->debug("realvelCallback(): new_speed: " 
-                        + ' ' + std::to_string(new_speed.vel_.linear.x)
-                        + ' ' + std::to_string(new_speed.vel_.angular.z));
-
-            // 保护
-            while (speed_data.size() > 5)
-            {
-                speed_data.pop_front();
-            }
+            base_vel_x = 0;
         }
-        else
+
+        // 结果存入结构体
+        vel_new.twist.linear.x = base_vel_x;    // base线速递
+        vel_new.twist.linear.y = wheel_vel;     // 轮子速度
+        vel_new.twist.angular.z = base_vel_yaw; // base角速度
+
+        // 返回值
+        return vel_new;
+    }
+
+    // 获取/realvel的回调函数
+    void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
+    {
+        ros::Time time_now = ros::Time::now();
+        std::lock_guard<std::mutex> locker(mtx);
+
+        geometry_msgs::Twist vel_msg = *p_velmsg;
+        geometry_msgs::TwistStamped vel_msg_stamped = decode_msg(vel_msg, time_now);
+        static geometry_msgs::TwistStamped vel_msg_stamped_last = vel_msg_stamped;
+
+        // 增加base运动轨迹长度
+        double dt = vel_msg_stamped.header.stamp.toSec() - vel_msg_stamped_last.header.stamp.toSec();
+        path_dis += dt * abs(vel_msg_stamped.twist.linear.x);
+        vel_msg_stamped_last = vel_msg_stamped;
+
+        speed_data.push_back(vel_msg_stamped);
+        new_speed_x = vel_msg_stamped.twist.linear.x;
+        new_msg = vel_msg_stamped.twist;
+
+        // 内存保护
+        while (speed_data.size() > 5)
         {
-            new_speed_x = p_velmsg->linear.x;
-            new_msg = *p_velmsg;
+            speed_data.pop_front();
         }
     }
 
+    // 运行轮速递推器
     bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
     {
         //logger->debug("run_odom() : start");
@@ -207,36 +205,60 @@ public:
             return false;
         }
 
-        // 获取速度信息
-        wheel_speed cur_speed = speed_data.front();
+        // 获取最新轮速信息
+        geometry_msgs::TwistStamped cur_speed = speed_data.front();
         speed_data.pop_front();
 
         // 获取初始位姿
         nav_msgs::Odometry odom_init = getCurOdom();
 
         // 估计base当前时刻位姿(map--->base_link)
-        nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.vel_, cur_speed.timestamp_);
-        setCurOdom(odom_est);
+        nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.twist, cur_speed.header.stamp);
+
+        // 附加数据
+        odom_est.header.stamp = cur_speed.header.stamp;// 时间戳
+        odom_est.header.frame_id = "map";
+        odom_est.child_frame_id = "base_link";
+
+        // 设置标志
+        if(path_dis > maxEstimationDis)
+        {
+            odom_est.pose.covariance[0] = 0; // 不可用
+            odom_est.pose.covariance[1] = 1; // 递推长度超过限制
+        }
+        else
+        {
+            odom_est.pose.covariance[0] = 1; // 可用
+            odom_est.pose.covariance[1] = 0; // 递推长度未超过限制
+        }
+        odom_est.pose.covariance[2] = 1; // 数据源于轮速计递推
+        odom_est.pose.covariance[10] = path_dis; // 递推距离
+
+        // 设置下一段的初值
+        setCurOdom(odom_est); 
+
+        // 存入base姿态
         v_odom.clear();
         v_odom.push_back(odom_est);
 
-        // 计算定位相机当前时刻位姿(map--->locCamera_link)
+        // 存入相机姿态
         geometry_msgs::Pose pose_camera2map;
         tf2::doTransform(t2p(trans_camera2base_), pose_camera2map, p2t(odom_est.pose.pose));
         odom_est.pose.pose = pose_camera2map;
         odom_est.child_frame_id = "locCamera_link";
         v_odom.push_back(odom_est);
 
-        //logger->debug("run_odom() : return true");
         return true;
     }
 
+    // 获取车轮速度
     double get_vel_x()
     {
         std::lock_guard<std::mutex> locker(mtx);
         return new_speed_x;
     }
 
+    // 获取最新/real_vel消息
     geometry_msgs::Twist get_vel_msg()
     {
         std::lock_guard<std::mutex> locker(mtx);

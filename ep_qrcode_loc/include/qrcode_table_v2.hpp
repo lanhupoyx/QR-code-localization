@@ -2,7 +2,6 @@
 
 #include "utility_qloc.hpp"
 #include "camera.hpp"
-#include "ep_qrcode_loc/yaw_err_srv.h"
 
 // 贴在地上的二维码
 struct QRcodeGround
@@ -183,9 +182,6 @@ private:
     Logger *logger;
     std::stringstream stream;
 
-    std::ifstream ifs;
-
-    ros::ServiceServer srvSaveMap;
     std::string cfg_path_;
 
     ros::Subscriber sub_pos;
@@ -194,31 +190,46 @@ private:
 public:
     QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera)
     {
+        // 配置文件路径
         cfg_path_ = cfg_path;
-        srvSaveMap = nh.advertiseService("ep_qrcode_loc/save_yaw_err", &QRcodeTableV2::saveYawErrService, this);
 
-        // 读取文本文件中库位相关信息
+        // 记录器
         logger = &Logger::getInstance();
-        logger->info("QRcodeTable Start");
+        logger->info("QRcodeTableV2 Start");
 
+        // 打开库位信息文件
         std::string site_info_path = cfg_path + "SiteTable.txt";
+        std::ifstream ifs;
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
         {
             logger->info(site_info_path + "打开失败!");
+            std::string site_info_path = cfg_path + "SiteTable.csv";
+            ifs.open(site_info_path, std::ios::in);
+            if (!ifs.is_open())
+            {
+                logger->info(site_info_path + "打开失败!");
+            }
+            else
+            {
+                logger->info(site_info_path + "打开成功!");
+            }
         }
         else
         {
             logger->info(site_info_path + "打开成功!");
         }
-        std::string buf;               // 将数据存放到c++ 中的字符串中
-        while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+
+        // 读取库位及其绑定的二维码信息
+        std::string buf;             
+        while (std::getline(ifs, buf))
         {
+            buf = replaceChar(buf, ',', ' '); // ','替换为' '
             std::stringstream line_ss;
             line_ss << buf;
 
             // 跳过空行
-            if("" == buf)
+            if(("" == buf) || (' ' == buf[0]))
             {
                 continue;
             }
@@ -352,13 +363,6 @@ public:
             }
         }
 
-        // 二维码方向角矫正
-        if(cal_yaw_err)
-        {
-            // 根据偏差记录计算、并保存矫正值
-            calYawErr(cfg_path_);
-        }
-
         if(read_yaw_err)
         {
             // 读取矫正值
@@ -405,14 +409,15 @@ public:
         return false;
     }
 
-    bool jiaozheng(uint32_t code, double yaw_err)
+    // 校正单个地码方向角
+    bool correct_yaw(uint32_t code, double yaw_err)
     {
         std::lock_guard<std::mutex> locker(mtx);
         std::map<uint32_t, QRcodeInfo>::iterator it = map.find(code);
         if ((it != map.end()) &&(1 != it->second.type))
         {
             it->second.yaw += yaw_err; // 单位：角度
-            logger->info("jiaozheng: " +
+            logger->info("correct_yaw: " +
                           std::to_string(code) + " " +
                           std::to_string(yaw_err) + " " +
                           std::to_string(it->second.yaw));
@@ -420,15 +425,17 @@ public:
         }
         else
         {
-            logger->info("jiaozheng() can not identify code: " + std::to_string(code));
+            logger->info("correct_yaw() can not identify code: " + std::to_string(code));
         }
         return false;
     }
 
+    // 读取地码方向角补偿数据
     void readYawErr(std::string cfg_path)
     {
         std::string yaw_err_path = cfg_path + "yaw_err.txt";
         logger->debug("readYawErr Start");
+        std::ifstream ifs;
         ifs.open(yaw_err_path, std::ios::in);
         if (!ifs.is_open())
         {
@@ -445,7 +452,7 @@ public:
             line_ss << buf;
 
             // 跳过空行
-            if("" == buf)
+            if(("" == buf) || (' ' == buf[0]))
             {
                 continue;
             }
@@ -458,130 +465,10 @@ public:
             // 提取信息
             line_ss >> time >> index >> yaw_err ;
 
-            jiaozheng(index, yaw_err * err_ratio_offline);
+            correct_yaw(index, yaw_err * err_ratio_offline);
 
         }
         ifs.close();
-        logger->info(yaw_err_path + "读取完毕!");
-    }
-
-    bool saveYawErrService(ep_qrcode_loc::yaw_err_srvRequest &req, ep_qrcode_loc::yaw_err_srvResponse &res)
-    {
-        logger->info("saveYawErrService Start");
-        std::string csv_path = cfg_path_ + "yaw_err.txt";
-        std::ofstream yaw_err_ofs;
-        yaw_err_ofs.open(csv_path, std::ios::out);
-        if (!yaw_err_ofs.is_open())
-        {
-            logger->info(csv_path + "打开失败!");
-            return false;
-        }
-        else
-        {
-            logger->info(csv_path + "打开成功!");
-        }
-
-        for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
-        {
-            yaw_err_ofs <<  std::to_string(it->second.code) + ' ' + 
-                            std::to_string(it->second.yaw)
-                        <<  std::endl;
-        }
-
-        yaw_err_ofs.close();
-
-        logger->info(csv_path + "写入完毕!");
-        return true;
-    }
-
-    void calYawErr(std::string cfg_path)
-    {
-        // 定义数据库
-        std::map<uint32_t, err_val> yaw_err_database;
-
-        // 打开输入文件 - err.txt
-        std::string y_err_path = cfg_path + "y_err.txt";
-        logger->debug("calYawErr Start");
-        std::ifstream y_err_ifs;
-        y_err_ifs.open(y_err_path, std::ios::in);
-        if (!y_err_ifs.is_open())
-        {
-            logger->info(y_err_path + "打开失败!");
-        }
-        else
-        {
-            logger->info(y_err_path + "打开成功!");
-        }
-
-        // 读取数据
-        std::string buf;                     // 将数据存放到c++ 中的字符串中
-        while (std::getline(y_err_ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
-        {
-            std::stringstream line_ss;
-            line_ss << buf;
-
-            // 跳过空行
-            if ("" == buf)
-            {
-                continue;
-            }
-
-            // 定义变量
-            std::string time;
-            uint32_t index;
-            double vel_x, y_err, camera_error_x, camera_error_y;
-
-            // 提取每条信息
-            //line_ss >> time >> index >> vel_x >> y_err >> camera_error_x >> camera_error_y;
-            line_ss >> time >> index >> y_err;
-
-            // // 速度限制
-            // if (vel_x < 0.2)
-            // {
-            //     continue;
-            // }
-
-            // 信息写入数据库
-            std::map<uint32_t, err_val>::iterator it = yaw_err_database.find(index);
-            if (it != yaw_err_database.end())
-            {
-                it->second.err = (it->second.err * it->second.num + y_err) / (it->second.num + 1);
-                it->second.num += 1;
-            }
-            else
-            {
-                err_val new_err;
-                new_err.err = y_err;
-                new_err.num = 1;
-                yaw_err_database.insert(std::pair<uint32_t, err_val>(index, new_err));
-            }
-        }
-        y_err_ifs.close();
-        logger->info(y_err_path + "读取完毕!");
-
-        // 打开输出文件 - yaw_err.txt
-        std::string yaw_err_path = cfg_path_ + "yaw_err.txt";
-        std::ofstream yaw_err_ofs;
-        yaw_err_ofs.open(yaw_err_path, std::ios::out);
-        if (!yaw_err_ofs.is_open())
-        {
-            logger->info(yaw_err_path + "打开失败!");
-        }
-        else
-        {
-            logger->info(yaw_err_path + "打开成功!");
-        }
-
-        // 保存信息
-        for (std::map<uint32_t, err_val>::iterator it = yaw_err_database.begin(); it != yaw_err_database.end(); it++)
-        {
-            yaw_err_ofs << std::to_string(it->first) + ' ' +
-                               std::to_string(it->second.err) + ' ' +
-                               std::to_string(it->second.num)
-                        << std::endl;
-        }
-
-        yaw_err_ofs.close();
         logger->info(yaw_err_path + "读取完毕!");
     }
 

@@ -16,25 +16,30 @@ public:
         {
             logger->info(dir + "打开失败!");
         }
-        std::string buf;               // 将数据存放到c++ 中的字符串中
-        while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+        else
         {
-            std::stringstream line_ss;
-            line_ss << buf;
-            QRcodeInfo info;
-            line_ss >> info.code >> info.x >> info.y >> info.yaw;
-            map.insert(std::pair<uint32_t, QRcodeInfo>(info.code, info));
-        }
-        ifs.close();
-        stream.str("");
-        stream << "qrcode_table的大小为: " << map.size();
-        logger->info(stream.str());
-        for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
-        {
+            logger->info(dir + "打开成功!");
+            std::string buf;               // 将数据存放到c++ 中的字符串中
+            while (std::getline(ifs, buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
+            {
+                std::stringstream line_ss;
+                line_ss << buf;
+                QRcodeInfo info;
+                line_ss >> info.code >> info.x >> info.y >> info.yaw;
+                map.insert(std::pair<uint32_t, QRcodeInfo>(info.code, info));
+            }
+            ifs.close();
             stream.str("");
-            stream << (*it).second.code << " " << (*it).second.x << " " << (*it).second.y << " " << (*it).second.yaw;
+            stream << "qrcode_table的大小为: " << map.size();
             logger->info(stream.str());
+            for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
+            {
+                stream.str("");
+                stream << (*it).second.code << " " << (*it).second.x << " " << (*it).second.y << " " << (*it).second.yaw;
+                logger->info(stream.str());
+            }
         }
+
 
         // baselink---->camera的变换关系
         tf2_ros::Buffer buffer;

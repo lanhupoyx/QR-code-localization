@@ -23,14 +23,6 @@ if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.txt ]; then
  chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.txt
 fi
 
-#检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
-if [ ! -f /var/xmover/params/ep-qrcode-loc/CaptureTable.csv ]; then
- mkdir -p /var/xmover/params/ep-qrcode-loc
- echo "copy params file CaptureTable.csv"
- cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/CaptureTable.csv /var/xmover/params/ep-qrcode-loc/CaptureTable.csv
- chmod 777 /var/xmover/params/ep-qrcode-loc/CaptureTable.csv
-fi
-
 mkdir -p /var/xmover/log/QR_code_loc
 
 chown -R $USER_NAME:$USER_NAME /opt/xmover

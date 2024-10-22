@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ep_qrcode_loc)
 
-set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "RelWithDebInfo")
-#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-std=c++14 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
@@ -24,7 +24,6 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   DIRECTORY srv
   FILES
-  yaw_err_srv.srv
 )
 
 find_package(Boost REQUIRED)
@@ -55,10 +54,6 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
   "/opt/libs-x86_64-Linux/eigen/eigen3"
-  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf"
-  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/ch3"
-  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/common"
-  "/home/zl/work/ep-qrcode-loc/src/ep_qrcode_loc/src/eskf/sophus"
 )
 
 # link directories
@@ -70,11 +65,8 @@ link_directories(
 ## Build ##
 ###########
 
-# Range Image Projection
 add_executable(${PROJECT_NAME}_node src/QRCodeLoc.cpp)
-# add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} )
-
 
 install(TARGETS
       ${PROJECT_NAME}_node

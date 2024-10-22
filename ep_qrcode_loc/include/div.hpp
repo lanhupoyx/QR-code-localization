@@ -38,7 +38,7 @@ public:
             line_ss << config_buf;
 
             // 跳过空行
-            if("" == config_buf)
+            if(("" == config_buf) || (' ' == config_buf[0]))
             {
                 continue;
             }
@@ -220,7 +220,7 @@ public:
             while (std::getline(data_ifs, data_buf)) // 使用全局的getline()函数，其里面第一个参数代表输入流对象，第一个参数代表准备好的字符串，每次读取一行内容到buf
             {
                 // 跳过空行
-                if("" == data_buf)
+                if(("" == data_buf) || (' ' == data_buf[0]))
                 {
                     continue;
                 }

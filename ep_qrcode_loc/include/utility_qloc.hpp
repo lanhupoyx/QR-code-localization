@@ -126,6 +126,16 @@ std::string format_date(ros::Time t)
     return ss.str();
 }
 
+std::string replaceChar(std::string str, char toReplace, char replacement) 
+{
+    size_t start_pos = 0;
+    while ((start_pos = str.find(toReplace, start_pos)) != std::string::npos) {
+        str.replace(start_pos, 1, 1, replacement);
+        ++start_pos;
+    }
+    return str;
+}
+
 // pose to transform
 geometry_msgs::TransformStamped p2t(geometry_msgs::Pose pose){
     geometry_msgs::TransformStamped trans;
@@ -165,6 +175,17 @@ double getYaw(geometry_msgs::Quaternion q){
     return yaw*180/M_PI;
 }
 
+// get yaw frome TransformStamped
+double getYaw(geometry_msgs::TransformStamped trans){
+    tf::Quaternion q(   trans.transform.rotation.x, 
+                        trans.transform.rotation.y, 
+                        trans.transform.rotation.z, 
+                        trans.transform.rotation.w); // 初始化四元数
+    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
+    tf::Matrix3x3(q).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
+    return yaw*180/M_PI;
+}
+
 // get yaw(rad) frome pose
 double getYawRad(geometry_msgs::Pose pose){
     tf::Quaternion quaternion(  pose.orientation.x, 
@@ -182,17 +203,6 @@ double getYawRad(geometry_msgs::Quaternion q){
     double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
     tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
     return yaw;
-}
-
-// get yaw frome TransformStamped
-double getYaw(geometry_msgs::TransformStamped trans){
-    tf::Quaternion q(   trans.transform.rotation.x, 
-                        trans.transform.rotation.y, 
-                        trans.transform.rotation.z, 
-                        trans.transform.rotation.w); // 初始化四元数
-    double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
-    tf::Matrix3x3(q).getRPY(roll, pitch, yaw);         // 四元数转欧拉角
-    return yaw*180/M_PI;
 }
 
 // get yaw frome pose
@@ -275,108 +285,70 @@ public:
     std::string odomMapCamera;
     std::string pathMapBase;
     std::string pathMapCamera;
-
-    std::string odomQrmapBase;
-    std::string odomQrmapCamera;
     std::string msgTopic;
 
     int operating_mode;
     bool show_original_msg;
     bool is_pub_tf;
-    bool ignore_area;
     double low_speed_UL;
     std::string port;
     std::string log_dir;
     std::string cfg_dir;
-    std::vector<double> qrmap2mapTrans;
-    std::vector<float> enableArea;
     float maxEstimationDis;
-    geometry_msgs::Pose pose_qrmap2mapcopy;
-    std::ofstream log_file;
 
-    bool save_y_err;
-    bool cal_yaw_err;
     bool read_yaw_err;
+
+    double yaw_jump_UL;
+    double x_jump_UL;
+    double y_jump_UL;
 
     double rec_p1;
     double wheel_diameter;
+    double wheel_reduction_ratio;
     double wheel_base_dis;
-    double realVelAdd_z;
     double wheel_angular_offset;
 
     double err_ratio_offline;
-    double err_ratio_online;
-
-    double realVelRatio_x;
-    double realVelRatio_z;
-    double realVelOffset_x;
-    double realVelOffset_z;
-
-    int yawAverageNum;
 
     double detect_site_dis;
     double aux_site_dis;
     double forkaction_site_dis;
     double site_site_dis;
 
-    ParamServer(){
-        
-        nh.param<std::string>("ep_qrcode_loc/logLevel",   logLevel,   "INFO");
-
-        nh.param<std::string>("ep_qrcode_loc/odomMapBase",   odomMapBase,   "ep_qrcode_loc/odometry/base");
-        nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
-        nh.param<std::string>("ep_qrcode_loc/pathMapBase",   pathMapBase,   "ep_qrcode_loc/path/base");
-        nh.param<std::string>("ep_qrcode_loc/pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
-        nh.param<std::string>("ep_qrcode_loc/odomQrmapBase",   odomQrmapBase,   "ep_qrcode_loc/qrmap/odometry/base");
-        nh.param<std::string>("ep_qrcode_loc/odomQrmapCamera", odomQrmapCamera, "ep_qrcode_loc/qrmap/odometry/locCamera");
-        nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
-  
+    ParamServer()
+    {
+        // log级别
+        nh.param<std::string>("ep_qrcode_loc/logLevel", logLevel, "INFO");
         nh.param<int>("ep_qrcode_loc/operating_mode", operating_mode, 3);
+        // topic名称
+        nh.param<std::string>("ep_qrcode_loc/odomMapBase", odomMapBase, "ep_qrcode_loc/odometry/base");
+        nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
+        nh.param<std::string>("ep_qrcode_loc/pathMapBase", pathMapBase, "ep_qrcode_loc/path/base");
+        nh.param<std::string>("ep_qrcode_loc/pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
+        nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
+        // 运行模式
         nh.param<bool>("ep_qrcode_loc/show_original_msg", show_original_msg, false);
         nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
-        nh.param<bool>("ep_qrcode_loc/save_y_err", save_y_err, false);
-        nh.param<bool>("ep_qrcode_loc/cal_yaw_err", cal_yaw_err, false);
+        nh.param<double>("ep_qrcode_loc/yaw_jump_UL", yaw_jump_UL, 2.0);
+        nh.param<double>("ep_qrcode_loc/x_jump_UL", x_jump_UL, 0.05);
+        nh.param<double>("ep_qrcode_loc/y_jump_UL", y_jump_UL, 0.05);
         nh.param<bool>("ep_qrcode_loc/read_yaw_err", read_yaw_err, false);
-        if(5 == operating_mode)
-        {
-            read_yaw_err = false;
-        }
-
-        nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, -0.5);
-        nh.param<double>("ep_qrcode_loc/err_ratio_online", err_ratio_online, 0.0);
-
+        if (5 == operating_mode) read_yaw_err = false;
+        nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, 1.0);
         nh.param<double>("ep_qrcode_loc/rec_p1", rec_p1, 0.0);
         nh.param<double>("ep_qrcode_loc/wheel_diameter", wheel_diameter, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_reduction_ratio", wheel_reduction_ratio, 1.0);
         nh.param<double>("ep_qrcode_loc/wheel_base_dis", wheel_base_dis, 0.0);
-        nh.param<double>("ep_qrcode_loc/realVelAdd_z", realVelAdd_z, 0.0);
         nh.param<double>("ep_qrcode_loc/wheel_angular_offset", wheel_angular_offset, 0.0);
-        
-        nh.param<bool>("ep_qrcode_loc/ignore_area", ignore_area, false);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
         nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/QR_code_loc/");
         nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params/ep-qrcode-loc/");
-        nh.param<std::vector<double>>("ep_qrcode_loc/qrmap2mapTrans", qrmap2mapTrans, std::vector<double>());
-        pose_qrmap2mapcopy.position.x = qrmap2mapTrans[0];
-        pose_qrmap2mapcopy.position.y = qrmap2mapTrans[1];
-        pose_qrmap2mapcopy.position.z = qrmap2mapTrans[2];
-        pose_qrmap2mapcopy.orientation.x = qrmap2mapTrans[3];
-        pose_qrmap2mapcopy.orientation.y = qrmap2mapTrans[4];
-        pose_qrmap2mapcopy.orientation.z = qrmap2mapTrans[5];
-        pose_qrmap2mapcopy.orientation.w = qrmap2mapTrans[6];
-        nh.param<double>("ep_qrcode_loc/realVelRatio_x", realVelRatio_x, 1.0);
-        nh.param<double>("ep_qrcode_loc/realVelRatio_z", realVelRatio_z, 1.0);
-        nh.param<double>("ep_qrcode_loc/realVelOffset_x", realVelOffset_x, 0.0);
-        nh.param<double>("ep_qrcode_loc/realVelOffset_z", realVelOffset_z, 0.0);
-        nh.param<int>("ep_qrcode_loc/yawAverageNum", yawAverageNum, 5);
-        nh.param<std::vector<float>>("ep_qrcode_loc/enableArea", enableArea, std::vector<float>());
-        nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 2.0);
-
+        nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 1.0);
         nh.param<double>("ep_qrcode_loc/detect_site_dis", detect_site_dis, 1.8);
         nh.param<double>("ep_qrcode_loc/aux_site_dis", aux_site_dis, 1.365);
         nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
         nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
-
     }
 };
 
@@ -529,22 +501,3 @@ std::mutex Logger::mutex_other;
 std::ofstream Logger::yawerrFile_;
 std::mutex Logger::mutex_yawerr;
 
-// 向量
-class vec  
-{
-public:
-	double v[3];
-	vec(){}
-	vec(double x,double y ,double z)
-	{
-		 v[0] = x; v[1] = y; v[2] = z;
-	}
-	const double &operator [] (int i) const
-	{
-		return v[i];
-	}
-	double &operator [] (int i)
-	{
-		return v[i];
-	}
-};
