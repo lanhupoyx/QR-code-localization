@@ -13,6 +13,7 @@ public:
 
         // UDP端口监测初始化
         socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(port.c_str())));
+        logger->info("MV_SC2005AM End");
     }
     ~MV_SC2005AM() {}
 
@@ -278,30 +279,16 @@ private:
                         return false;
                     }
                 }
-                //std::cout << yaw_ascii << std::endl;
                 frame->error_yaw = std::stod(yaw_ascii);
 
-                // // 限制x轴方向视野，视野边缘yaw跳变比较大
-                // float rate = 0.9;
-                // if (75 * rate < abs(frame->error_x))
-                // {
-                //     std::cout << frame->error_x << std::endl;
-                //     return false;
-                // }
-
-                // log
+                // 记录
                 if (show_original_msg)
                 {
                     stream.str("");
-                    stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
-                           << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw;
+                    stream << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
+                            << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw;
                     logger->info(stream.str());
                 }
-
-                // std::cout << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
-                //          << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw << std::endl;
-
-                std::cout << format_time(frame->stamp) << " " << frame->code << std::endl;
 
                 return true;
             }
@@ -322,4 +309,5 @@ private:
     std::ofstream log_file;
     Logger *logger;
     std::stringstream stream;
+    bool state;
 };

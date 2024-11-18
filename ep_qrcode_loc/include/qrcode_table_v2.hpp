@@ -18,8 +18,8 @@ struct QRcodeGround
     void turn(double d_yaw)
     {
         double yaw = getYawRad(pose_.orientation);
-        yaw += d_yaw;
-        //yaw += d_yaw * M_PI / 180.0;
+        // yaw += d_yaw;
+        yaw += d_yaw * M_PI / 180.0;
         tf::Quaternion q;
         q.setRPY(0.0, 0.0, yaw);
         tf::quaternionTFToMsg(q, pose_.orientation);
@@ -162,20 +162,19 @@ struct SiteList
     }    
 };
 
-// 偏差值信息
-struct err_val
+// 单列地码列表
+struct ColumnCodeList
 {
-    double err;
-    uint32_t num;
+    uint32_t column_index_;     // 所在列编号
+    std::list<uint32_t> codes_; // 地码编号列表
 };
 
 // 二维码坐标对照表
 class QRcodeTableV2 : public ParamServer
 {
 private:
-            
     std::vector<SiteList> siteList_lib; // 各个列
-    std::map<uint32_t, QRcodeInfo> map;                // 最终生成的二维码位姿表
+    std::map<uint32_t, QRcodeInfo> map; // 最终生成的二维码位姿表
 
     std::mutex mtx;
 
@@ -186,6 +185,7 @@ private:
 
     ros::Subscriber sub_pos;
     std::list<nav_msgs::Odometry> tf_buffer;
+    std::list<ColumnCodeList> ground_codes;
 
 public:
     QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera)
@@ -195,25 +195,15 @@ public:
 
         // 记录器
         logger = &Logger::getInstance();
-        logger->info("QRcodeTableV2 Start");
+        logger->info("QRcodeTableV2() Start");
 
         // 打开库位信息文件
-        std::string site_info_path = cfg_path + "SiteTable.txt";
+        std::string site_info_path = cfg_path + "SiteTable.csv";
         std::ifstream ifs;
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
         {
             logger->info(site_info_path + "打开失败!");
-            std::string site_info_path = cfg_path + "SiteTable.csv";
-            ifs.open(site_info_path, std::ios::in);
-            if (!ifs.is_open())
-            {
-                logger->info(site_info_path + "打开失败!");
-            }
-            else
-            {
-                logger->info(site_info_path + "打开成功!");
-            }
         }
         else
         {
@@ -321,6 +311,9 @@ public:
         // 遍历提取每个二维码的信息
         for (std::vector<SiteList>::iterator list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
         {
+            ColumnCodeList this_column;
+            this_column.column_index_ = list_it->index_;
+            
             // 每个库位对应的3个点
             for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
             {
@@ -363,11 +356,11 @@ public:
             }
         }
 
-        if(read_yaw_err)
-        {
-            // 读取矫正值
-            readYawErr(cfg_path_);
-        }
+        // if(read_yaw_err)
+        // {
+        //     // 读取矫正值
+        //     readYawErr(cfg_path_);
+        // }
 
         stream.str("");
         stream << "qrcode_table的大小为: " << map.size();
@@ -386,7 +379,7 @@ public:
                                                        ros::TransportHints().tcpNoDelay());
             logger->debug("subscribe: /ep_localization/odometry/lidar");
         }
-
+        logger->info("QRcodeTableV2() End");
     }
 
     ~QRcodeTableV2(){}
@@ -486,6 +479,7 @@ public:
         logger->debug("QRcodeTableV2 tfCallback()");
     }
 
+    // 最新基于lidar的baselink位姿
     nav_msgs::Odometry getCurLidarPose()
     {
         if(tf_buffer.size() > 0)
@@ -497,5 +491,11 @@ public:
             nav_msgs::Odometry zero;
             return zero;
         }
+    }
+
+    // 检查是否跳过地码（可能被遮盖或损坏）
+    bool is_jump_code(uint32_t this_index, uint32_t last_index, bool direction)
+    {
+        // 查找 last_index 所在列
     }
 };

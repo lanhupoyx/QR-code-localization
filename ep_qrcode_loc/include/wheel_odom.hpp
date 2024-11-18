@@ -31,12 +31,14 @@ private:
 public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
     {
+        logger = &Logger::getInstance();
+        logger->info("WheelSpeedOdometer() Start");
         trans_camera2base_ = trans_camera2base;
         sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
         new_speed_x=0;
         state_ = false;
-        logger = &Logger::getInstance();
+        logger->info("WheelSpeedOdometer() End");
     }
 
     ~WheelSpeedOdometer() {}

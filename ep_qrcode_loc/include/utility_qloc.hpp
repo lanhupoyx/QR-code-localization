@@ -11,6 +11,7 @@
 #include <string>
 #include <array>
 #include <thread>
+#include <boost/filesystem.hpp>
 
 #include "ros/ros.h"
 #include <tf/tf.h>
@@ -315,6 +316,8 @@ public:
     double forkaction_site_dis;
     double site_site_dis;
 
+    double avliable_yaw;
+
     ParamServer()
     {
         // log级别
@@ -336,6 +339,7 @@ public:
         if (5 == operating_mode) read_yaw_err = false;
         nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, 1.0);
         nh.param<double>("ep_qrcode_loc/rec_p1", rec_p1, 0.0);
+        nh.param<double>("ep_qrcode_loc/avliable_yaw", avliable_yaw, 0.0);
         nh.param<double>("ep_qrcode_loc/wheel_diameter", wheel_diameter, 0.0);
         nh.param<double>("ep_qrcode_loc/wheel_reduction_ratio", wheel_reduction_ratio, 1.0);
         nh.param<double>("ep_qrcode_loc/wheel_base_dis", wheel_base_dis, 0.0);
@@ -384,8 +388,17 @@ private:
     // 静态成员函数，用于初始化静态变量
     static void init(std::string log_dir_) 
     {
+        // 创建文件夹
+        std::string log_dir_today = log_dir_ + format_date(ros::Time::now()) + "/";
+        boost::filesystem::path dir(log_dir_today); 
+        if (boost::filesystem::create_directory(dir)) {
+            std::cout << "Folder created successfully." << std::endl;
+        } else {
+            std::cout << "Folder already exists or cannot be created." << std::endl;
+        }
+
         // log文件
-        std::string log_path = log_dir_ + format_time(ros::Time::now()) + "_qrcode_log.txt";
+        std::string log_path = log_dir_today + format_time(ros::Time::now()) + "_qrcode_log.txt";
         logFile_.open(log_path, std::ios::app);
         if (!logFile_.is_open()) 
         {
@@ -397,7 +410,7 @@ private:
         }
 
         // pose文件
-        std::string pose_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_pose.txt";
+        std::string pose_path = log_dir_today + "pose.txt";
         poseFile_.open(pose_path, std::ios::app);
         if (!poseFile_.is_open()) 
         {
@@ -409,7 +422,7 @@ private:
         }
 
         // other文件
-        std::string other_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_other.csv";
+        std::string other_path = log_dir_today + "other.csv";
         otherFile_.open(other_path, std::ios::app);
         if (!otherFile_.is_open()) 
         {
@@ -421,7 +434,7 @@ private:
         }
 
         // yawerr文件
-        std::string yawerr_path = log_dir_ + format_date(ros::Time::now()) + "_qrcode_yawerr.txt";
+        std::string yawerr_path = log_dir_ + "yawerr.txt";
         yawerrFile_.open(yawerr_path, std::ios::app);
         if (!yawerrFile_.is_open()) 
         {
@@ -491,6 +504,13 @@ public:
         std::lock_guard<std::mutex> lock(mutex_yawerr); // 线程安全
         yawerrFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
     }
+
+    void close_yawerr()
+    {
+        yawerrFile_.close();
+    }
+
+    
 };
 std::ofstream Logger::logFile_;
 std::mutex Logger::mutex;

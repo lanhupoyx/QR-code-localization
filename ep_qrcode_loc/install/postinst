@@ -16,11 +16,11 @@ if [ ! -f /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml ]; then
 fi
 
 #检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
-if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.txt ]; then
+if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.csv ]; then
  mkdir -p /var/xmover/params/ep-qrcode-loc
- echo "copy params file SiteTable.txt"
- cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.txt /var/xmover/params/ep-qrcode-loc/SiteTable.txt
- chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.txt
+ echo "copy params file SiteTable.csv"
+ cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.csv /var/xmover/params/ep-qrcode-loc/SiteTable.csv
+ chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.csv
 fi
 
 mkdir -p /var/xmover/log/QR_code_loc
