@@ -2,7 +2,7 @@
  * @Author: YuanXun yuanxun@ep-ep.com
  * @Date: 2024-09-21 17:07:12
  * @LastEditors: YuanXun yuanxun@ep-ep.com
- * @LastEditTime: 2024-11-18 19:02:56
+ * @LastEditTime: 2024-11-19 14:27:51
  * @FilePath: /ep-qrcode-loc/src/ep_qrcode_loc/src/QRCodeLoc.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -586,7 +586,113 @@ public:
     }
 
     // 正常运行模式
-    void NormalRun_mode()
+    void NormalRun_mode_v1()
+    {
+        logger->info("NormalRun_mode()");
+        QRcodeInfo code_info;            // 查询二维码坐标
+        double loop_rate = 200.0;        // 主循环 200Hz
+        ros::Rate loop_rate_ctrl(loop_rate); 
+        while (ros::ok())
+        {
+            std::list<std::vector<nav_msgs::Odometry>> publist;
+
+            // 处理二维码数据，解算baselink位姿
+            if (camera->getframe(&pic))
+            {
+                if (qrcode_table->onlyfind(pic, &code_info))
+                {
+                    // 发布该帧对应的位姿
+                    if(need_output_this_frame(pic))
+                    {
+                        // 计算base_link在qrmap坐标和map坐标的坐标
+                        std::vector<geometry_msgs::Pose> v_pose_new = get_pose(code_info);
+                        // 打包生成消息
+                        std::vector<nav_msgs::Odometry> v_odom = packageMsg(v_pose_new, code_info);
+
+                        // 检测车身方向角度是否超过限制
+                        if (is_yaw_available(v_odom[0].pose.pose.orientation, code_info.yaw, 20.0))
+                        {
+                            // 观测值与预测值加权平均
+                            if(!code_info.is_head)
+                            {
+                                geometry_msgs::Pose pose_observe = v_odom[0].pose.pose;
+                                geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
+                                v_odom[0].pose.pose = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
+                            }
+
+
+                            wheel_odom->setEstimationInitialPose(v_odom[0]); // 设置轮速里程计初值
+
+                            // 放入发送队列
+                            publist.push_back(v_odom);
+                        }
+                    }
+                }
+            }
+
+            // 轮速里程计递推
+            if((wheel_odom->is_start()))
+            {
+                logger->debug("wheel_odom is start");
+                std::vector<nav_msgs::Odometry> v_odom;
+                if(wheel_odom->run_odom(v_odom))
+                {
+                    v_odom[0].pose.covariance[7] = code_info.frame.error_x; // 地码与相机横向偏差
+                    v_odom[0].pose.covariance[8] = code_info.frame.error_y; // 地码与相机纵向偏差
+                    v_odom[0].pose.covariance[9] = code_info.frame.error_yaw; // 地码与相机角度偏差
+
+                    // 发布递推后的位姿
+                    logger->debug("wheel odom publist.push_back(v_odom)");
+                    publist.push_back(v_odom);
+                }
+            }
+            
+            // 发布位姿数据
+            while (publist.size() > 0)
+            {
+                logger->debug("publist.size() > 0");
+
+                // 发布消息
+                pubOdom(publist.front());
+                logger->debug("pubOdom(publist.front())");
+
+                // 输出记录
+                if(abs(wheel_odom->get_vel_msg().linear.x) > 0.01)
+                {
+                    logger->pose( std::to_string(code_info.frame.code) + "," +                             // 二维码编号
+                                std::to_string(code_info.is_head) + "," +                                // 是否是列首地码
+                                std::to_string(code_info.frame.error_x) + "," +                          // 相机与地码偏移量x
+                                std::to_string(code_info.frame.error_y) + "," +                          // 相机与地码偏移量y
+                                std::to_string(code_info.frame.error_yaw) + "," +                        // 相机与地码偏移量yaw
+                                std::to_string(wheel_odom->get_vel_msg().angular.y) + "," +              // 轮速方向角
+                                std::to_string(wheel_odom->get_vel_msg().linear.x) + "," +               // base_link线速度
+                                std::to_string(wheel_odom->get_vel_msg().angular.z) + "," +              // base_link角速度
+                                std::to_string(publist.front()[0].pose.pose.position.x) + "," +          // base_link x
+                                std::to_string(publist.front()[0].pose.pose.position.y) + "," +          // base_link y
+                                std::to_string(getYaw(publist.front()[0].pose.pose.orientation)) + "," + // base_link yaw
+                                std::to_string(publist.front()[1].pose.pose.position.x) + "," +          // locCamera_link x
+                                std::to_string(publist.front()[1].pose.pose.position.y) + "," +          // locCamera_link y
+                                std::to_string(getYaw(publist.front()[1].pose.pose.orientation)) + "," + // locCamera_link yaw
+                                std::to_string(publist.front()[0].pose.covariance[0]) + "," +            // 数据是否可用
+                                std::to_string(publist.front()[0].pose.covariance[1]) + "," +            // 递推长度是否超过限制
+                                std::to_string(publist.front()[0].pose.covariance[2]) + "," +            // 数据来源，0：二维码，1：轮速计递推
+                                std::to_string(publist.front()[0].pose.covariance[3]) + "," +            // 是否为列首二维码
+                                std::to_string(publist.front()[0].pose.covariance[4]));                  // 是否紧急停车
+                }
+
+                // 删除已发送的消息
+                publist.pop_front();
+            }
+
+            // 循环控制延时函数
+            loop_rate_ctrl.sleep();
+            ros::spinOnce();
+        }
+    }
+
+
+    // 正常运行模式
+    void NormalRun_mode_v2()
     {
         logger->info("NormalRun_mode()");
         QRcodeInfo code_info;            // 查询二维码坐标
@@ -602,10 +708,10 @@ public:
             // 处理二维码数据，解算baselink位姿
             if (camera->getframe(&pic))
             {
-                logger->debug("getframe");
+                //logger->debug("getframe");
                 if (qrcode_table->onlyfind(pic, &code_info))
                 {
-                    logger->debug("find code");
+                    //logger->debug("find code");
                     // 发布该帧对应的位姿
                     if(need_output_this_frame(pic))
                     {
@@ -1150,8 +1256,8 @@ public:
         }
         else if (3 == operating_mode) // 正常模式，使用轮速计递推
         {
-            logger->info("Mode 3: Normal Run ");
-            NormalRun_mode();
+            logger->info("Mode 3: Normal Run v1");
+            NormalRun_mode_v1();
         }
         else if (4 == operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
         {
@@ -1172,6 +1278,11 @@ public:
         {
             logger->info("Mode 7: Check Camera Horizon ");
             CheckCameraHorizon_mode();
+        }
+        else if (8 == operating_mode) // 正常模式，使用轮速计递推
+        {
+            logger->info("Mode 8: Normal Run v2");
+            NormalRun_mode_v2();
         }
         else
         {
