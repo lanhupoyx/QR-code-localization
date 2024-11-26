@@ -130,7 +130,7 @@ struct SiteList
             pose_site = sites_.front().move(num, 0.0); // 库位位姿
         }
 
-        Site site_new(index_, sites_.size(), pose_site, qrcodes, dis_vec_, trans_base_camera_);
+        Site site_new(index_, sites_.size() + 1, pose_site, qrcodes, dis_vec_, trans_base_camera_);
         sites_.push_back(site_new);
     }
 
@@ -498,4 +498,115 @@ public:
     {
         // 查找 last_index 所在列
     }
+
+    // 获取所有列首二维码编号
+    std::vector<uint32_t> get_all_head()
+    {
+        static std::vector<uint32_t> v_out;
+
+        if(v_out.size() == 0) // 只在第一次执行时计算一次
+        {
+            // 遍历每列
+            for (std::vector<SiteList>::iterator list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
+            {
+                // 遍历每个库位
+                for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
+                {
+                    if(2 == site_it->index_) // 石花项目：第二排库位的辅助二维码为列首
+                    {
+                        v_out.push_back(site_it->aux_point_qrcode_.index_);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return v_out;
+    }
+
+    bool is_head(uint32_t code_new)
+    {
+        std::vector<uint32_t> code_could_be = get_all_head();
+        std::vector<uint32_t>::iterator code_it;
+        for (code_it = code_could_be.begin(); code_it != code_could_be.end(); code_it++)
+        {
+            if(code_new == *code_it)
+            {
+                return true;
+            }
+        }
+
+        if(code_it == code_could_be.end())
+        {
+            return false;
+        }
+    }
+
+    // 获取前后二维码
+    std::vector<uint32_t> get_neighbor(uint32_t base_code)
+    {
+        // 创建二维码矩阵
+        static std::vector<std::vector<uint32_t>> code_matrix;
+        if (code_matrix.size() == 0) // 只在第一次执行时计算一次
+        {
+            logger->info("get code_matrix:");
+            // 遍历每列
+            for (std::vector<SiteList>::iterator list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
+            {
+                logger->info("list " + std::to_string(list_it->index_) + ":");
+                std::vector<uint32_t> code_list;
+                // 遍历每个库位
+                for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
+                {
+                    logger->info("site " + std::to_string(site_it->index_) + ":");
+                    if (0 != site_it->detect_point_qrcode_.index_)
+                    {
+                        code_list.push_back(site_it->detect_point_qrcode_.index_);
+                        logger->info(std::to_string(site_it->detect_point_qrcode_.index_));
+                    }
+                    if (0 != site_it->aux_point_qrcode_.index_)
+                    {
+                        code_list.push_back(site_it->aux_point_qrcode_.index_);
+                        logger->info(std::to_string(site_it->aux_point_qrcode_.index_));
+                    }
+                    if (0 != site_it->action_point_qrcode_.index_)
+                    {
+                        code_list.push_back(site_it->action_point_qrcode_.index_);
+                        logger->info(std::to_string(site_it->action_point_qrcode_.index_));
+                    }
+                }
+                code_matrix.push_back(code_list);
+            }
+        }
+
+        // 二维码矩阵，查找前后近邻地码
+        std::vector<uint32_t> v_out;
+        for (int ln = 0; ln < code_matrix.size(); ln++)
+        {
+            for (int cn = 0; cn < code_matrix[ln].size(); cn++)
+            {
+                if (base_code == code_matrix[ln][cn])
+                {
+                    if (0 == cn) // 列首
+                    {
+                        v_out.push_back(0);
+                        v_out.push_back(code_matrix[ln][cn + 1]);
+                    }
+                    else if (code_matrix[ln].size() - 1 == cn) // 列尾
+                    {
+                        v_out.push_back(code_matrix[ln][cn - 1]);
+                        v_out.push_back(0);
+                    }
+                    else // 列中
+                    {
+                        v_out.push_back(code_matrix[ln][cn - 1]);
+                        v_out.push_back(code_matrix[ln][cn + 1]);
+                    }
+                }
+            }
+        }
+
+        return v_out;
+    }
+
 };

@@ -20,6 +20,7 @@ private:
     std::mutex mtx;                                     // 互斥锁
     Logger *logger;                                     // 计录器
     bool state_;                                        // 轮速递推器状态
+    bool map_o_init_;                                   // 刚上电时，使用地图原点初始化递推器
     geometry_msgs::TransformStamped trans_camera2base_; // 相机到base的变换
     nav_msgs::Odometry odom_estimation_init_;           // 轮速递推器初值
     std::list<geometry_msgs::TwistStamped> speed_data;  // 轮速数据缓存队列
@@ -38,6 +39,21 @@ public:
                                                          this, ros::TransportHints().tcpNoDelay());
         new_speed_x=0;
         state_ = false;
+
+        // 设置地图原点为初值，开始递推
+        nav_msgs::Odometry odom;
+        odom.header.stamp = ros::Time::now();
+        odom.pose.pose.position.x = 0;
+        odom.pose.pose.position.y = 0;
+        odom.pose.pose.position.z = 0;
+        odom.pose.pose.orientation.x = 0;
+        odom.pose.pose.orientation.y = 0;
+        odom.pose.pose.orientation.z = 0;
+        odom.pose.pose.orientation.w = 1;
+        setEstimationInitialPose(odom);
+        map_o_init_ = true;
+
+
         logger->info("WheelSpeedOdometer() End");
     }
 
@@ -72,6 +88,7 @@ public:
         odom_estimation_init_ = odom;
         path_dis = 0;
         state_ = true;
+        map_o_init_ = false;
         logger->debug("setEstimationInitialPose() return");
     }
 
@@ -227,6 +244,11 @@ public:
         {
             odom_est.pose.covariance[0] = 0; // 不可用
             odom_est.pose.covariance[1] = 1; // 递推长度超过限制
+        }
+        else if(map_o_init_)
+        {
+            odom_est.pose.covariance[0] = 0; // 不可用
+            odom_est.pose.covariance[1] = 2; // 使用地图原点初始化递推器
         }
         else
         {
