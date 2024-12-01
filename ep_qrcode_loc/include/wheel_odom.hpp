@@ -28,6 +28,7 @@ private:
     geometry_msgs::Twist new_msg;                       // 最新/real_vel消息
     ros::Subscriber sub_realvel;                        // /real_vel消息订阅器
     double path_dis;                                    // 本段递推中轮子走过的路径长度
+    bool path_dis_overflow;                             // 递推路径过长
 
 public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
@@ -39,6 +40,8 @@ public:
                                                          this, ros::TransportHints().tcpNoDelay());
         new_speed_x=0;
         state_ = false;
+        path_dis = 0;
+        path_dis_overflow = false;
 
         // 设置地图原点为初值，开始递推
         nav_msgs::Odometry odom;
@@ -201,6 +204,10 @@ public:
         // 增加base运动轨迹长度
         double dt = vel_msg_stamped.header.stamp.toSec() - vel_msg_stamped_last.header.stamp.toSec();
         path_dis += dt * abs(vel_msg_stamped.twist.linear.x);
+        if(path_dis > maxEstimationDis)
+        {
+            path_dis_overflow = true;
+        }
         vel_msg_stamped_last = vel_msg_stamped;
 
         speed_data.push_back(vel_msg_stamped);
@@ -240,7 +247,7 @@ public:
         odom_est.child_frame_id = "base_link";
 
         // 设置标志
-        if(path_dis > maxEstimationDis)
+        if(path_dis_overflow)
         {
             odom_est.pose.covariance[0] = 0; // 不可用
             odom_est.pose.covariance[1] = 1; // 递推长度超过限制
@@ -288,4 +295,12 @@ public:
         std::lock_guard<std::mutex> locker(mtx);
         return new_msg;
     }
+
+    // 是否递推路径过长
+    bool is_path_dis_overflow()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return path_dis_overflow;
+    }
+
 };

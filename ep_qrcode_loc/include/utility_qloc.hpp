@@ -127,6 +127,7 @@ std::string format_date(ros::Time t)
     return ss.str();
 }
 
+// string 替换字符
 std::string replaceChar(std::string str, char toReplace, char replacement) 
 {
     size_t start_pos = 0;
@@ -135,6 +136,19 @@ std::string replaceChar(std::string str, char toReplace, char replacement)
         ++start_pos;
     }
     return str;
+}
+
+// 删除末尾若干个字符
+std::string del_n_end(std::string str, uint16_t n)
+{
+    if (str.size() <= n)
+    {
+        return str;
+    }
+    else
+    {
+        return str.substr(0, str.size()-n);
+    }
 }
 
 // pose to transform
@@ -490,7 +504,7 @@ public:
     void pose(const std::string& message) 
     {
         std::lock_guard<std::mutex> lock(mutex_pose); // 线程安全
-        poseFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
+        poseFile_ << del_n_end(format_time(ros::Time::now()), 3) << "," << message << std::endl;
     }
 
     void other(const std::string& message) 

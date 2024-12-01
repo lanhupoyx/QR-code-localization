@@ -402,6 +402,22 @@ public:
         return false;
     }
 
+    // 根据二维码编号查表，得到位姿信息
+    bool onlyfind(CameraFrame frame)
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
+        if (it != map.end())
+        {
+            return true;
+        }
+        else
+        {
+            std::cout << "can not identify code:" << frame.code << std::endl;
+            return false;
+        }
+    }
+
     // 校正单个地码方向角
     bool correct_yaw(uint32_t code, double yaw_err)
     {
@@ -524,6 +540,7 @@ public:
         return v_out;
     }
 
+    // 检查是否为列首地码
     bool is_head(uint32_t code_new)
     {
         std::vector<uint32_t> code_could_be = get_all_head();
@@ -609,4 +626,37 @@ public:
         return v_out;
     }
 
+    // 是否在列内
+    bool is_in_queue(nav_msgs::Odometry base2map, double head_offset)
+    {
+        // 遍历每个库位
+        std::vector<SiteList>::iterator list_it;
+        for (list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
+        {
+            // 石花定制：先看列首x值
+            double l_x_err = base2map.pose.pose.position.x - list_it->sites_.begin()->pose_.position.x;
+            if (l_x_err < head_offset)
+            {
+                continue;
+            }
+            // 石花定制：再看列首y值
+            double l_y_err = base2map.pose.pose.position.y - list_it->sites_.begin()->pose_.position.y;
+            if (abs(l_y_err) > 3.0)
+            {
+                continue;
+            }
+            
+            // 每个库位
+            for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
+            {
+                double x_err = base2map.pose.pose.position.x - site_it->pose_.position.x;
+                double y_err = base2map.pose.pose.position.y - site_it->pose_.position.y;
+                if(abs(x_err) < 1.0 && abs(y_err) < 1.0 ) //覆盖范围大于单个库位
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 };
