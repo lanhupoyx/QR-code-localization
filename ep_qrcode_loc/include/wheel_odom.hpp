@@ -250,20 +250,19 @@ public:
         if(path_dis_overflow)
         {
             odom_est.pose.covariance[0] = 0; // 不可用
-            odom_est.pose.covariance[1] = 1; // 递推长度超过限制
+            odom_est.pose.covariance[3] = 1; // 递推长度超过限制
         }
         else if(map_o_init_)
         {
             odom_est.pose.covariance[0] = 0; // 不可用
-            odom_est.pose.covariance[1] = 2; // 使用地图原点初始化递推器
+            odom_est.pose.covariance[3] = 2; // 使用地图原点初始化递推器
         }
         else
         {
             odom_est.pose.covariance[0] = 1; // 可用
-            odom_est.pose.covariance[1] = 0; // 递推长度未超过限制
+            odom_est.pose.covariance[3] = 0; // 递推长度未超过限制
         }
-        odom_est.pose.covariance[2] = 1; // 数据源于轮速计递推
-        odom_est.pose.covariance[10] = path_dis; // 递推距离
+        odom_est.pose.covariance[4] = path_dis; // 递推距离
 
         // 设置下一段的初值
         setCurOdom(odom_est); 
