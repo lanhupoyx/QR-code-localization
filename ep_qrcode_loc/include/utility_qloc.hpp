@@ -332,6 +332,8 @@ public:
 
     double avliable_yaw;
 
+    bool is_debug;
+
     ParamServer()
     {
         // log级别
@@ -367,6 +369,7 @@ public:
         nh.param<double>("ep_qrcode_loc/aux_site_dis", aux_site_dis, 1.365);
         nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
         nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
+        nh.param<bool>("ep_qrcode_loc/is_debug", is_debug, false);
     }
 };
 

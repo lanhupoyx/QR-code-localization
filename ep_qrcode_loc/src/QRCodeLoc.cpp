@@ -92,33 +92,80 @@ public:
         pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 10);
         pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 10);
 
-        // 从TF获取baselink---->camera的变换关系
-        tfListener = new tf2_ros::TransformListener(buffer);
-        bool tferr = true;
-        uint8_t loop_num = 0;
-        while (tferr)
-        {
-            loop_num ++;
-            if(loop_num > 10)
-            {
-                logger->info("lookupTransform locCamera_link to base_link failed!");
-                break;
-            }
 
-            tferr = false;
-            try
+        if(is_debug)
+        {
+
+            trans_base2camera.transform.translation.x = -1.639;
+            trans_base2camera.transform.translation.y = -0.27;
+            trans_base2camera.transform.translation.z = 0;
+            trans_base2camera.transform.rotation.x = 0;
+            trans_base2camera.transform.rotation.y = 0;
+            trans_base2camera.transform.rotation.z = 0;
+            trans_base2camera.transform.rotation.w = 1;
+
+            trans_camera2base.transform.translation.x = 1.639;
+            trans_camera2base.transform.translation.y = 0.27;
+            trans_camera2base.transform.translation.z = 0;
+            trans_camera2base.transform.rotation.x = 0;
+            trans_camera2base.transform.rotation.y = 0;
+            trans_camera2base.transform.rotation.z = 0;
+            trans_camera2base.transform.rotation.w = 1;
+        }
+        else
+        {
+            // 从TF获取baselink---->camera的变换关系
+            tfListener = new tf2_ros::TransformListener(buffer);
+            bool tferr = true;
+            uint8_t loop_num = 0;
+            while (tferr)
             {
-                trans_base2camera = buffer.lookupTransform("locCamera_link", "base_link", ros::Time(0));
-                trans_camera2base = buffer.lookupTransform("base_link", "locCamera_link", ros::Time(0));
-            }
-            catch (tf::TransformException &exception)
-            {
-                logger->info(std::string(exception.what()) + "; retrying...");
-                tferr = true;
-                ros::Duration(0.5).sleep();
-                continue;
+                loop_num ++;
+                if(loop_num > 10)
+                {
+                    logger->info("lookupTransform locCamera_link to base_link failed!");
+                    break;
+                }
+
+                tferr = false;
+                try
+                {
+                    trans_base2camera = buffer.lookupTransform("locCamera_link", "base_link", ros::Time(0));
+                    trans_camera2base = buffer.lookupTransform("base_link", "locCamera_link", ros::Time(0));
+                }
+                catch (tf::TransformException &exception)
+                {
+                    logger->info(std::string(exception.what()) + "; retrying...");
+                    tferr = true;
+                    ros::Duration(0.5).sleep();
+                    continue;
+                }
             }
         }
+
+        logger->info(  "trans_base2camera: " +
+                        trans_base2camera.header.frame_id + ", " +
+                        trans_base2camera.child_frame_id + ",  " +
+                        std::to_string(trans_base2camera.transform.translation.x) + ", " +
+                        std::to_string(trans_base2camera.transform.translation.y) + ", " +
+                        std::to_string(trans_base2camera.transform.translation.z) + ",  " +
+                        std::to_string(trans_base2camera.transform.rotation.x) + ", " +
+                        std::to_string(trans_base2camera.transform.rotation.y) + ", " +
+                        std::to_string(trans_base2camera.transform.rotation.z) + ", " +
+                        std::to_string(trans_base2camera.transform.rotation.w)
+        );
+
+        logger->info(  "trans_camera2base: " +
+                        trans_camera2base.header.frame_id + ", " +
+                        trans_camera2base.child_frame_id + ",  " +
+                        std::to_string(trans_camera2base.transform.translation.x) + ", " +
+                        std::to_string(trans_camera2base.transform.translation.y) + ", " +
+                        std::to_string(trans_camera2base.transform.translation.z) + ",  " +
+                        std::to_string(trans_camera2base.transform.rotation.x) + ", " +
+                        std::to_string(trans_camera2base.transform.rotation.y) + ", " +
+                        std::to_string(trans_camera2base.transform.rotation.z) + ", " +
+                        std::to_string(trans_camera2base.transform.rotation.w)
+        );
 
         // 实例化功能对象
         qrcode_table = new QRcodeTableV2(cfg_dir, trans_camera2base);
@@ -372,10 +419,12 @@ public:
         // 判断偏差是否在范围内
         if (diff < std::fabs(range / 2.0))
         {
+            logger->debug("yaw out of range");
             return true;
         }
         else
         {
+            logger->debug("yaw in range");
             return false;
         }
     }
@@ -522,6 +571,7 @@ public:
 
         if (last_code == code_new)
         {
+            logger->debug("is_code_in_order: same code, return true");
             return true;
         }
         else if (0 == last_code) // 首次扫码
@@ -529,10 +579,12 @@ public:
             if (qrcode_table->is_head(code_new))
             {
                 last_code = code_new;
+                logger->debug("is_code_in_order: is head, return true");
                 return true;
             }
             else
             {
+                logger->debug("is_code_in_order: not head, return false");
                 last_code = code_new;
                 return false;
             }
@@ -545,21 +597,25 @@ public:
                 if (qrcode_table->is_head(code_new))
                 {
                     last_code = 0;
+                    logger->debug("is_code_in_order: forward out, return true");
                 }
                 else
                 {
                     last_code = code_new;
+                    logger->debug("is_code_in_order: forward, return true");
                 }
                 return true;
             }
             else if ((vel_x < 0) && (code_new == nbr[1]))
             {
                 last_code = code_new;
+                logger->debug("is_code_in_order: retreat, return true");
                 return true;
             }
             else
             {
                 last_code = code_new;
+                logger->debug("is_code_in_order: other, return false");
                 return false;
             }
         }
@@ -759,6 +815,7 @@ public:
             // 一、获取、解算相机数据
             if (camera->getframe(&pic))
             {
+                logger->debug("getframe");
                 if (do_not_jump_this_frame(pic)) // 检查是否需要跳过该帧数据
                 {
                     if (qrcode_table->onlyfind(pic, &code_info)) // 查询地码信息
@@ -790,10 +847,7 @@ public:
                         geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
                         v_pose_new[0] = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
 
-                        if(is_pose_jump(v_pose_new[0]))
-                        {
-                            err_type = err_type | 0x04; // x、y或者yaw跳变过大
-                        }
+                        
                     }
                     else
                     {
@@ -843,7 +897,17 @@ public:
             // 五、发布位姿数据
             while (publist.size() > 0)
             {
-                if (err_type != 0x00)// 是否处于故障状态
+                if (!wheel_odom->is_path_dis_overflow()) // 未递推过远
+                {
+
+                }
+                if(is_pose_jump(v_pose_new[0])) // 跳变监测
+                {
+                    err_type = err_type | 0x04; // x、y或者yaw跳变过大
+                }
+
+
+                if (0x00 != err_type)// 是否处于故障状态
                 {
                     publist.front()[0].pose.covariance[1] = 1; // 故障急停
                     publist.front()[0].pose.covariance[2] = err_type;//故障类型
@@ -1221,6 +1285,16 @@ public:
         }
     }
 
+    void Code_Debug()
+    {
+        nav_msgs::Odometry base2map;
+
+        base2map.pose.pose.position.x = 10;
+        base2map.pose.pose.position.y = 10;
+
+        qrcode_table->is_in_queue(base2map, 0.0);
+    }
+
     // 主循环
     void mainloopThread()
     {
@@ -1239,7 +1313,7 @@ public:
         else if (3 == operating_mode) // 正常模式v1，使用轮速计递推
         {
             logger->info("Mode 3: Normal Run v1");
-            NormalRun_mode_v1();
+            NormalRun_mode_v3();
         }
         else if (4 == operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
         {
@@ -1263,8 +1337,13 @@ public:
         }
         else if (8 == operating_mode) // 正常模式v3，使用轮速计递推
         {
-            logger->info("Mode 3: Normal Run v3");
+            logger->info("Mode 8: Normal Run v3");
             NormalRun_mode_v3();
+        }
+        else if (9 == operating_mode) // 正常模式v3，使用轮速计递推
+        {
+            logger->info("Mode 9: Code Debug");
+            Code_Debug();
         }
         else
         {

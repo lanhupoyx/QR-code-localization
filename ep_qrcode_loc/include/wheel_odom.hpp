@@ -24,6 +24,8 @@ private:
     geometry_msgs::TransformStamped trans_camera2base_; // 相机到base的变换
     nav_msgs::Odometry odom_estimation_init_;           // 轮速递推器初值
     std::list<geometry_msgs::TwistStamped> speed_data;  // 轮速数据缓存队列
+    geometry_msgs::TwistStamped speed_data_new_;        // 最新轮速数据
+    std::mutex speed_data_new_mtx;                      // 最新轮速数据互斥锁
     double new_speed_x;                                 // 最新线速度-base
     geometry_msgs::Twist new_msg;                       // 最新/real_vel消息
     ros::Subscriber sub_realvel;                        // /real_vel消息订阅器
@@ -31,6 +33,7 @@ private:
     bool path_dis_overflow;                             // 递推路径过长
 
 public:
+
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
     {
         logger = &Logger::getInstance();
@@ -62,6 +65,138 @@ public:
 
     ~WheelSpeedOdometer() {}
 
+    // 获取/realvel的回调函数
+    void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
+    {
+        ros::Time time_now = ros::Time::now();
+        std::lock_guard<std::mutex> locker(mtx);
+
+        geometry_msgs::Twist vel_msg = *p_velmsg;
+        geometry_msgs::TwistStamped vel_msg_stamped = decode_msg(vel_msg, time_now);
+        static geometry_msgs::TwistStamped vel_msg_stamped_last = vel_msg_stamped;
+
+        // 增加base运动轨迹长度
+        double dt = vel_msg_stamped.header.stamp.toSec() - vel_msg_stamped_last.header.stamp.toSec();
+        path_dis += dt * abs(vel_msg_stamped.twist.linear.x);
+        if(path_dis > maxEstimationDis)
+        {
+            path_dis_overflow = true;
+        }
+        vel_msg_stamped_last = vel_msg_stamped;
+
+        speed_data.push_back(vel_msg_stamped);
+        new_speed_x = vel_msg_stamped.twist.linear.x;
+        new_msg = vel_msg_stamped.twist;
+
+        // 内存保护
+        while (speed_data.size() > 5)
+        {
+            speed_data.pop_front();
+            logger->debug("speed_data.pop_front();");
+        }
+    }
+
+    // 运行轮速递推器
+    bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        //logger->debug("run_odom() : start");
+        if (0 == speed_data.size())
+        {
+            //logger->debug("run_odom() : 0 == speed_data.size(), return false");
+            return false;
+        }
+
+        // 获取最新轮速信息
+        geometry_msgs::TwistStamped cur_speed = speed_data.front();
+        speed_data.pop_front();
+
+        // 获取初始位姿
+        nav_msgs::Odometry odom_init = getCurOdom();
+
+        // 估计base当前时刻位姿(map--->base_link)
+        nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.twist, cur_speed.header.stamp);
+
+        // 附加数据
+        odom_est.header.stamp = cur_speed.header.stamp;// 时间戳
+        odom_est.header.frame_id = "map";
+        odom_est.child_frame_id = "base_link";
+
+        // 设置标志
+        if(path_dis_overflow)
+        {
+            odom_est.pose.covariance[0] = 0; // 不可用
+            odom_est.pose.covariance[3] = 1; // 递推长度超过限制
+        }
+        else if(map_o_init_)
+        {
+            odom_est.pose.covariance[0] = 0; // 不可用
+            odom_est.pose.covariance[3] = 2; // 使用地图原点初始化递推器
+        }
+        else
+        {
+            odom_est.pose.covariance[0] = 1; // 可用
+            odom_est.pose.covariance[3] = 0; // 递推长度未超过限制
+        }
+        odom_est.pose.covariance[4] = path_dis; // 递推距离
+
+        // 设置下一段的初值
+        odom_estimation_init_ = odom_est; 
+
+        // 存入base姿态
+        v_odom.clear();
+        v_odom.push_back(odom_est);
+
+        // 存入相机姿态
+        geometry_msgs::Pose pose_camera2map;
+        tf2::doTransform(t2p(trans_camera2base_), pose_camera2map, p2t(odom_est.pose.pose));
+        odom_est.pose.pose = pose_camera2map;
+        odom_est.child_frame_id = "locCamera_link";
+        v_odom.push_back(odom_est);
+
+        return true;
+    }
+
+    // 获取车轮速度
+    double get_vel_x()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return new_speed_x;
+    }
+
+    // 获取最新/real_vel消息
+    geometry_msgs::Twist get_vel_msg()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return new_msg;
+    }
+
+    // 是否递推路径过长
+    bool is_path_dis_overflow()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return path_dis_overflow;
+    }
+    
+    // 使用二维码定位结果设置递推初值
+    void setEstimationInitialPose(nav_msgs::Odometry odom)
+    {
+        logger->debug("setEstimationInitialPose()");
+        std::lock_guard<std::mutex> locker(mtx);
+        odom_estimation_init_ = odom;
+        path_dis = 0;
+        state_ = true;
+        map_o_init_ = false;
+        logger->debug("setEstimationInitialPose() return");
+    }
+
+    // 获取递推初值
+    nav_msgs::Odometry getCurOdom()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        return odom_estimation_init_;
+    }
+    
     // 启动轮速递推器
     void start()
     {
@@ -83,31 +218,7 @@ public:
         state_ = false;
     }
 
-    // 使用二维码定位结果设置递推初值
-    void setEstimationInitialPose(nav_msgs::Odometry odom)
-    {
-        logger->debug("setEstimationInitialPose()");
-        std::lock_guard<std::mutex> locker(mtx);
-        odom_estimation_init_ = odom;
-        path_dis = 0;
-        state_ = true;
-        map_o_init_ = false;
-        logger->debug("setEstimationInitialPose() return");
-    }
-
-    // 获取递推初值
-    nav_msgs::Odometry getCurOdom()
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        return odom_estimation_init_;
-    }
-
-    // 设置下以段递推初值
-    void setCurOdom(nav_msgs::Odometry odom)
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        odom_estimation_init_ = odom;
-    }
+private:
 
     // 根据初值、速度、时间进行位姿递推
     nav_msgs::Odometry poseEstimation(nav_msgs::Odometry odom_init, geometry_msgs::Twist vel, ros::Time time_now)
@@ -189,117 +300,6 @@ public:
 
         // 返回值
         return vel_new;
-    }
-
-    // 获取/realvel的回调函数
-    void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
-    {
-        ros::Time time_now = ros::Time::now();
-        std::lock_guard<std::mutex> locker(mtx);
-
-        geometry_msgs::Twist vel_msg = *p_velmsg;
-        geometry_msgs::TwistStamped vel_msg_stamped = decode_msg(vel_msg, time_now);
-        static geometry_msgs::TwistStamped vel_msg_stamped_last = vel_msg_stamped;
-
-        // 增加base运动轨迹长度
-        double dt = vel_msg_stamped.header.stamp.toSec() - vel_msg_stamped_last.header.stamp.toSec();
-        path_dis += dt * abs(vel_msg_stamped.twist.linear.x);
-        if(path_dis > maxEstimationDis)
-        {
-            path_dis_overflow = true;
-        }
-        vel_msg_stamped_last = vel_msg_stamped;
-
-        speed_data.push_back(vel_msg_stamped);
-        new_speed_x = vel_msg_stamped.twist.linear.x;
-        new_msg = vel_msg_stamped.twist;
-
-        // 内存保护
-        while (speed_data.size() > 5)
-        {
-            speed_data.pop_front();
-        }
-    }
-
-    // 运行轮速递推器
-    bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
-    {
-        //logger->debug("run_odom() : start");
-        if (0 == speed_data.size())
-        {
-            //logger->debug("run_odom() : 0 == speed_data.size(), return false");
-            return false;
-        }
-
-        // 获取最新轮速信息
-        geometry_msgs::TwistStamped cur_speed = speed_data.front();
-        speed_data.pop_front();
-
-        // 获取初始位姿
-        nav_msgs::Odometry odom_init = getCurOdom();
-
-        // 估计base当前时刻位姿(map--->base_link)
-        nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.twist, cur_speed.header.stamp);
-
-        // 附加数据
-        odom_est.header.stamp = cur_speed.header.stamp;// 时间戳
-        odom_est.header.frame_id = "map";
-        odom_est.child_frame_id = "base_link";
-
-        // 设置标志
-        if(path_dis_overflow)
-        {
-            odom_est.pose.covariance[0] = 0; // 不可用
-            odom_est.pose.covariance[3] = 1; // 递推长度超过限制
-        }
-        else if(map_o_init_)
-        {
-            odom_est.pose.covariance[0] = 0; // 不可用
-            odom_est.pose.covariance[3] = 2; // 使用地图原点初始化递推器
-        }
-        else
-        {
-            odom_est.pose.covariance[0] = 1; // 可用
-            odom_est.pose.covariance[3] = 0; // 递推长度未超过限制
-        }
-        odom_est.pose.covariance[4] = path_dis; // 递推距离
-
-        // 设置下一段的初值
-        setCurOdom(odom_est); 
-
-        // 存入base姿态
-        v_odom.clear();
-        v_odom.push_back(odom_est);
-
-        // 存入相机姿态
-        geometry_msgs::Pose pose_camera2map;
-        tf2::doTransform(t2p(trans_camera2base_), pose_camera2map, p2t(odom_est.pose.pose));
-        odom_est.pose.pose = pose_camera2map;
-        odom_est.child_frame_id = "locCamera_link";
-        v_odom.push_back(odom_est);
-
-        return true;
-    }
-
-    // 获取车轮速度
-    double get_vel_x()
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        return new_speed_x;
-    }
-
-    // 获取最新/real_vel消息
-    geometry_msgs::Twist get_vel_msg()
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        return new_msg;
-    }
-
-    // 是否递推路径过长
-    bool is_path_dis_overflow()
-    {
-        std::lock_guard<std::mutex> locker(mtx);
-        return path_dis_overflow;
     }
 
 };
