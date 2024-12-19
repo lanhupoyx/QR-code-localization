@@ -497,6 +497,7 @@ public:
     // 最新基于lidar的baselink位姿
     nav_msgs::Odometry getCurLidarPose()
     {
+        std::lock_guard<std::mutex> locker(mtx);
         if(tf_buffer.size() > 0)
         {
             return tf_buffer.back();
@@ -636,19 +637,20 @@ public:
                         std::to_string(base2map.pose.pose.position.y) + ", " +
                         std::to_string(base2map.pose.pose.position.z) + ",  " );
         // 遍历每个库位
+        //double l_x_err
         std::vector<SiteList>::iterator list_it;
         for (list_it = siteList_lib.begin(); list_it != siteList_lib.end(); list_it++)
         {
             // 石花定制：先看列首x值
             double l_x_err = base2map.pose.pose.position.x - list_it->sites_.begin()->pose_.position.x;
-            logger->debug(  "l_x_err: " + std::to_string(l_x_err));
+            
             if (l_x_err < head_offset)
             {
                 continue;
             }
             // 石花定制：再看列首y值
             double l_y_err = base2map.pose.pose.position.y - list_it->sites_.begin()->pose_.position.y;
-            logger->debug(  "l_y_err: " + std::to_string(l_y_err));
+            
             if (abs(l_y_err) > 3.0)
             {
                 continue;
@@ -659,15 +661,20 @@ public:
             {
                 double x_err = base2map.pose.pose.position.x - site_it->pose_.position.x;
                 double y_err = base2map.pose.pose.position.y - site_it->pose_.position.y;
-                logger->debug("x_err: " + std::to_string(x_err) + "  y_err: " + std::to_string(y_err));
+                
                 if(abs(x_err) < 1.0 && abs(y_err) < 1.0 ) //覆盖范围大于单个库位
                 {
-                    logger->debug("is_in_queue: true");
+                    logger->debug(
+                        "is_in_queue: true  head_offset: " + std::to_string(head_offset) +
+                        "  l_x_err: " + std::to_string(l_x_err) +
+                        "  l_y_err: " + std::to_string(l_y_err) +
+                        "  x_err: " + std::to_string(x_err) +
+                        "  y_err: " + std::to_string(y_err));
                     return true;
                 }
             }
         }
-        logger->debug("is_in_queue: false");
+        logger->debug("is_in_queue: false  head_offset: " + std::to_string(head_offset));
         return false;
     }
 };

@@ -496,6 +496,14 @@ public:
         logFile_ << format_time(ros::Time::now()) << " [INFO] " << message << std::endl;
     }
 
+    void debug_endl() {
+        if("DEBUG" == loglevel_)
+        {
+            std::lock_guard<std::mutex> lock(mutex); // 线程安全
+            logFile_ << std::endl;
+        }
+    }
+
     void debug(const std::string& message) {
         if("DEBUG" == loglevel_)
         {

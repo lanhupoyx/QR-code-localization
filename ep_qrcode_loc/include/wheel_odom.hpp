@@ -18,6 +18,7 @@ class WheelSpeedOdometer : public ParamServer
 {
 private:
     std::mutex mtx;                                     // 互斥锁
+    std::mutex init_mtx;                                     // 初值互斥锁
     Logger *logger;                                     // 计录器
     bool state_;                                        // 轮速递推器状态
     bool map_o_init_;                                   // 刚上电时，使用地图原点初始化递推器
@@ -68,6 +69,7 @@ public:
     // 获取/realvel的回调函数
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
     {
+        logger->debug("realvelCallback();");
         ros::Time time_now = ros::Time::now();
         std::lock_guard<std::mutex> locker(mtx);
 
@@ -103,19 +105,22 @@ public:
         //logger->debug("run_odom() : start");
         if (0 == speed_data.size())
         {
-            //logger->debug("run_odom() : 0 == speed_data.size(), return false");
+            logger->debug("run_odom() : 0 == speed_data.size(), return false");
             return false;
         }
 
         // 获取最新轮速信息
         geometry_msgs::TwistStamped cur_speed = speed_data.front();
         speed_data.pop_front();
+        logger->debug("run_odom() : speed_data.pop_front();");
 
         // 获取初始位姿
         nav_msgs::Odometry odom_init = getCurOdom();
+        logger->debug("getCurOdom();");
 
         // 估计base当前时刻位姿(map--->base_link)
         nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.twist, cur_speed.header.stamp);
+        logger->debug("poseEstimation;");
 
         // 附加数据
         odom_est.header.stamp = cur_speed.header.stamp;// 时间戳
@@ -139,8 +144,10 @@ public:
             odom_est.pose.covariance[3] = 0; // 递推长度未超过限制
         }
         odom_est.pose.covariance[4] = path_dis; // 递推距离
+        odom_est.pose.covariance[5] = 0; // 数据源：轮速计
 
         // 设置下一段的初值
+        std::lock_guard<std::mutex> init_locker(init_mtx);
         odom_estimation_init_ = odom_est; 
 
         // 存入base姿态
@@ -154,6 +161,7 @@ public:
         odom_est.child_frame_id = "locCamera_link";
         v_odom.push_back(odom_est);
 
+        logger->debug("run_odom() : return true");
         return true;
     }
 
@@ -177,12 +185,21 @@ public:
         std::lock_guard<std::mutex> locker(mtx);
         return path_dis_overflow;
     }
+
+    // 递推距离归零
+    void reset_path_dis()
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        path_dis = 0;
+        path_dis_overflow = false;
+        logger->debug("path_dis = 0;");
+        return;
+    }
     
     // 使用二维码定位结果设置递推初值
     void setEstimationInitialPose(nav_msgs::Odometry odom)
     {
         logger->debug("setEstimationInitialPose()");
-        std::lock_guard<std::mutex> locker(mtx);
         odom_estimation_init_ = odom;
         path_dis = 0;
         state_ = true;
@@ -193,7 +210,7 @@ public:
     // 获取递推初值
     nav_msgs::Odometry getCurOdom()
     {
-        std::lock_guard<std::mutex> locker(mtx);
+        std::lock_guard<std::mutex> locker(init_mtx);
         return odom_estimation_init_;
     }
     
