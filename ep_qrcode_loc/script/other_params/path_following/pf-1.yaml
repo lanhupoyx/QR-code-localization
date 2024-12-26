@@ -1,0 +1,178 @@
+# PathFollowing:
+global_frame: /map
+min_vel_x: 0.5
+max_vel_arc: 0.3  # 0.5
+min_vel_arc: 0.2  # 0.2
+turn_vel: 0.6
+# 区域限速
+area_vel_line: 0.2
+robot_base_frame: /base_link # /base_footprint
+controller_frequency: 25 # 控制频率
+# 速度
+max_vel_x: 1.0
+area_vel_spline: 0.3
+area_vel_road: 0.5
+# 加减速速度
+acc_x: 0.5
+dec_x: 0.5
+acc_arc: 0.5
+dec_arc: 0.5
+obstacle_dec: 0.1 # 避障减速参数，此值越小距离障碍物越远开始减速，xp3默认0.25
+close_dec: 0.3 # 接近目标点减速参数,此值越小距离目标点越远开始减速，xp3默认0.5
+# 到位精度
+yaw_goal_tolerance: 0.01
+xy_goal_tolerance: 0.03
+
+# 车型
+vehicle_type: xqe # xp3, xqe, xqs, tractor
+
+# 曲线线型
+spline_type: spline # spline, bezier,arc
+
+# 曲线纠偏系数
+k1: 1.5 # 转弯参数 此值越大，位置越准（角度不一定）
+k3: 0.0 # 转弯参数 此值越大，角度越准（位置不一定）
+kl: 1.5 # 直行参数 此值越大，位置越准（角度不一定）
+kc: 1.5 # 直行参数 此值越大，角度越准（位置不一定）
+limit_theta: 0.4
+
+# stanly 控制系数
+pid_d: 0.05
+pid_p_front: 2.5
+pid_p_back: 1.5
+k_yaw: 1.0
+k_steer: 3.0
+line_ym: 0.5     #直线预瞄距离
+cureve_ym: 0.1   #曲线预瞄距离
+# 最大曲率限制
+max_curvature_limit: 10
+
+back_preview_dis: 5.0
+test_reference_line_extension: true
+stanley_coefficient_table: [[1.0, 2.5, 1.0], [1.0, 3.0, 1.5],[1.0, 2.0, 1.0],[1.0,3.0,2.5]]
+front_reference_line_offset: 0.0
+back_reference_line_offset: 0.0
+
+#  车体参数
+wheel_base: 1.524 # 叉车轴距
+wheel_base_lower: 1.524
+out_fork_dis: 0.5  # 货物超出货叉长度
+into_distance: 0.8 # 从动轮进入托盘端面距离
+to_battray_dis: 0.27 #
+fork_back_to_base: 0.9
+
+test_k_yaw: 1.0
+test_k_xy: 1.5
+test_p: 7.4
+fork_move_on: true
+
+# 障碍物检测参数
+pallet_width: 1.55 # 托盘宽度
+fork_width: 0.9 # 货叉宽度
+proc_width: 0.02 # 单侧检测障碍物膨胀宽度
+stop_dis: 1.2 #直行避障
+stop_dis_curve: 0.5 # 转弯避障
+out_site_dis: 1.0 # 超出站点障碍物避障距离
+put_goods_dis: 0.2 # 倒车障碍物避障距离
+prior_length: 0.1 # 取货时边走边伸货叉的距离
+
+# 侧面避障
+# front_side_width: 0.2 # 前进直线侧面避障宽度
+# front_inside_width: 0.2 # 前进转弯内侧避障宽度
+# front_outside_width: 0.2 # 前进转弯外侧避障宽度
+# back_side_width: 0.0 # 倒车直线侧面避障宽度
+# back_inside_width: 0.1 # 倒车转弯内侧避障宽度
+# back_outside_width: 0.1 # 倒车转弯外侧避障宽度
+# around_detection: true # 侧面避障开关
+
+# 堆高参数
+forward_dis: 2.0 # 相对位置识别时，距离调整
+alignment: centre # 一层卸货对齐方式，默认中心对齐centre,可选前端对齐front  
+test_put_yaw_tolerance: 0.015 #堆叠时放货角度允许误差
+using_site_yaw: false #堆叠放货使用站点位姿
+base_odom: true # 限制调整幅度
+stacking_height: 1.59 # 堆高的高度
+unstacking_height: 1.301 # 完成堆高货叉可以抽离的高度
+lift_height: 0.45 # 运行状态货叉保持的高度
+lower_height: 0.03 # 货叉取地面货物叉齿下降的高度
+detect_height: 1.346 # 取货识别高度
+detect_yaw: 0.02 #xqe动作点方向到位精度
+
+###############货叉速度相关参数###############
+forward_length: 0.0 # 货叉前移距离
+speed: 60 # 货叉最高速度
+lowest_speed: 20 #货叉取货最低速度
+lowest_speed1: 50 #货叉空载起升最小速度
+lowest_speed2: 50 #货叉下降最小速度
+acc_speed: 100
+LR_lowest_speed: 40 # 左右最小速度
+front_lowest_speed: 70 # 前移最小速度
+back_lowest_speed: 80 # 后移最小速度
+# 空车上升减速距离系数、最大、最小速度；
+# 空车下降减速距离系数、最大、最小速度；
+# 载货上升减速距离系数、最大、最小速度；
+# 载货下降减速距离系数、最大、最小速度；
+fork_coefficient_table: [[ 0.8, 250.0, 50.0],[ 2.0, 250.0, 50.0],[ 1.0, 100.0, 50.0],[ 4.0, 90.0, 50.0]]
+cumulative_time: 1.0
+
+
+side_offset: 0.35 # 货叉堆高时，载具中心与放置位置中心的偏距
+#mu xinag
+LR_tolerance: 0.007 # 堆垛时左右误差允许范围
+#gao wei huo jia
+#LR_tolerance: 0.1 # 堆垛时左右误差允许范围
+UD_tolerance: 0.008 # 堆垛时上下误差允许范围
+FB_tolerance: 0.01 # 堆垛时前后误差允许范围
+yaw_tolerance: 0.01 # 堆垛时角度误差允许范围
+change_dis: 0.25 # 堆垛时木箱载具中心与停止点的距离
+change_dis_pallet: 0.32 # 堆垛时托盘载具中心与停止点的距离
+offset_height: 0.25 #堆垛时识别高度补偿  
+down_height: 0.01 # 取货货叉高度补偿值
+pallet_length: 1.15 # 载具长度
+first_floor_height: 0.45 # 一层取货识别高度
+to_lidar_dis: 0.0 # 堆叠下表面距离激光雷达坐标系z方向距离
+base_lidar_dis: false # 是否启用基于激光雷达坐标系z方向距离高度取货
+shift_dis: 0.1 # 货叉侧移范围
+is_check_weight: false # 是否称重检测
+odom_offset: 0.05  # 基于里程计微调距离控制器延时补偿值
+put_offset: 0.2
+ground_height: 0.05
+
+fork_slope_before_forward: true # 货叉上下倾动作在货叉伸出前执行
+
+# 超时时间阈值
+out_time: 0.9
+# 曲线控制基准点
+back_control: false # 后轮/前轮
+
+ground_put_detection: false # 地面卸货是否启用识别
+
+# 是否绕障
+by_pass_obstacle: false
+
+# 是否托盘识别
+is_detection: true
+
+upper_put_detection: true
+
+# 识别方式（绝对坐标系或者相对坐标系）
+is_relative_coordinate: false
+
+# 识别补偿值
+offset_val: 0.0
+out_LR_range: 0.07 
+# 停车检测托盘距离
+stop_dis1: 1.4
+stop_dis2: 1.4
+leave_dis: 1.0
+fork_slope: true # 取货后货叉是否需要上翘
+
+# 曲线曲率半径
+length: 1.5 #转弯最小距离
+length_estimate: 0.75 # 控制点计算辅助长度值
+# 区域转弯
+length_area: 0.8
+length_estimate_area: 0.4
+# 站点转弯
+length_site: 1.5
+length_estimate_site: 0.75

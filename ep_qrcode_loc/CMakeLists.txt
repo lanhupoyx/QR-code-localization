@@ -4,8 +4,8 @@ project(ep_qrcode_loc)
 #set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-std=c++14 -O3")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "-std=c++17 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
 
 find_package(catkin REQUIRED COMPONENTS

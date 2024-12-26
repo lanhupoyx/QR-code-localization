@@ -33,6 +33,16 @@
 #include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
 
+// // #include <boost/filesystem.hpp>
+//  //#include <boost/date_time/gregorian/gregorian.hpp>
+//  #include <iostream>
+//  #include <chrono>
+
+// //#include <boost/date_time/posix_time/conversion.hpp>
+
+// // namespace fs = boost::filesystem;
+// namespace fs = std::filesystem;
+
 // 数据帧转换到16进制
 std::string charArrayToHex(std::array<char, 1024> array, size_t size)
 {
@@ -333,6 +343,7 @@ public:
     double avliable_yaw;
 
     bool is_debug;
+    bool check_sequence;
 
     ParamServer()
     {
@@ -370,6 +381,7 @@ public:
         nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
         nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
         nh.param<bool>("ep_qrcode_loc/is_debug", is_debug, false);
+        nh.param<bool>("ep_qrcode_loc/check_sequence", check_sequence, true);
     }
 };
 
@@ -388,6 +400,9 @@ private:
 
     static std::ofstream yawerrFile_;
     static std::mutex mutex_yawerr;
+
+    static std::ofstream jumperrFile_;
+    static std::mutex mutex_jumperr;
     
     std::string loglevel_;
  
@@ -461,6 +476,73 @@ private:
         {
             std::cout << "open: " << yawerr_path << std::endl;
         }
+
+        // jumperr文件
+        std::string jumperr_path = log_dir_today + "jumperr.txt";
+        jumperrFile_.open(jumperr_path, std::ios::app);
+        if (!jumperrFile_.is_open()) 
+        {
+            std::cout << "can't open: " << jumperr_path << std::endl;
+        }
+        else
+        {
+            std::cout << "open: " << jumperr_path << std::endl;
+        }
+
+    //     // 删除过早的历史纪录
+
+    //      auto now = std::chrono::system_clock::now();
+    //      std::chrono::system_clock::duration ageThreshold = std::chrono::hours(24 * 30);
+
+
+    // for (const auto& entry : std::filesystem::directory_iterator(log_dir_)) {
+    //     if (std::filesystem::is_directory(entry.status())) {
+    //         std::cout << "Found directory: " << entry.path().filename() << std::endl;
+    //     }
+    // }
+
+
+    //     // 遍历根目录下的所有条目
+    //     for (const auto& entry : std::filesystem::directory_iterator(log_dir_)) {
+    //         // 检查条目是否是目录
+    //         if (entry.is_directory()) {
+    //             // 获取目录的最后修改时间
+    //             auto lastWriteTime = std::filesystem::last_write_time(entry.path());
+    //             // 计算时间差
+    //             auto age = now - lastWriteTime;
+
+    //             // 如果目录的年龄超过阈值，则删除它
+    //             if (age > ageThreshold) {
+    //                 std::cout << "Removing directory: " << entry.path() << std::endl;
+    //                 fs::remove_all(entry.path());
+    //             }
+    //         }
+    //     }
+
+        // boost::filesystem::path dir_path = log_dir_; // 替换为你的目录路径
+        // boost::gregorian::days keep_for = boost::gregorian::days(30);                  // 保留30天内的文件夹
+
+        // if (!boost::filesystem::exists(dir_path) || !boost::filesystem::is_directory(dir_path)) {
+        //     throw std::runtime_error("Directory does not exist or is not a directory");
+        // }
+    
+        // boost::gregorian::date cutoff_date = boost::gregorian::day_clock::universal_day() - keep_for;
+    
+        // for (auto it = boost::filesystem::directory_iterator(dir_path); it != boost::filesystem::directory_iterator(); ++it) {
+        //     if (boost::filesystem::is_directory(*it)) {
+        //         boost::filesystem::path p = it->path();
+        //         std::time_t file_time = boost::filesystem::last_write_time(p);
+        //         boost::gregorian::date file_date = boost::gregorian::date_from_tm(file_time);
+    
+        //         if (file_date < cutoff_date) {
+        //             std::cout << "Deleting: " << p << std::endl;
+        //             info("Deleting: " + p.string());
+        //             boost::filesystem::remove_all(p);
+        //         }
+        //     }
+        // }
+
+
     }
  
 public:
@@ -535,7 +617,34 @@ public:
         yawerrFile_.close();
     }
 
+    void jumperr(const std::string& message) 
+    {
+        std::lock_guard<std::mutex> lock(mutex_jumperr); // 线程安全
+        jumperrFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
+    }
+
+    // void delete_old_folders(const boost::filesystem::path& dir_path, boost::gregorian::days keep_for) {
+    //     if (!boost::filesystem::exists(dir_path) || !boost::filesystem::is_directory(dir_path)) {
+    //         throw std::runtime_error("Directory does not exist or is not a directory");
+    //     }
     
+    //     boost::gregorian::date cutoff_date = boost::gregorian::day_clock::universal_day() - keep_for;
+    
+    //     for (auto it = boost::filesystem::directory_iterator(dir_path); it != boost::filesystem::directory_iterator(); ++it) {
+    //         if (boost::filesystem::is_directory(*it)) {
+    //             boost::filesystem::path p = it->path();
+    //             std::time_t file_time = boost::filesystem::last_write_time(p);
+    //             boost::gregorian::date file_date = boost::posix_time::from_time_t(file_time);
+    
+    //             if (file_date < cutoff_date) {
+    //                 std::cout << "Deleting: " << p << std::endl;
+    //                 this->info("Deleting: " + p.string());
+    //                 boost::filesystem::remove_all(p);
+    //             }
+    //         }
+    //     }
+    // }
+
 };
 std::ofstream Logger::logFile_;
 std::mutex Logger::mutex;
@@ -545,4 +654,6 @@ std::ofstream Logger::otherFile_;
 std::mutex Logger::mutex_other;
 std::ofstream Logger::yawerrFile_;
 std::mutex Logger::mutex_yawerr;
+std::ofstream Logger::jumperrFile_;
+std::mutex Logger::mutex_jumperr;
 
