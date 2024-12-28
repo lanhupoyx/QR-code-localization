@@ -38,10 +38,11 @@ public:
     WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
     {
         logger = &Logger::getInstance();
-        logger->info("WheelSpeedOdometer() Start");
+        logger->info("WheelSpeedOdometer");
         trans_camera2base_ = trans_camera2base;
         sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
+        logger->info("sub: /real_vel");
         new_speed_x=0;
         state_ = false;
         path_dis = 0;
@@ -59,9 +60,6 @@ public:
         odom.pose.pose.orientation.w = 1;
         setEstimationInitialPose(odom);
         map_o_init_ = true;
-
-
-        logger->info("WheelSpeedOdometer() End");
     }
 
     ~WheelSpeedOdometer() {}
@@ -69,7 +67,7 @@ public:
     // 获取/realvel的回调函数
     void realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
     {
-        logger->debug("realvelCallback();");
+        logger->debug("realvelCallback");
         ros::Time time_now = ros::Time::now();
         std::lock_guard<std::mutex> locker(mtx);
 
@@ -101,8 +99,8 @@ public:
     // 运行轮速递推器
     bool run_odom(std::vector<nav_msgs::Odometry> &v_odom)
     {
+        logger->debug("run_odom() : start");
         std::lock_guard<std::mutex> locker(mtx);
-        //logger->debug("run_odom() : start");
         if (0 == speed_data.size())
         {
             logger->debug("run_odom() : 0 == speed_data.size(), return false");
@@ -112,15 +110,9 @@ public:
         // 获取最新轮速信息
         geometry_msgs::TwistStamped cur_speed = speed_data.front();
         speed_data.pop_front();
-        logger->debug("run_odom() : speed_data.pop_front();");
-
-        // 获取初始位姿
-        nav_msgs::Odometry odom_init = getCurOdom();
-        logger->debug("getCurOdom();");
 
         // 估计base当前时刻位姿(map--->base_link)
-        nav_msgs::Odometry odom_est = poseEstimation(odom_init, cur_speed.twist, cur_speed.header.stamp);
-        logger->debug("poseEstimation;");
+        nav_msgs::Odometry odom_est = poseEstimation(odom_estimation_init_, cur_speed.twist, cur_speed.header.stamp);
 
         // 附加数据
         odom_est.header.stamp = cur_speed.header.stamp;// 时间戳
@@ -189,22 +181,22 @@ public:
     // 递推距离归零
     void reset_path_dis()
     {
+        logger->debug("reset_path_dis");
         std::lock_guard<std::mutex> locker(mtx);
         path_dis = 0;
         path_dis_overflow = false;
-        logger->debug("path_dis = 0;");
         return;
     }
     
     // 使用二维码定位结果设置递推初值
     void setEstimationInitialPose(nav_msgs::Odometry odom)
     {
-        logger->debug("setEstimationInitialPose()");
+        logger->debug("setEstimationInitialPose");
+        std::lock_guard<std::mutex> locker(mtx);
         odom_estimation_init_ = odom;
         path_dis = 0;
         state_ = true;
         map_o_init_ = false;
-        logger->debug("setEstimationInitialPose() return");
     }
 
     // 获取递推初值
@@ -240,6 +232,7 @@ private:
     // 根据初值、速度、时间进行位姿递推
     nav_msgs::Odometry poseEstimation(nav_msgs::Odometry odom_init, geometry_msgs::Twist vel, ros::Time time_now)
     {
+        logger->debug("poseEstimation");
         nav_msgs::Odometry odom_final;
 
         // 计算时间间隔，更新时间戳
@@ -262,6 +255,7 @@ private:
     // 解析轮速数据，前主动轮模型
     geometry_msgs::TwistStamped decode_msg(geometry_msgs::Twist vel_msg, ros::Time time)
     {   
+        logger->debug("decode_msg");
         geometry_msgs::TwistStamped vel_new;
 
         // vel_msg.linear.x  :base_link实际线速度 (m/s)

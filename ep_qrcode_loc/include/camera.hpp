@@ -9,11 +9,10 @@ public:
     MV_SC2005AM()
     {
         logger = &Logger::getInstance();
-        logger->info("MV_SC2005AM Start");
+        logger->info("MV_SC2005AM");
 
         // UDP端口监测初始化
         socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(port.c_str())));
-        logger->info("MV_SC2005AM End");
     }
     ~MV_SC2005AM() {}
 

@@ -376,7 +376,7 @@ public:
         sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                     &QRcodeTableV2::tfCallback, this,
                                                     ros::TransportHints().tcpNoDelay());
-        logger->debug("subscribe: /ep_localization/odometry/lidar");
+        logger->debug("sub: /ep_localization/odometry/lidar");
         
         logger->info("QRcodeTableV2() End");
     }
@@ -630,12 +630,6 @@ public:
     // 是否在列内
     bool is_in_queue(nav_msgs::Odometry base2map, double head_offset)
     {
-        logger->debug(  "base2map: " +
-                        base2map.header.frame_id + ", " +
-                        base2map.child_frame_id + ",  " +
-                        std::to_string(base2map.pose.pose.position.x) + ", " +
-                        std::to_string(base2map.pose.pose.position.y) + ", " +
-                        std::to_string(base2map.pose.pose.position.z) + ",  " );
         // 遍历每个库位
         //double l_x_err
         std::vector<SiteList>::iterator list_it;
