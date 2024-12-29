@@ -409,27 +409,31 @@ public:
             pose_out.position.y = p1 * pose_recursion.position.y + p2 * pose_observe.position.y;
 
             // 计算yaw偏差 
-            double yaw_recursion = getYaw(pose_recursion.orientation);
-            double yaw_observe = getYaw(pose_observe.orientation);
-            double yaw_err = yaw_observe - yaw_recursion;
-            logger->debug("yaw_recursion = " + del_n_end(std::to_string(yaw_recursion), 3) +
-                          " yaw_observe = " + del_n_end(std::to_string(yaw_observe), 3) +
-                          " yaw_err = " + del_n_end(std::to_string(yaw_err), 3));
-            if (yaw_err < -180.0)
-                yaw_err = yaw_err + 360.0;
-            else if (yaw_err > 180.0)
-                yaw_err = yaw_err - 360.0;
-            
-            // yaw加权
-            double yaw_out = yaw_err * p2 + yaw_recursion;
-            logger->debug("yaw_err = " + del_n_end(std::to_string(yaw_err), 3) +
-                          " yaw_out = " + del_n_end(std::to_string(yaw_out), 3));
-            tf::Quaternion q;
-            q.setRPY(0.0, 0.0, yaw_out*M_PI/180.0);
-            pose_out.orientation.w = q.getW();
-            pose_out.orientation.x = q.getX();
-            pose_out.orientation.y = q.getY();
-            pose_out.orientation.z = q.getZ();
+            if(cal_yaw)
+            {
+                double yaw_recursion = getYaw(pose_recursion.orientation);
+                double yaw_observe = getYaw(pose_observe.orientation);
+                double yaw_err = yaw_observe - yaw_recursion;
+                logger->debug("yaw_recursion = " + del_n_end(std::to_string(yaw_recursion), 3) +
+                            " yaw_observe = " + del_n_end(std::to_string(yaw_observe), 3) +
+                            " yaw_err = " + del_n_end(std::to_string(yaw_err), 3));
+                if (yaw_err < -180.0)
+                    yaw_err = yaw_err + 360.0;
+                else if (yaw_err > 180.0)
+                    yaw_err = yaw_err - 360.0;
+                
+                // yaw加权
+                double yaw_out = yaw_err * p2 + yaw_recursion;
+                logger->debug("yaw_err = " + del_n_end(std::to_string(yaw_err), 3) +
+                            " yaw_out = " + del_n_end(std::to_string(yaw_out), 3));
+                tf::Quaternion q;
+                q.setRPY(0.0, 0.0, yaw_out*M_PI/180.0);
+                pose_out.orientation.w = q.getW();
+                pose_out.orientation.x = q.getX();
+                pose_out.orientation.y = q.getY();
+                pose_out.orientation.z = q.getZ();
+            }
+
         }
         else
         {
@@ -719,8 +723,8 @@ public:
             del_n_end(std::to_string(wheel_msg.linear.x), 3) + "," +   // base_link线速度
             del_n_end(std::to_string(wheel_msg.angular.z), 3) + ", " + // base_link角速度
 
-            del_n_end(std::to_string(pic_latest.error_x / 100.0), 3) + "," + // 相机与地码偏移量x
-            del_n_end(std::to_string(pic_latest.error_y / 100.0), 3) + "," + // 相机与地码偏移量y
+            del_n_end(std::to_string(pic_latest.error_x / 10.0), 3) + "," + // 相机与地码偏移量x
+            del_n_end(std::to_string(pic_latest.error_y / 10.0), 3) + "," + // 相机与地码偏移量y
             del_n_end(std::to_string(pic_latest.error_yaw), 3);              // 相机与地码偏移量yaw
 
         logger->pose(new_log);
@@ -923,6 +927,7 @@ public:
         QRcodeInfo code_info;     // 存放查询到的地码信息
         code_info.frame.code = 0; // 初始化地码编号
         double loop_rate = 200.0; // 控制主循环频率200Hz
+        uint32_t loop_num =0;
         ros::Rate loop_rate_ctrl(loop_rate);
         while (ros::ok())
         {
@@ -989,7 +994,7 @@ public:
                     v_odom = packageMsg(v_pose_new, code_info);
 
                     // 扫码无异常后设置轮速里程计初值
-                    if ((0x00 == err_type) || (!check_sequence))
+                    if (0x00 == err_type)
                     {
                         wheel_odom->setEstimationInitialPose(v_odom[0]); // 设置递推初值
                         v_odom[0].pose.covariance[6] = 1;                // 扫码正常，已根据二维码结果设置递推初值”
@@ -1106,6 +1111,11 @@ public:
             }
 
             // 五、循环控制延时函数
+            loop_num = loop_num +1;
+            if (loop_num > 10000)
+            {
+                loop_num = 10000;
+            }
             loop_rate_ctrl.sleep();
             ros::spinOnce();
         }

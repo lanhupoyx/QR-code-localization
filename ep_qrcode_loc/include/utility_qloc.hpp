@@ -332,6 +332,9 @@ public:
     double wheel_reduction_ratio;
     double wheel_base_dis;
     double wheel_angular_offset;
+    double wheel_angular_forward;
+    double wheel_angular_backward;
+    
 
     double err_ratio_offline;
 
@@ -344,6 +347,7 @@ public:
 
     bool is_debug;
     bool check_sequence;
+    bool cal_yaw;
 
     ParamServer()
     {
@@ -371,6 +375,8 @@ public:
         nh.param<double>("ep_qrcode_loc/wheel_reduction_ratio", wheel_reduction_ratio, 1.0);
         nh.param<double>("ep_qrcode_loc/wheel_base_dis", wheel_base_dis, 0.0);
         nh.param<double>("ep_qrcode_loc/wheel_angular_offset", wheel_angular_offset, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_angular_forward", wheel_angular_forward, 0.0);
+        nh.param<double>("ep_qrcode_loc/wheel_angular_backward", wheel_angular_backward, 0.0);
         nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
         nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
         nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/QR_code_loc/");
@@ -382,6 +388,7 @@ public:
         nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
         nh.param<bool>("ep_qrcode_loc/is_debug", is_debug, false);
         nh.param<bool>("ep_qrcode_loc/check_sequence", check_sequence, true);
+        nh.param<bool>("ep_qrcode_loc/cal_yaw", cal_yaw, true);
     }
 };
 

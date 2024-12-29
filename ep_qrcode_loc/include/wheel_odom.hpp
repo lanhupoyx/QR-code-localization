@@ -269,10 +269,19 @@ private:
         vel_new.header.stamp = time;
         // 保存原始数据
         vel_new.twist = vel_msg;
-        // 轮子角速度：弧度
-        double wheel_angular = (vel_msg.angular.y + wheel_angular_offset) * M_PI / 180;
         // 轮子进退电机转速 rpm
         double wheel_moter_speed = vel_msg.linear.z;
+        // 轮子角速度：弧度
+        double wheel_angular;
+        if (wheel_moter_speed >= 0.0) // 前进
+        {
+            wheel_angular = (vel_msg.angular.y + wheel_angular_forward) * M_PI / 180;
+        }
+        else // 后退
+        {
+            wheel_angular = (vel_msg.angular.y + wheel_angular_backward) * M_PI / 180;
+        }
+
         // 轮子速度 m/s
         double wheel_vel = M_PI * wheel_diameter * wheel_moter_speed / (wheel_reduction_ratio * 60.0);
         // base线速度 m/s
