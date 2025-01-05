@@ -69,20 +69,7 @@ public:
         // 记录器
         logger = &Logger::getInstance();
         logger->info("QRcodeLoc() Start");
-
-        // // 删除过早的log文件
-        // fs::path log_dir_path = log_dir; // 替换为你的目录路径
-        // days keep_for = days(30);                  // 保留30天内的文件夹
-
-        // try
-        // {
-        //     logger->delete_old_folders(log_dir_path, keep_for);
-        // }
-        // catch (const std::exception &e)
-        // {
-        //     std::cerr << "Error: " << e.what() << std::endl;
-        //     logger->info("delete_old_folders() Error: " + e.what());
-        // }
+        logger->roll_delete_old_folders(14);
 
         // 记录参数文件内容
         std::string cfg_path = cfg_dir + "ep-qrcode-loc.yaml";
@@ -409,7 +396,7 @@ public:
             pose_out.position.y = p1 * pose_recursion.position.y + p2 * pose_observe.position.y;
 
             // 计算yaw偏差 
-            if(cal_yaw)
+            if(cal_yaw && (wheel_odom->get_vel_x() > low_speed_UL))
             {
                 double yaw_recursion = getYaw(pose_recursion.orientation);
                 double yaw_observe = getYaw(pose_observe.orientation);
@@ -635,6 +622,7 @@ public:
         if(reset)
         {
             last_code = 0;
+            return true;
         }
         else if (last_code == code_new)
         {
@@ -758,19 +746,23 @@ public:
             yaw_err = yaw_err - 360.0;
 
         // 记录
-        logger->jumperr(std::to_string(code_info.code) + ", " + // 二维码编号
+        logger->jumperr(+"," + std::to_string(code_info.code) + ", ," + // 二维码编号
 
                         del_n_end(std::to_string(x_err * 1000), 5) + "," + // x_err
                         del_n_end(std::to_string(y_err * 1000), 5) + "," + // y_err
-                        del_n_end(std::to_string(yaw_err), 4) + ", " +    // yaw_err
+                        del_n_end(std::to_string(yaw_err), 4) + ", ," +    // yaw_err
 
-                        del_n_end(std::to_string(output[0].pose.pose.position.x), 3) + "," +           // base_link x
-                        del_n_end(std::to_string(output[0].pose.pose.position.y), 3) + "," +           // base_link y
-                        del_n_end(std::to_string(getYaw(output[0].pose.pose.orientation)), 4) + ", " + // base_link yaw
+                        del_n_end(std::to_string(output[0].pose.pose.position.x), 3) + "," +            // base_link x
+                        del_n_end(std::to_string(output[0].pose.pose.position.y), 3) + "," +            // base_link y
+                        del_n_end(std::to_string(getYaw(output[0].pose.pose.orientation)), 4) + ", ," + // base_link yaw
 
-                        del_n_end(std::to_string(output_last[0].pose.pose.position.x), 3) + "," +  // base_link x
-                        del_n_end(std::to_string(output_last[0].pose.pose.position.y), 3) + "," +  // base_link y
-                        del_n_end(std::to_string(getYaw(output_last[0].pose.pose.orientation)), 4) // base_link yaw
+                        del_n_end(std::to_string(output_last[0].pose.pose.position.x), 3) + "," +            // base_link x
+                        del_n_end(std::to_string(output_last[0].pose.pose.position.y), 3) + "," +            // base_link y
+                        del_n_end(std::to_string(getYaw(output_last[0].pose.pose.orientation)), 4) + ", ," + // base_link yaw
+
+                        del_n_end(std::to_string(code_info.frame.error_x / 10.0), 3) + "," + // 相机与地码偏移量x
+                        del_n_end(std::to_string(code_info.frame.error_y / 10.0), 3) + "," + // 相机与地码偏移量y
+                        del_n_end(std::to_string(code_info.frame.error_yaw), 3)              // 相机与地码偏移量yaw
         );
     }
 

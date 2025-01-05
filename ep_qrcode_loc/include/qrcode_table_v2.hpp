@@ -278,18 +278,21 @@ public:
                 {
                     line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ ;
                     detect.yaw_err_ *= err_ratio_offline;
+                    detect.yaw_err_ += ground_code_yaw_offset;
                     qrcodes.push_back(detect);
                 }
                 else if(2 == code_index)
                 {
                     line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ ;
                     aux.yaw_err_ *= err_ratio_offline;
+                    aux.yaw_err_ += ground_code_yaw_offset;
                     qrcodes.push_back(aux);
                 }
                 else if(3 == code_index)
                 {
                     line_ss >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
                     action.yaw_err_ *= err_ratio_offline;
+                    action.yaw_err_ += ground_code_yaw_offset;
                     qrcodes.push_back(action);
 
                     siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
@@ -510,12 +513,6 @@ public:
         }
     }
 
-    // 检查是否跳过地码（可能被遮盖或损坏）
-    bool is_jump_code(uint32_t this_index, uint32_t last_index, bool direction)
-    {
-        // 查找 last_index 所在列
-    }
-
     // 获取所有列首二维码编号
     std::vector<uint32_t> get_all_head()
     {
@@ -553,11 +550,8 @@ public:
                 return true;
             }
         }
-
-        if(code_it == code_could_be.end())
-        {
-            return false;
-        }
+        
+        return false;
     }
 
     // 获取前后二维码
