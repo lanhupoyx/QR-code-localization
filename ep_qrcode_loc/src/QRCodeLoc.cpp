@@ -12,6 +12,7 @@
 #include "qrcode_table.hpp"
 #include "qrcode_table_v2.hpp"
 #include "div.hpp"
+#include "BasicState.h"
 
 // 偏差值信息
 struct err_val
@@ -43,7 +44,7 @@ public:
     ros::Publisher pub_path_map_base;
     ros::Publisher pub_path_map_camera;
     ros::Publisher pub_qrCodeMsg;
-    ros::Subscriber sub_pos;
+    ros::Subscriber sub_BasicState;      // /xmover_basic_state消息订阅器
 
     // tf转换相关
     tf2_ros::Buffer buffer;
@@ -60,7 +61,8 @@ public:
     
     //相机当前frame数据
     CameraFrame pic; // 相机数据
-
+    
+    bool is_handle;
 
 
     // 构造函数
@@ -86,6 +88,8 @@ public:
             logger->info(buf);
         }
 
+        is_handle = false;
+
         // 记录读取的系统参数
         show_param();
 
@@ -94,6 +98,9 @@ public:
         pub_odom_map_camera = nh.advertise<nav_msgs::Odometry>(odomMapCamera, 10);
         pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 10);
         pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 10);
+
+        sub_BasicState = nh.subscribe<xmover_msgs::BasicState>("/xmover_basic_state", 1, &QRcodeLoc::BasicStateCallback,
+                                                         this, ros::TransportHints().tcpNoDelay());
 
         if(is_debug)
         {
@@ -218,6 +225,21 @@ public:
         logger->info("ep_qrcode_loc/aux_site_dis: " + std::to_string(aux_site_dis));
         logger->info("ep_qrcode_loc/forkaction_site_dis: " + std::to_string(forkaction_site_dis));
         logger->info("ep_qrcode_loc/site_site_dis: " + std::to_string(site_site_dis));
+    }
+
+    // 获取/xmover_basic_state的回调函数
+    void BasicStateCallback(const xmover_msgs::BasicState::ConstPtr &p_base_state_msg)
+    {
+        static bool last_is_handle = is_handle;
+        logger->debug("BasicStateCallback");
+        std::lock_guard<std::mutex> locker(mtx);
+        is_handle = p_base_state_msg->handle;
+        if (last_is_handle != is_handle)
+        {
+            last_is_handle = is_handle;
+            logger->info("change is_handle to: " + std::to_string(is_handle));
+        }
+        return;
     }
 
     // 发布定位结果
@@ -1049,7 +1071,7 @@ public:
                 if (qrcode_table->is_in_queue(base2map, -0.4)) // 在列内
                 {
                     // 判断数据是否可用
-                    if (is_output_available)
+                    if (is_output_available && (!is_handle))
                         output[0].pose.covariance[0] = 1; // 数据可用
                     else
                         output[0].pose.covariance[0] = 0; // 数据不可用

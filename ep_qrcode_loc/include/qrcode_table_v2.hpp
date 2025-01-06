@@ -526,9 +526,24 @@ public:
                 // 遍历每个库位
                 for (std::list<Site>::iterator site_it = list_it->sites_.begin(); site_it != list_it->sites_.end(); site_it++)
                 {
-                    if(2 == site_it->index_) // 石花项目：第二排库位的辅助二维码为列首
+                    // if(2 == site_it->index_) // 石花项目：第二排库位的辅助二维码为列首
+                    // {
+                    //     v_out.push_back(site_it->aux_point_qrcode_.index_);
+                    //     break;
+                    // }
+                    if(0 != site_it->detect_point_qrcode_.index_)
+                    {
+                        v_out.push_back(site_it->detect_point_qrcode_.index_);
+                        break;
+                    }
+                    if(0 != site_it->aux_point_qrcode_.index_)
                     {
                         v_out.push_back(site_it->aux_point_qrcode_.index_);
+                        break;
+                    }
+                    if(0 != site_it->action_point_qrcode_.index_)
+                    {
+                        v_out.push_back(site_it->action_point_qrcode_.index_);
                         break;
                     }
                 }
