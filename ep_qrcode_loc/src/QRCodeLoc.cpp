@@ -663,7 +663,8 @@ public:
             {
                 logger->info("is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
                 last_code = code_new;
-                return false;
+                //return false;//必须扫到列首地码
+                return true; //不需要扫到列首地码
             }
         }
         else
@@ -715,27 +716,26 @@ public:
 
         std::string new_log =
             std::to_string(pic_latest.code) + "," +                                    // 二维码编号
-            std::to_string(qrcode_table->is_head(pic_latest.code)) + "," +             // 是否是列首地码
-            del_n_end(std::to_string(publist_front[0].pose.covariance[6]), 7) + ", " + // 是否用二维码结果设置里程计初值
+            std::to_string(qrcode_table->is_head(pic_latest.code)) + "," +             // 0:不是列首地码，1:是列首地码
+            del_n_end(std::to_string(publist_front[0].pose.covariance[6]), 7) + ", " + // 0:轮速计结果，1:扫码正常，已根据二维码结果设置递推初值，2:扫码异常，未根据二维码结果设置递推初值
 
-            del_n_end(std::to_string(publist_front[0].pose.covariance[0]), 7) + "," +  // 数据是否可用
-            del_n_end(std::to_string(publist_front[0].pose.covariance[1]), 7) + "," +  // 是否需要故障急停
-            del_n_end(std::to_string(publist_front[0].pose.covariance[2]), 7) + "," +  // 故障编码
-            del_n_end(std::to_string(publist_front[0].pose.covariance[3]), 7) + "," +  // 递推距离是否超过限制
-            del_n_end(std::to_string(publist_front[0].pose.covariance[4]), 3) + "," +  // 递推距离
-            del_n_end(std::to_string(publist_front[0].pose.covariance[5]), 7) + ", " + // 1:二维码，0：轮速计
+            del_n_end(std::to_string(publist_front[0].pose.covariance[0]), 7) + "," +  // 0:数据不可用，1:数据可用
+            del_n_end(std::to_string(publist_front[0].pose.covariance[1]), 7) + "," +  // 0:无故障急停，1:故障急停
+            del_n_end(std::to_string(publist_front[0].pose.covariance[2]), 7) + "," +  // 故障编码相加：1:角度超过限制，2:未按顺序扫码，4:发生跳变，8:在列内递推过远
+            del_n_end(std::to_string(publist_front[0].pose.covariance[3]), 7) + "," +  // 0:递推距离未超过限制，1:递推距离超过限制
+            del_n_end(std::to_string(publist_front[0].pose.covariance[4]), 3) + ", " + // 递推距离(m)
 
-            del_n_end(std::to_string(publist_front[0].pose.pose.position.x), 3) + "," +           // base_link x
-            del_n_end(std::to_string(publist_front[0].pose.pose.position.y), 3) + "," +           // base_link y
-            del_n_end(std::to_string(getYaw(publist_front[0].pose.pose.orientation)), 5) + ", " + // base_link yaw
+            del_n_end(std::to_string(publist_front[0].pose.pose.position.x), 3) + "," +           // base_link x(m)
+            del_n_end(std::to_string(publist_front[0].pose.pose.position.y), 3) + "," +           // base_link y(m)
+            del_n_end(std::to_string(getYaw(publist_front[0].pose.pose.orientation)), 5) + ", " + // base_link yaw(度)
 
-            del_n_end(std::to_string(wheel_msg.angular.y), 3) + "," +  // 轮速方向角
-            del_n_end(std::to_string(wheel_msg.linear.x), 3) + "," +   // base_link线速度
-            del_n_end(std::to_string(wheel_msg.angular.z), 3) + ", " + // base_link角速度
+            del_n_end(std::to_string(wheel_msg.angular.y), 3) + "," +  // 轮速方向角(度)
+            del_n_end(std::to_string(wheel_msg.linear.x), 3) + "," +   // base_link线速度(m/s)
+            del_n_end(std::to_string(wheel_msg.angular.z), 3) + ", " + // base_link角速度(度/s)
 
-            del_n_end(std::to_string(pic_latest.error_x / 10.0), 3) + "," + // 相机与地码偏移量x
-            del_n_end(std::to_string(pic_latest.error_y / 10.0), 3) + "," + // 相机与地码偏移量y
-            del_n_end(std::to_string(pic_latest.error_yaw), 3);              // 相机与地码偏移量yaw
+            del_n_end(std::to_string(pic_latest.error_x / 10.0), 3) + "," + // 相机与地码偏移量x(cm)
+            del_n_end(std::to_string(pic_latest.error_y / 10.0), 3) + "," + // 相机与地码偏移量y(cm)
+            del_n_end(std::to_string(pic_latest.error_yaw), 3);             // 相机与地码偏移量yaw(度)
 
         logger->pose(new_log);
         logger->debug(new_log);
@@ -1068,10 +1068,12 @@ public:
                 publist.pop_front();                                         // 删除取出的数据
 
                 // 状态判断
-                if (qrcode_table->is_in_queue(base2map, -0.4)) // 在列内
+                mtx.lock();
+                if (qrcode_table->is_in_queue(base2map, -0.4) && (!is_handle)) // 在列内
                 {
                     // 判断数据是否可用
-                    if (is_output_available && (!is_handle))
+
+                    if (is_output_available)
                         output[0].pose.covariance[0] = 1; // 数据可用
                     else
                         output[0].pose.covariance[0] = 0; // 数据不可用
@@ -1104,8 +1106,10 @@ public:
                     pic.code = 0;                      // 列外码值清零
                     is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
                     do_not_jump_this_frame(pic, true); // 复位该功能
+                    wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
                 }
                 output[0].pose.covariance[2] = err_type; // 故障类型
+                mtx.unlock();
 
                 // 记录正常扫码的跳变值，用于地码方向角调试
                 if (1 == output[0].pose.covariance[6]) // 扫码正常，已根据二维码结果设置递推初值
