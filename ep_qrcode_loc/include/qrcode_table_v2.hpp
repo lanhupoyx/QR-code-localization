@@ -227,7 +227,8 @@ public:
             // 定义变量
             uint32_t list_index, site_index, code_index;
             double site_x_first, site_y_first, site_yaw_first;
-            QRcodeGround detect, aux, action;
+            static double list_yaw_offset;
+            QRcodeGround detect, aux, action, function_qrcode_ground;
 
             // 提取信息
             line_ss >> list_index >> site_index >> code_index;
@@ -236,7 +237,7 @@ public:
             {
                 if(0 == code_index)
                 {
-                    line_ss >> site_x_first >> site_y_first >> site_yaw_first;
+                    line_ss >> site_x_first >> site_y_first >> site_yaw_first >> list_yaw_offset;
 
                     // 列首库位pose
                     geometry_msgs::Pose pose_first_site;
@@ -274,34 +275,24 @@ public:
             {
                 static std::vector<QRcodeGround> qrcodes;
 
-                if(1 == code_index)
+                if((1 == code_index) || (2 == code_index) || (3 == code_index))
                 {
-                    line_ss >> detect.index_ >> detect.x_err_ >> detect.y_err_ >> detect.yaw_err_ ;
-                    detect.yaw_err_ *= err_ratio_offline;
-                    detect.yaw_err_ += ground_code_yaw_offset;
-                    qrcodes.push_back(detect);
-                }
-                else if(2 == code_index)
-                {
-                    line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_ ;
-                    aux.yaw_err_ *= err_ratio_offline;
-                    aux.yaw_err_ += ground_code_yaw_offset;
-                    qrcodes.push_back(aux);
-                }
-                else if(3 == code_index)
-                {
-                    line_ss >> action.index_ >> action.x_err_ >> action.y_err_ >> action.yaw_err_;
-                    action.yaw_err_ *= err_ratio_offline;
-                    action.yaw_err_ += ground_code_yaw_offset;
-                    qrcodes.push_back(action);
-
-                    siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
-                    qrcodes.clear();
+                    line_ss >> function_qrcode_ground.index_ >> function_qrcode_ground.x_err_ >> function_qrcode_ground.y_err_ >> function_qrcode_ground.yaw_err_ ;
+                    function_qrcode_ground.yaw_err_ *= err_ratio_offline;
+                    function_qrcode_ground.yaw_err_ += list_yaw_offset;
+                    function_qrcode_ground.yaw_err_ += ground_code_yaw_offset;
+                    qrcodes.push_back(function_qrcode_ground);
                 }
                 else
                 {
                     std::cout << "code_index 编号有误！" << std::endl;
-                }            
+                } 
+
+                if(3 == code_index)
+                {
+                    siteList_lib[siteList_lib.size() - 1].add_site(qrcodes);
+                    qrcodes.clear();
+                }          
             }
             else
             {

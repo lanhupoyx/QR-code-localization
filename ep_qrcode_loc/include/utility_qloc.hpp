@@ -35,6 +35,14 @@
 #include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
 
+// #include <file/path.h>
+// #include <process/signal_manager.h>
+// #include <vcs_manager.h>
+// #include <datetime/datetime.h>
+// #include <yaml-cpp/yaml.h>
+
+// using namespace vcs;
+
 namespace fs = boost::filesystem;
 
 // 数据帧转换到16进制

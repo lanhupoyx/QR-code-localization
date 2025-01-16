@@ -26,7 +26,11 @@ add_service_files(
   FILES
 )
 
+#添加依赖库
 find_package(Boost REQUIRED)
+find_package(EPVcsSdk  MODULE)
+find_package(Toml11  MODULE)
+find_package(YamlCpp  MODULE)
 
 generate_messages(
   DEPENDENCIES
@@ -60,6 +64,16 @@ include_directories(
 link_directories(
 	include
 )
+
+# # vcs相关
+# include_directories(${EPCppc_INCLUDE_DIR})
+# target_link_libraries(${PROJECT_NAME} ${EPCppc_LIBRARYS})
+# include_directories(${Spdlog_INCLUDE_DIR})
+# target_link_libraries(${PROJECT_NAME} ${Spdlog_LIBRARYS})
+# include_directories(${EPVcsSdk_INCLUDE_DIR})
+# target_link_libraries(${PROJECT_NAME} ${EPVcsSdk_LIBRARYS})
+# include_directories(${YamlCpp_INCLUDE_DIR})
+# target_link_libraries(${PROJECT_NAME} ${YamlCpp_LIBRARYS})
 
 ###########
 ## Build ##

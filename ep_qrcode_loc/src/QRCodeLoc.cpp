@@ -768,19 +768,19 @@ public:
             yaw_err = yaw_err - 360.0;
 
         // 记录
-        logger->jumperr(+"," + std::to_string(code_info.code) + ", ," + // 二维码编号
+        logger->jumperr(+"," + std::to_string(code_info.code) + ", " + // 二维码编号
 
-                        del_n_end(std::to_string(x_err * 1000), 5) + "," + // x_err
-                        del_n_end(std::to_string(y_err * 1000), 5) + "," + // y_err
-                        del_n_end(std::to_string(yaw_err), 4) + ", ," +    // yaw_err
+                        del_n_end(std::to_string(x_err * 100), 5) + "," + // x_err
+                        del_n_end(std::to_string(y_err * 100), 5) + "," + // y_err
+                        del_n_end(std::to_string(yaw_err), 4) + ", " +    // yaw_err
 
                         del_n_end(std::to_string(output[0].pose.pose.position.x), 3) + "," +            // base_link x
                         del_n_end(std::to_string(output[0].pose.pose.position.y), 3) + "," +            // base_link y
-                        del_n_end(std::to_string(getYaw(output[0].pose.pose.orientation)), 4) + ", ," + // base_link yaw
+                        del_n_end(std::to_string(getYaw(output[0].pose.pose.orientation)), 4) + ", " + // base_link yaw
 
                         del_n_end(std::to_string(output_last[0].pose.pose.position.x), 3) + "," +            // base_link x
                         del_n_end(std::to_string(output_last[0].pose.pose.position.y), 3) + "," +            // base_link y
-                        del_n_end(std::to_string(getYaw(output_last[0].pose.pose.orientation)), 4) + ", ," + // base_link yaw
+                        del_n_end(std::to_string(getYaw(output_last[0].pose.pose.orientation)), 4) + ", " + // base_link yaw
 
                         del_n_end(std::to_string(code_info.frame.error_x / 10.0), 3) + "," + // 相机与地码偏移量x
                         del_n_end(std::to_string(code_info.frame.error_y / 10.0), 3) + "," + // 相机与地码偏移量y

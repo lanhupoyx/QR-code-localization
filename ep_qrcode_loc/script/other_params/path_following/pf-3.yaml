@@ -77,30 +77,30 @@ prior_length: 0.1 # 取货时边走边伸货叉的距离
 alignment: centre # 一层卸货对齐方式，默认中心对齐centre,可选前端对齐front  
 forward_dis: 2.0 # 相对位置识别时，距离调整
 test_put_yaw_tolerance: 0.015 #堆叠时放货角度允许误差
-
-
+stacking_height: 1.59 # 堆高的高度
+unstacking_height: 1.301 # 完成堆高货叉可以抽离的高度
 lift_height: 0.45 # 运行状态货叉保持的高度
-lower_height: 0.03 # 货叉取地面货物叉齿下降的高度
+lower_height: 0.02 # 货叉取地面货物叉齿下降的高度
 detect_height: 1.346 # 取货识别高度
-detect_yaw: 0.1 #xqe动作点方向到位精度
+
 
 ###############货叉速度相关参数###############
-forward_length: 0.0 # 货叉前移距离
-
-
-
-
-
+forward_length: 0.01 # 货叉前移距离
+speed: 70 # 货叉最高速度
+lowest_speed: 20 #货叉取货最低速度
+lowest_speed1: 50 #货叉空载起升最小速度
+lowest_speed2: 70 #货叉下降最小速度
+acc_speed: 100
 LR_lowest_speed: 40 # 左右最小速度
 front_lowest_speed: 60 # 前移最小速度
-back_lowest_speed: 40 # 后移最小速度
+back_lowest_speed: 60 # 后移最小速度
 side_offset: 0.35 # 货叉堆高时，载具中心与放置位置中心的偏距
 LR_tolerance: 0.007 # 堆垛时左右误差允许范围
-UD_tolerance: 0.008 # 堆垛时上下误差允许范围
+UD_tolerance: 0.005 # 堆垛时上下误差允许范围
 FB_tolerance: 0.01 # 堆垛时前后误差允许范围
 yaw_tolerance: 0.01 # 堆垛时角度误差允许范围
 change_dis: 0.25 # 堆垛时木箱载具中心与停止点的距离
-
+change_dis_pallet: 0.32 # 堆垛时托盘载具中心与停止点的距离
 offset_height: 0.3 #堆垛时识别高度补偿  
 down_height: 0.01 # 取货货叉高度补偿值
 pallet_length: 1.15 # 载具长度
@@ -148,8 +148,8 @@ length_site: 1.5
 length_estimate_site: 0.75
 
 # 石花添加参数
-stanley_coefficient_table: [[1.0, 2.5, 1.0], [1.0, 3.0, 1.5],[1.0, 2.0, 1.0],[1.0,3.0,2.5]]
-front_reference_line_offset: 0.0
+stanley_coefficient_table: [[1.0, 2.5, 1.0], [1.0, 3.0, 1.5],[1.0, 3.0, 1.0],[1.0,3.0,2.5]]
+front_reference_line_offset: -0.015
 back_reference_line_offset: 0.0
 using_site_yaw: true  #堆叠放货使用站点位姿
 check_UD_tol: true
