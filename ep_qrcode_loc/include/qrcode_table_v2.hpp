@@ -198,7 +198,7 @@ public:
         logger->info("QRcodeTableV2() Start");
 
         // 打开库位信息文件
-        std::string site_info_path = cfg_path + "SiteTable.csv";
+        std::string site_info_path = cfg_path + "SiteTable.txt";
         std::ifstream ifs;
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
