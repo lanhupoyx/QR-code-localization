@@ -1385,7 +1385,7 @@ public:
 
 
         // 打开初始库位信息文件
-        std::string site_info_path = cfg_dir + "SiteTable.csv";
+        std::string site_info_path = cfg_dir + "SiteTable.txt";
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
         {
@@ -1397,7 +1397,7 @@ public:
         }
 
         // 打开输出库位信息文件
-        std::string output_path = cfg_dir + "SiteTable_output.csv";
+        std::string output_path = cfg_dir + "SiteTable_output.txt";
         std::ofstream ofs;
         ofs.open(output_path, std::ios::out);
         if (!ofs.is_open())
