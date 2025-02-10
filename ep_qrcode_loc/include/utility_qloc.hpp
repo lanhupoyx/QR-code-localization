@@ -117,11 +117,11 @@ std::string hexToAscii(const std::string &hex) {
 std::string format_time(ros::Time t)
 {
     std::stringstream ss;
-    ros::WallTime wall_time = ros::WallTime(t.toSec());
+    ros::WallTime wall_time = ros::WallTime(t.toSec() + 28800.0); // 移动8个时区
     ss << wall_time.toBoost().date().year() << '-';
     ss << wall_time.toBoost().date().month() << '-';
     ss << wall_time.toBoost().date().day() << '_';
-    ss << wall_time.toBoost().time_of_day().hours() + 8 << ':';
+    ss << wall_time.toBoost().time_of_day().hours() << ':';
     ss << wall_time.toBoost().time_of_day().minutes() << ':';
     int second = wall_time.toBoost().time_of_day().seconds();
     ss << std::fixed << std::setprecision(6) << (double(second) * 1e3 + double(t.nsec) / 1000000.0) / 1000.0; // 毫秒
@@ -132,7 +132,7 @@ std::string format_time(ros::Time t)
 std::string format_date(ros::Time t)
 {
     std::stringstream ss;
-    ros::WallTime wall_time = ros::WallTime(t.toSec());
+    ros::WallTime wall_time = ros::WallTime(t.toSec() + 28800.0); // 移动8个时区
     ss << wall_time.toBoost().date().year() << '-';
     ss << wall_time.toBoost().date().month() << '-';
     ss << wall_time.toBoost().date().day();
