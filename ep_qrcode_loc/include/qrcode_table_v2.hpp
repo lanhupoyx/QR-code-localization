@@ -170,7 +170,7 @@ struct ColumnCodeList
 };
 
 // 二维码坐标对照表
-class QRcodeTableV2 : public ParamServer
+class QRcodeTableV2
 {
 private:
     std::vector<SiteList> siteList_lib; // 各个列
@@ -186,9 +186,10 @@ private:
     ros::Subscriber sub_pos;
     std::list<nav_msgs::Odometry> tf_buffer;
     std::list<ColumnCodeList> ground_codes;
+    qrcode::Param& param;
 
 public:
-    QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera)
+    QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, qrcode::Param& param) : param(param)
     {
         // 配置文件路径
         cfg_path_ = cfg_path;
@@ -249,10 +250,10 @@ public:
 
                     // 几个距离参数
                     std::vector<double> dis_vec;
-                    dis_vec.push_back(detect_site_dis);
-                    dis_vec.push_back(aux_site_dis);
-                    dis_vec.push_back(forkaction_site_dis);
-                    dis_vec.push_back(site_site_dis);
+                    dis_vec.push_back(param.detect_site_dis);
+                    dis_vec.push_back(param.aux_site_dis);
+                    dis_vec.push_back(param.forkaction_site_dis);
+                    dis_vec.push_back(param.site_site_dis);
 
                     // 新建列
                     SiteList siteList_new(list_index, pose_first_site, dis_vec, trans_base_camera);
@@ -262,7 +263,7 @@ public:
                 else
                 {
                     line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
-                    aux.yaw_err_ *= err_ratio_offline;
+                    aux.yaw_err_ *= param.err_ratio_offline;
 
                     std::vector<QRcodeGround> qrcodes;
                     qrcodes.push_back(aux);
@@ -278,9 +279,9 @@ public:
                 if((1 == code_index) || (2 == code_index) || (3 == code_index))
                 {
                     line_ss >> function_qrcode_ground.index_ >> function_qrcode_ground.x_err_ >> function_qrcode_ground.y_err_ >> function_qrcode_ground.yaw_err_ ;
-                    function_qrcode_ground.yaw_err_ *= err_ratio_offline;
+                    function_qrcode_ground.yaw_err_ *= param.err_ratio_offline;
                     function_qrcode_ground.yaw_err_ += list_yaw_offset;
-                    function_qrcode_ground.yaw_err_ += ground_code_yaw_offset;
+                    function_qrcode_ground.yaw_err_ += param.ground_code_yaw_offset;
                     qrcodes.push_back(function_qrcode_ground);
                 }
                 else
@@ -350,7 +351,7 @@ public:
             }
         }
 
-        // if(read_yaw_err)
+        // if(param.read_yaw_err)
         // {
         //     // 读取矫正值
         //     readYawErr(cfg_path_);
@@ -367,7 +368,7 @@ public:
         }
 
 
-        sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+        sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                     &QRcodeTableV2::tfCallback, this,
                                                     ros::TransportHints().tcpNoDelay());
         logger->debug("sub: /ep_localization/odometry/lidar");
@@ -467,7 +468,7 @@ public:
             // 提取信息
             line_ss >> time >> index >> yaw_err ;
 
-            correct_yaw(index, yaw_err * err_ratio_offline);
+            correct_yaw(index, yaw_err * param.err_ratio_offline);
 
         }
         ifs.close();
@@ -599,9 +600,9 @@ public:
 
         // 二维码矩阵，查找前后近邻地码
         std::vector<uint32_t> v_out;
-        for (int ln = 0; ln < code_matrix.size(); ln++)
+        for (uint32_t ln = 0; ln < code_matrix.size(); ln++)
         {
-            for (int cn = 0; cn < code_matrix[ln].size(); cn++)
+            for (uint32_t cn = 0; cn < code_matrix[ln].size(); cn++)
             {
                 if (base_code == code_matrix[ln][cn])
                 {

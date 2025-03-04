@@ -11,7 +11,6 @@
 #include "camera.hpp"
 #include "qrcode_table.hpp"
 #include "qrcode_table_v2.hpp"
-#include "div.hpp"
 #include "BasicState.h"
 
 // 偏差值信息
@@ -28,9 +27,9 @@ struct err_val
 };
 
 // 二维码定位
-class QRcodeLoc : public ParamServer
+class QRcodeLoc
 {
-public:
+private:
 
     // 互斥锁
     std::mutex mtx;
@@ -64,18 +63,21 @@ public:
     
     bool is_handle;
 
+    qrcode::Param& param;
 
+public:
     // 构造函数
-    QRcodeLoc()
+    QRcodeLoc(qrcode::Param& param) : param(param)
     {
+        std::cout << param.low_speed_UL << std::endl;
         // 记录器
         logger = &Logger::getInstance();
         logger->info("QRcodeLoc() Start");
         logger->roll_delete_old_folders(14);
 
         // 记录参数文件内容
-        std::string cfg_path = cfg_dir + "ep-qrcode-loc.yaml";
-        logger->info("show cfg file: " + cfg_dir + "ep-qrcode-loc.yaml");
+        std::string cfg_path = param.cfg_dir + "ep-qrcode-loc.yaml";
+        logger->info("show cfg file: " + param.cfg_dir + "ep-qrcode-loc.yaml");
         std::ifstream ifs;
         ifs.open(cfg_path, std::ios::in);
         if (!ifs.is_open())
@@ -94,15 +96,15 @@ public:
         show_param();
 
         // 初始化发布器
-        pub_odom_map_base = nh.advertise<nav_msgs::Odometry>(odomMapBase, 10);
-        pub_odom_map_camera = nh.advertise<nav_msgs::Odometry>(odomMapCamera, 10);
-        pub_path_map_base = nh.advertise<nav_msgs::Path>(pathMapBase, 10);
-        pub_path_map_camera = nh.advertise<nav_msgs::Path>(pathMapCamera, 10);
+        pub_odom_map_base = param.nh.advertise<nav_msgs::Odometry>(param.odomMapBase, 10);
+        pub_odom_map_camera = param.nh.advertise<nav_msgs::Odometry>(param.odomMapCamera, 10);
+        pub_path_map_base = param.nh.advertise<nav_msgs::Path>(param.pathMapBase, 10);
+        pub_path_map_camera = param.nh.advertise<nav_msgs::Path>(param.pathMapCamera, 10);
 
-        sub_BasicState = nh.subscribe<xmover_msgs::BasicState>("/xmover_basic_state", 1, &QRcodeLoc::BasicStateCallback,
+        sub_BasicState = param.nh.subscribe<xmover_msgs::BasicState>("/xmover_basic_state", 1, &QRcodeLoc::BasicStateCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
 
-        if(is_debug)
+        if(param.is_debug)
         {
             trans_base2camera.transform.translation.x = -1.639;
             trans_base2camera.transform.translation.y = -0.27;
@@ -176,9 +178,9 @@ public:
         );
 
         // 实例化功能对象
-        qrcode_table = new QRcodeTableV2(cfg_dir, trans_camera2base);
-        camera = new MV_SC2005AM();
-        wheel_odom = new WheelSpeedOdometer(trans_camera2base);
+        qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base,param);
+        camera = new MV_SC2005AM(param);
+        wheel_odom = new WheelSpeedOdometer(trans_camera2base,param);
 
         logger->info("QRcodeLoc() End");
     }
@@ -196,35 +198,35 @@ public:
     {
         logger->info("");
         logger->info("show params:");
-        logger->info("ep_qrcode_loc/operating_mode: " + std::to_string(operating_mode));
-        logger->info("ep_qrcode_loc/logLevel: " + logLevel);
-        logger->info("ep_qrcode_loc/odomMapBase: " + odomMapBase);
-        logger->info("ep_qrcode_loc/odomMapCamera: " + odomMapCamera);
-        logger->info("ep_qrcode_loc/pathMapBase: " + pathMapBase);
-        logger->info("ep_qrcode_loc/pathMapCamera: " + pathMapCamera);
-        logger->info("ep_qrcode_loc/msgTopic: " + msgTopic);
-        logger->info("ep_qrcode_loc/show_original_msg: " + std::to_string(show_original_msg));
-        logger->info("ep_qrcode_loc/is_pub_tf: " + std::to_string(is_pub_tf));
-        logger->info("ep_qrcode_loc/yaw_jump_UL: " + std::to_string(yaw_jump_UL));
-        logger->info("ep_qrcode_loc/avliable_yaw: " + std::to_string(avliable_yaw));
-        logger->info("ep_qrcode_loc/x_jump_UL: " + std::to_string(x_jump_UL));
-        logger->info("ep_qrcode_loc/y_jump_UL: " + std::to_string(y_jump_UL));
-        logger->info("ep_qrcode_loc/read_yaw_err: " + std::to_string(read_yaw_err));
-        logger->info("ep_qrcode_loc/err_ratio_offline: " + std::to_string(err_ratio_offline));
-        logger->info("ep_qrcode_loc/rec_p1: " + std::to_string(rec_p1));
-        logger->info("ep_qrcode_loc/wheel_diameter: " + std::to_string(wheel_diameter));
-        logger->info("ep_qrcode_loc/wheel_reduction_ratio: " + std::to_string(wheel_reduction_ratio));
-        logger->info("ep_qrcode_loc/wheel_base_dis: " + std::to_string(wheel_base_dis));
-        logger->info("ep_qrcode_loc/wheel_angular_offset: " + std::to_string(wheel_angular_offset));
-        logger->info("ep_qrcode_loc/low_speed_UL: " + std::to_string(low_speed_UL));
-        logger->info("ep_qrcode_loc/port: " + port);
-        logger->info("ep_qrcode_loc/log_dir: " + log_dir);
-        logger->info("ep_qrcode_loc/cfg_dir: " + cfg_dir);
-        logger->info("ep_qrcode_loc/maxEstimationDis: " + std::to_string(maxEstimationDis));
-        logger->info("ep_qrcode_loc/detect_site_dis: " + std::to_string(detect_site_dis));
-        logger->info("ep_qrcode_loc/aux_site_dis: " + std::to_string(aux_site_dis));
-        logger->info("ep_qrcode_loc/forkaction_site_dis: " + std::to_string(forkaction_site_dis));
-        logger->info("ep_qrcode_loc/site_site_dis: " + std::to_string(site_site_dis));
+        logger->info("ep_qrcode_loc/operating_mode: " + std::to_string(param.operating_mode));
+        logger->info("ep_qrcode_loc/logLevel: " + param.logLevel);
+        logger->info("ep_qrcode_loc/odomMapBase: " + param.odomMapBase);
+        logger->info("ep_qrcode_loc/odomMapCamera: " + param.odomMapCamera);
+        logger->info("ep_qrcode_loc/pathMapBase: " + param.pathMapBase);
+        logger->info("ep_qrcode_loc/pathMapCamera: " + param.pathMapCamera);
+        logger->info("ep_qrcode_loc/msgTopic: " + param.msgTopic);
+        logger->info("ep_qrcode_loc/show_original_msg: " + std::to_string(param.show_original_msg));
+        logger->info("ep_qrcode_loc/is_pub_tf: " + std::to_string(param.is_pub_tf));
+        logger->info("ep_qrcode_loc/yaw_jump_UL: " + std::to_string(param.yaw_jump_UL));
+        logger->info("ep_qrcode_loc/avliable_yaw: " + std::to_string(param.avliable_yaw));
+        logger->info("ep_qrcode_loc/x_jump_UL: " + std::to_string(param.x_jump_UL));
+        logger->info("ep_qrcode_loc/y_jump_UL: " + std::to_string(param.y_jump_UL));
+        logger->info("ep_qrcode_loc/read_yaw_err: " + std::to_string(param.read_yaw_err));
+        logger->info("ep_qrcode_loc/err_ratio_offline: " + std::to_string(param.err_ratio_offline));
+        logger->info("ep_qrcode_loc/rec_p1: " + std::to_string(param.rec_p1));
+        logger->info("ep_qrcode_loc/wheel_diameter: " + std::to_string(param.wheel_diameter));
+        logger->info("ep_qrcode_loc/wheel_reduction_ratio: " + std::to_string(param.wheel_reduction_ratio));
+        logger->info("ep_qrcode_loc/wheel_base_dis: " + std::to_string(param.wheel_base_dis));
+        logger->info("ep_qrcode_loc/wheel_angular_offset: " + std::to_string(param.wheel_angular_offset));
+        logger->info("ep_qrcode_loc/low_speed_UL: " + std::to_string(param.low_speed_UL));
+        logger->info("ep_qrcode_loc/port: " + param.port);
+        logger->info("ep_qrcode_loc/log_dir: " + param.log_dir);
+        logger->info("ep_qrcode_loc/cfg_dir: " + param.cfg_dir);
+        logger->info("ep_qrcode_loc/maxEstimationDis: " + std::to_string(param.maxEstimationDis));
+        logger->info("ep_qrcode_loc/detect_site_dis: " + std::to_string(param.detect_site_dis));
+        logger->info("ep_qrcode_loc/aux_site_dis: " + std::to_string(param.aux_site_dis));
+        logger->info("ep_qrcode_loc/forkaction_site_dis: " + std::to_string(param.forkaction_site_dis));
+        logger->info("ep_qrcode_loc/site_site_dis: " + std::to_string(param.site_site_dis));
     }
 
     // 获取/xmover_basic_state的回调函数
@@ -255,7 +257,7 @@ public:
         logger->debug("pubOdom()");
 
         // 发布TF
-        if (is_pub_tf)
+        if (param.is_pub_tf)
         {
             pubTf(odom_map_base);
         }
@@ -418,7 +420,7 @@ public:
             pose_out.position.y = p1 * pose_recursion.position.y + p2 * pose_observe.position.y;
 
             // 计算yaw偏差 
-            if(cal_yaw && (wheel_odom->get_vel_x() > low_speed_UL))
+            if(param.cal_yaw && (wheel_odom->get_vel_x() > param.low_speed_UL))
             {
                 double yaw_recursion = getYaw(pose_recursion.orientation);
                 double yaw_observe = getYaw(pose_observe.orientation);
@@ -544,9 +546,9 @@ public:
 
         //速度不在低速范围
         bool output_this_frame = true;
-        if(abs(wheel_odom->get_vel_x()) > low_speed_UL)
+        if(abs(wheel_odom->get_vel_x()) > param.low_speed_UL)
         {
-            logger->debug("wheel_vel > " + std::to_string(low_speed_UL));
+            logger->debug("wheel_vel > " + std::to_string(param.low_speed_UL));
             
             double disdis = pic_new.error_x * pic_new.error_x + pic_new.error_y * pic_new.error_y;
             if (disdis < min_dis_x0) // 距离越来越近
@@ -584,9 +586,9 @@ public:
         double dis_yaw = abs(yaw_now - yaw_last);
         if (dis_yaw > M_PI)
             dis_yaw = abs(dis_yaw - 2 * M_PI);
-        if (dis_yaw > (yaw_jump_UL*180/M_PI))
+        if (dis_yaw > (param.yaw_jump_UL*180/M_PI))
         {
-            logger->info("yaw jump! dis_yaw = " + std::to_string(dis_yaw) + " > " + std::to_string(yaw_jump_UL));
+            logger->info("yaw jump! dis_yaw = " + std::to_string(dis_yaw) + " > " + std::to_string(param.yaw_jump_UL));
             result = true;
         }
 
@@ -599,7 +601,7 @@ public:
         // double dis_x_base = abs(dis_map * cos(yaw_last - dis_xy_yaw)); // 跳变向量在车身横向分量
         // double dis_y_base = abs(dis_map * sin(yaw_last - dis_xy_yaw)); // 跳变向量在车身纵向分量
 
-        double dis_jump_UL = sqrt(pow(x_jump_UL, 2) + pow(y_jump_UL, 2));
+        double dis_jump_UL = sqrt(pow(param.x_jump_UL, 2) + pow(param.y_jump_UL, 2));
 
         if (dis_map > dis_jump_UL) // 跳变距离
         {
@@ -607,15 +609,15 @@ public:
             result = true;
         }
 
-        if (dis_x_map > x_jump_UL) // 车身纵向
+        if (dis_x_map > param.x_jump_UL) // 车身纵向
         {
-            logger->info("x_base jump! dis_x_map = " + std::to_string(dis_x_map) + " > " + std::to_string(x_jump_UL));
+            logger->info("x_base jump! dis_x_map = " + std::to_string(dis_x_map) + " > " + std::to_string(param.x_jump_UL));
             result = true;
         }
 
-        if (dis_y_map > y_jump_UL) // 车身横向
+        if (dis_y_map > param.y_jump_UL) // 车身横向
         {
-            logger->info("y_base jump! dis_y_base = " + std::to_string(dis_y_map) + " > " + std::to_string(y_jump_UL));
+            logger->info("y_base jump! dis_y_base = " + std::to_string(dis_y_map) + " > " + std::to_string(param.y_jump_UL));
             result = true;
         }
 
@@ -636,7 +638,7 @@ public:
     {
         static uint32_t last_code = 0;
 
-        if(!check_sequence)
+        if(!param.check_sequence)
         {
             return true;
         }
@@ -795,8 +797,8 @@ public:
     void CollectQRCodePose_mode()
     {
         logger->info("CollectQRCodePose_mode()");
-        QRcodeTable Lidarmap_tab(cfg_dir + "CaptureTable.txt");
-        pub_qrCodeMsg = nh.advertise<std_msgs::String>(msgTopic, 1);
+        QRcodeTable Lidarmap_tab(param.cfg_dir + "CaptureTable.txt",param);
+        pub_qrCodeMsg = param.nh.advertise<std_msgs::String>(param.msgTopic, 1);
 
         ros::Rate loop_rate(100); // 主循环 100Hz
         while (ros::ok())
@@ -881,7 +883,7 @@ public:
                             {
                                 geometry_msgs::Pose pose_observe = v_odom[0].pose.pose;
                                 geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-                                v_odom[0].pose.pose = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
+                                v_odom[0].pose.pose = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
                             }
 
 
@@ -1001,7 +1003,7 @@ public:
                     {
                         geometry_msgs::Pose pose_observe = v_pose_new[0];
                         geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-                        v_pose_new[0] = kalman_f_my(pose_recursion, rec_p1, pose_observe, 1.0 - rec_p1, 0.1);
+                        v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
                     }
 
                     // 打包生成消息
@@ -1327,7 +1329,7 @@ public:
         logger->close_yawerr();
 
         // 打开yawerr.txt
-        std::string yaw_err_path = log_dir + "yawerr.txt";
+        std::string yaw_err_path = param.log_dir + "yawerr.txt";
         std::ifstream ifs;
         ifs.open(yaw_err_path, std::ios::in);
         if (!ifs.is_open())
@@ -1385,7 +1387,7 @@ public:
 
 
         // 打开初始库位信息文件
-        std::string site_info_path = cfg_dir + "SiteTable.txt";
+        std::string site_info_path = param.cfg_dir + "SiteTable.txt";
         ifs.open(site_info_path, std::ios::in);
         if (!ifs.is_open())
         {
@@ -1397,7 +1399,7 @@ public:
         }
 
         // 打开输出库位信息文件
-        std::string output_path = cfg_dir + "SiteTable_output.txt";
+        std::string output_path = param.cfg_dir + "SiteTable_output.txt";
         std::ofstream ofs;
         ofs.open(output_path, std::ios::out);
         if (!ofs.is_open())
@@ -1517,54 +1519,54 @@ public:
     {
         logger->info("mainloopThread()");
         
-        if (1 == operating_mode) // 采集二维码位姿
+        if (1 == param.operating_mode) // 采集二维码位姿
         {
             logger->info("Mode 1: Collect QR-Code Pose");
             CollectQRCodePose_mode();
         }
-        else if (2 == operating_mode) // 采集二维码编号
+        else if (2 == param.operating_mode) // 采集二维码编号
         {
             logger->info("Mode 2: Collect QR-Code index");
             CollectQRCodeIndex_mode();
         }
-        else if (3 == operating_mode) // 正常模式v1，使用轮速计递推
+        else if (3 == param.operating_mode) // 正常模式v1，使用轮速计递推
         {
             logger->info("Mode 3: Normal Run v1");
             NormalRun_mode_v3();
         }
-        else if (4 == operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
+        else if (4 == param.operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
         {
             logger->info("Mode 4: Only QR-Code ");
             TestRun_mode();
         }
-        else if (5 == operating_mode) // 采集角度模式
+        else if (5 == param.operating_mode) // 采集角度模式
         {
             logger->info("Mode 5: Get Yaw Error ");
             GetYaw_mode();
         }
-        else if (6 == operating_mode) // 计算角度模式
+        else if (6 == param.operating_mode) // 计算角度模式
         {
             logger->info("Mode 6: Calculate Yaw Error ");
             CalYawErr_mode();
         }
-        else if (7 == operating_mode) // 检查相机安装是否水平
+        else if (7 == param.operating_mode) // 检查相机安装是否水平
         {
             logger->info("Mode 7: Check Camera Horizon ");
             CheckCameraHorizon_mode();
         }
-        else if (8 == operating_mode) // 正常模式v3，使用轮速计递推
+        else if (8 == param.operating_mode) // 正常模式v3，使用轮速计递推
         {
             logger->info("Mode 8: Normal Run v1");
             NormalRun_mode_v1();
         }
-        else if (9 == operating_mode) // 正常模式v3，使用轮速计递推
+        else if (9 == param.operating_mode) // 正常模式v3，使用轮速计递推
         {
             logger->info("Mode 9: Code Debug");
             Code_Debug();
         }
         else
         {
-            logger->info("Mode识别失败: " + std::to_string(operating_mode));
+            logger->info("Mode识别失败: " + std::to_string(param.operating_mode));
         }
         return;
     }
@@ -1574,7 +1576,15 @@ public:
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "qrcode_loc");                                  // ros初始化
-    QRcodeLoc QLoc;                                                       // 实例化二维码定位对象
+    ros::NodeHandle nh;
+
+    qrcode::Param param(nh);
+
+    Logger *logger;
+    logger = &Logger::getInstance();
+    logger->init(&param);
+
+    QRcodeLoc QLoc(param);                                                       // 实例化二维码定位对象
     std::thread loopthread(&QRcodeLoc::mainloopThread, &QLoc);            // 创建主循环线程
     ROS_INFO("\033[1;32m----> Localization with QRcode Started.\033[0m"); // 输出提示
     ros::spin();                                                          // spin

@@ -35,13 +35,14 @@
 #include <Eigen/Dense>
 #include "geometry_msgs/PointStamped.h"
 
-// #include <file/path.h>
-// #include <process/signal_manager.h>
-// #include <vcs_manager.h>
-// #include <datetime/datetime.h>
-// #include <yaml-cpp/yaml.h>
+#include <file/file.h>
+#include <file/path.h>
+#include <process/signal_manager.h>
+#include <vcs_manager.h>
+#include <yaml-cpp/yaml.h>
+#include <datetime/datetime.h>
 
-// using namespace vcs;
+using namespace vcs;
 
 namespace fs = boost::filesystem;
 
@@ -396,9 +397,219 @@ public:
     }
 };
 
+namespace qrcode {
+// 参数服务器v2
+class Param
+{
+public:
+    ros::NodeHandle nh;
+
+    std::string logLevel;
+
+    std::string odomMapBase;
+    std::string odomMapCamera;
+    std::string pathMapBase;
+    std::string pathMapCamera;
+    std::string msgTopic;
+
+    int operating_mode;
+    bool show_original_msg;
+    bool is_pub_tf;
+    double low_speed_UL;
+    std::string port;
+    std::string log_dir;
+    std::string cfg_dir;
+    float maxEstimationDis;
+
+    bool read_yaw_err;
+
+    double yaw_jump_UL;
+    double x_jump_UL;
+    double y_jump_UL;
+
+    double rec_p1;
+    double wheel_diameter;
+    double wheel_reduction_ratio;
+    double wheel_base_dis;
+    double wheel_angular_offset;
+    double wheel_angular_forward;
+    double wheel_angular_backward;
+    
+
+    double err_ratio_offline;
+
+    double detect_site_dis;
+    double aux_site_dis;
+    double forkaction_site_dis;
+    double site_site_dis;
+
+    double avliable_yaw;
+
+    bool is_debug;
+    bool check_sequence;
+    bool cal_yaw;
+    double ground_code_yaw_offset;
+
+    Param(ros::NodeHandle& nh) : nh(nh)
+    {
+        std::string DefaultParamFilePath = "/var/xmover/params/vechileInfo.yaml";
+
+        ConfigInfo configInfo;
+        configInfo.setDataId("vechileInfo3");
+        configInfo.setGroupId("public");
+        configInfo.setType("yaml");       // yaml/toml/json/text
+
+        vcs::VcsManager vm;
+        vcs::VcsParams params;
+        vm.initParams(params);
+
+        std::string ParamFileResult = "";
+        bool configValid = false;
+        ros::Time startTime = ros::Time::now();
+
+        ros::Rate loop_rate(1); // 1Hz
+        while (ros::ok())
+        {
+            ros::Time nowTime = ros::Time::now();
+            if (nowTime - startTime > ros::Duration(120.0))
+            {
+                break; // 最多等2分钟，如果2分钟后还没取到配置,则向后执行，比如上报故障，注意不能乱动作避免安全问题
+            }
+            
+            // 一、拉取配置
+            configValid = vm.configService().getConfig(configInfo); // 先获取一下配置，如VCS无法访问，会在30秒内一直重试
+            if (configValid)
+            {
+                // 可以进行参数检查，如果有需要自动追加的新参数，则可以追加后强制推送
+                // bool forcePublicFlag = vm.configService().forcePublishConfig(configInfo, 30000); // 强制覆盖,建议不要强制覆盖，除非明确知道影响。
+                break;
+            }
+
+            // 二、平台不存在配置，且本地无缓存，默认配置文件上传平台一份
+            std::cout << "平台不存在配置，且本地无缓存，默认配置文件上传平台一份" << std::endl;
+            bool defaultConfigFlag = configInfo.setContentWithFile(DefaultParamFilePath);
+            if (!defaultConfigFlag)
+            {
+                std::cout << "加载默认配置失败，磁盘可能有问题" << std::endl;
+                continue;
+            }
+            std::cout << "加载打包的默认配置成功，准备上传平台一份，方便后续维护" << std::endl;
+
+            configInfo.setMaxBackupCount(-1); // -2：不修改现状，-1：无限备份，0：无备份，正数为具体备份个数
+            bool publicFlag = vm.configService().publishConfig(configInfo, 30000);
+            if (publicFlag)
+            {
+                std::cout << "默认配置上传平台成功" << std::endl;
+                configValid = true;
+                continue;
+            }
+            else
+            {
+                if (configInfo.state() == vcs::ConfigInfo::CS_ONLINE_OK)
+                {
+                    std::cout << "修改VCS配置失败,因为VCS已有相同配置,禁止覆盖" << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(3));
+                    continue; // 既然VCS存在了相同配置，那么等一下接着重新拉取配置
+                }
+                else
+                {
+                    std::cout << "修改VCS配置失败,VCS修改时发生错误,重头开始走获取流程" << std::endl;
+                }
+            }
+
+
+            loop_rate.sleep();
+            ros::spinOnce();
+        }
+
+        if (configValid)
+            ParamFileResult = configInfo.localFilePath();
+        else
+            ParamFileResult = DefaultParamFilePath;
+        
+        // 读取参数文件
+        std::string yamlData  = "";
+        cppc::File file(ParamFileResult);
+        if (file.exists()) {
+            if (file.open(cppc::File::ReadOnly)) {
+                yamlData = file.readAll();
+                file.close();
+                std::cout << "文件：" << ParamFileResult << " 读取成功！" << std::endl;
+            } else {
+                std::cout << "文件：" << ParamFileResult << " 读取失败！" << std::endl;
+            }
+        } else {
+            std::cout << "文件：" << ParamFileResult << " 不存在！" << std::endl;
+        }
+
+        //读取参数
+        try {
+            // 从字符串加载 YAML 数据
+            YAML::Node config = YAML::Load(yamlData);
+    
+            // 读取 YAML 中的数据
+            low_speed_UL = config["vechileInfo"]["width"].as<float>();
+            std::cout << "low_speed_UL: " << low_speed_UL << std::endl;
+
+            // int age = config["age"].as<int>();
+            // std::cout << config["age"].Tag() << std::endl;
+
+            // name = config["name"].IsDefined() ? config["name"].as<std::string>() : "default_name";
+    
+            // 打印读取的数据
+            // std::cout << "Name: " << name << std::endl;
+            // std::cout << "Age: " << age << std::endl;
+        } catch (YAML::Exception &e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+
+
+        
+        // // log级别
+        // nh.param<std::string>("ep_qrcode_loc/logLevel", logLevel, "INFO");
+        // nh.param<int>("ep_qrcode_loc/operating_mode", operating_mode, 3);
+        // // topic名称
+        // nh.param<std::string>("ep_qrcode_loc/odomMapBase", odomMapBase, "ep_qrcode_loc/odometry/base");
+        // nh.param<std::string>("ep_qrcode_loc/odomMapCamera", odomMapCamera, "ep_qrcode_loc/odometry/locCamera");
+        // nh.param<std::string>("ep_qrcode_loc/pathMapBase", pathMapBase, "ep_qrcode_loc/path/base");
+        // nh.param<std::string>("ep_qrcode_loc/pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
+        // nh.param<std::string>("ep_qrcode_loc/msgTopic", msgTopic, "ep_qrcode_loc/msg");
+        // // 运行模式
+        // nh.param<bool>("ep_qrcode_loc/show_original_msg", show_original_msg, false);
+        // nh.param<bool>("ep_qrcode_loc/is_pub_tf", is_pub_tf, false);
+        // nh.param<double>("ep_qrcode_loc/yaw_jump_UL", yaw_jump_UL, 2.0);
+        // nh.param<double>("ep_qrcode_loc/x_jump_UL", x_jump_UL, 0.05);
+        // nh.param<double>("ep_qrcode_loc/y_jump_UL", y_jump_UL, 0.05);
+        // nh.param<bool>("ep_qrcode_loc/read_yaw_err", read_yaw_err, false);
+        // if (5 == operating_mode) read_yaw_err = false;
+        // nh.param<double>("ep_qrcode_loc/err_ratio_offline", err_ratio_offline, 1.0);
+        // nh.param<double>("ep_qrcode_loc/rec_p1", rec_p1, 0.0);
+        // nh.param<double>("ep_qrcode_loc/avliable_yaw", avliable_yaw, 0.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_diameter", wheel_diameter, 0.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_reduction_ratio", wheel_reduction_ratio, 1.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_base_dis", wheel_base_dis, 0.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_angular_offset", wheel_angular_offset, 0.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_angular_forward", wheel_angular_forward, 0.0);
+        // nh.param<double>("ep_qrcode_loc/wheel_angular_backward", wheel_angular_backward, 0.0);
+        // nh.param<double>("ep_qrcode_loc/low_speed_UL", low_speed_UL, 0.2);
+        // nh.param<std::string>("ep_qrcode_loc/port", port, "1024");
+        // nh.param<std::string>("ep_qrcode_loc/log_dir", log_dir, "/var/xmover/log/QR_code_loc/");
+        // nh.param<std::string>("ep_qrcode_loc/cfg_dir", cfg_dir, "/var/xmover/params/ep-qrcode-loc/");
+        // nh.param<float>("ep_qrcode_loc/maxEstimationDis", maxEstimationDis, 1.0);
+        // nh.param<double>("ep_qrcode_loc/detect_site_dis", detect_site_dis, 1.8);
+        // nh.param<double>("ep_qrcode_loc/aux_site_dis", aux_site_dis, 1.365);
+        // nh.param<double>("ep_qrcode_loc/forkaction_site_dis", forkaction_site_dis, 0.93);
+        // nh.param<double>("ep_qrcode_loc/site_site_dis", site_site_dis, 1.36);
+        // nh.param<bool>("ep_qrcode_loc/is_debug", is_debug, false);
+        // nh.param<bool>("ep_qrcode_loc/check_sequence", check_sequence, true);
+        // nh.param<bool>("ep_qrcode_loc/cal_yaw", cal_yaw, true);
+        // nh.param<double>("ep_qrcode_loc/ground_code_yaw_offset", ground_code_yaw_offset, 0.0);
+    }
+};
+}// namespace qrcode
 
 // 记录服务器
-class Logger : public ParamServer
+class Logger
 {
 private:
     static std::ofstream logFile_;
@@ -417,21 +628,25 @@ private:
     static std::mutex mutex_jumperr;
     
     std::string loglevel_;
+    std::string log_dir_;
+    qrcode::Param* param_;
  
     // 私有构造函数确保不能直接创建Logger实例
-    Logger() 
-    {
-        init(log_dir);
-        loglevel_ = logLevel;
-    }
+    Logger() {}
  
     // 防止拷贝构造和赋值
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
  
-    // 静态成员函数，用于初始化静态变量
-    static void init(std::string log_dir_) 
+public:
+    // 用于初始化
+    void init(qrcode::Param* param)
     {
+        //初始化参数
+        param_ = param;
+        log_dir_ = param_->log_dir;
+        loglevel_ = param_->logLevel;
+
         // 创建文件夹
         std::string log_dir_today = log_dir_ + format_date(ros::Time::now()) + "/";
         fs::path dir(log_dir_today); 
@@ -502,7 +717,6 @@ private:
         }
     }
  
-public:
     // 获取单例对象
     static Logger& getInstance() {
         static Logger instance; // 懒汉式，在第一次调用时实例化
@@ -583,7 +797,7 @@ public:
     // 滚动删除历史文件夹
     void roll_delete_old_folders(size_t keep_count)
     {
-        fs::path dir_path(log_dir);
+        fs::path dir_path(log_dir_);
 
         std::vector<fs::directory_entry> directories;
         for (const auto &entry : fs::directory_iterator(dir_path))

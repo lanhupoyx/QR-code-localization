@@ -3,10 +3,10 @@
 #include "utility_qloc.hpp"
 
 // 二维码坐标对照表
-class QRcodeTable : public ParamServer
+class QRcodeTable
 {
 public:
-    QRcodeTable(std::string dir)
+    QRcodeTable(std::string dir, qrcode::Param& param) : param(param)
     {
         path = dir; // 文件位置
         logger = &Logger::getInstance();
@@ -60,17 +60,17 @@ public:
                 continue;
             }
         }
-        if (1 == operating_mode)
+        if (1 == param.operating_mode)
         {
-            sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+            sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                        &QRcodeTable::tfCallback, this,
                                                        ros::TransportHints().tcpNoDelay());
             logger->info("sub: /ep_localization/odometry/lidar");
         }
         
-        if (5 == operating_mode)
+        if (5 == param.operating_mode)
         {
-            sub_pos = nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+            sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                        &QRcodeTable::tfCallback, this,
                                                        ros::TransportHints().tcpNoDelay());
             logger->info("sub: /ep_localization/odometry/lidar");
@@ -282,4 +282,5 @@ private:
 
     Logger *logger;
     std::stringstream stream;
+    qrcode::Param& param;
 };

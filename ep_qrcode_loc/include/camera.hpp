@@ -3,16 +3,16 @@
 #include "utility_qloc.hpp"
 
 // 相机数据预处理
-class MV_SC2005AM : public ParamServer
+class MV_SC2005AM
 {
 public:
-    MV_SC2005AM()
+    MV_SC2005AM(qrcode::Param& param) : param(param)
     {
         logger = &Logger::getInstance();
         logger->info("MV_SC2005AM");
 
         // UDP端口监测初始化
-        socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(port.c_str())));
+        socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(param.port.c_str())));
     }
     ~MV_SC2005AM() {}
 
@@ -63,7 +63,7 @@ private:
                     return false;
                 }
 
-                if (show_original_msg)
+                if (param.show_original_msg)
                 {
                     stream.str("");
                     stream << format_time(frame->stamp) << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
@@ -281,7 +281,7 @@ private:
                 frame->error_yaw = std::stod(yaw_ascii);
 
                 // 记录
-                if (show_original_msg)
+                if (param.show_original_msg)
                 {
                     stream.str("");
                     stream << " [" << sender.c_str() << "] " << frame->code << " " << frame->index << " " << frame->duration << "s " // ip
@@ -309,4 +309,5 @@ private:
     Logger *logger;
     std::stringstream stream;
     bool state;
+    qrcode::Param& param;
 };

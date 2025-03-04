@@ -14,7 +14,7 @@
 //     }
 // };
 
-class WheelSpeedOdometer : public ParamServer
+class WheelSpeedOdometer
 {
 private:
     std::mutex mtx;                                     // 互斥锁
@@ -32,15 +32,16 @@ private:
     ros::Subscriber sub_realvel;                        // /real_vel消息订阅器
     double path_dis;                                    // 本段递推中轮子走过的路径长度
     bool path_dis_overflow;                             // 递推路径过长
+    qrcode::Param& param;
 
 public:
 
-    WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base)
+    WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, qrcode::Param& param) : param(param)
     {
         logger = &Logger::getInstance();
         logger->info("WheelSpeedOdometer");
         trans_camera2base_ = trans_camera2base;
-        sub_realvel = nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
+        sub_realvel = param.nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                          this, ros::TransportHints().tcpNoDelay());
         logger->info("sub: /real_vel");
         new_speed_x=0;
@@ -78,7 +79,7 @@ public:
         // 增加base运动轨迹长度
         double dt = vel_msg_stamped.header.stamp.toSec() - vel_msg_stamped_last.header.stamp.toSec();
         path_dis += dt * abs(vel_msg_stamped.twist.linear.x);
-        if(path_dis > maxEstimationDis)
+        if(path_dis > param.maxEstimationDis)
         {
             path_dis_overflow = true;
         }
@@ -275,15 +276,15 @@ private:
         double wheel_angular;
         if (wheel_moter_speed >= 0.0) // 前进
         {
-            wheel_angular = (vel_msg.angular.y + wheel_angular_forward) * M_PI / 180;
+            wheel_angular = (vel_msg.angular.y + param.wheel_angular_forward) * M_PI / 180;
         }
         else // 后退
         {
-            wheel_angular = (vel_msg.angular.y + wheel_angular_backward) * M_PI / 180;
+            wheel_angular = (vel_msg.angular.y + param.wheel_angular_backward) * M_PI / 180;
         }
 
         // 轮子速度 m/s
-        double wheel_vel = M_PI * wheel_diameter * wheel_moter_speed / (wheel_reduction_ratio * 60.0);
+        double wheel_vel = M_PI * param.wheel_diameter * wheel_moter_speed / (param.wheel_reduction_ratio * 60.0);
         // base线速度 m/s
         double base_vel_x = 0;
         // base角速度 red/s
@@ -297,18 +298,18 @@ private:
         }
         else if (abs(wheel_angular) < 1.570) // 一般角度
         {
-            base_vel_yaw = wheel_vel * std::sin(wheel_angular) / wheel_base_dis;
-            base_vel_x = base_vel_yaw * (wheel_base_dis / std::tan(wheel_angular));
+            base_vel_yaw = wheel_vel * std::sin(wheel_angular) / param.wheel_base_dis;
+            base_vel_x = base_vel_yaw * (param.wheel_base_dis / std::tan(wheel_angular));
         }
         else // 角度过大
         {
             if (wheel_angular > 0)
             {
-                base_vel_yaw = wheel_vel / wheel_base_dis;
+                base_vel_yaw = wheel_vel / param.wheel_base_dis;
             }
             else
             {
-                base_vel_yaw = -1 * wheel_vel / wheel_base_dis;
+                base_vel_yaw = -1 * wheel_vel / param.wheel_base_dis;
             }
             base_vel_x = 0;
         }

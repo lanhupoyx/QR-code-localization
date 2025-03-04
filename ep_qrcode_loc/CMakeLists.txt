@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ep_qrcode_loc)
 
-#set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "RelWithDebInfo")
-set(CMAKE_BUILD_TYPE "Release")
+#set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
+
+#设置第三方库的根目录
+set(THIRD_LIBS_ROOT_DIR /opt/libs-x86_64-Linux)
+list(APPEND CMAKE_MODULE_PATH ${THIRD_LIBS_ROOT_DIR}/cmake/modules)
 
 find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
@@ -29,16 +33,7 @@ add_service_files(
 #添加依赖库
 find_package(Boost REQUIRED)
 find_package(EPVcsSdk  MODULE)
-find_package(Toml11  MODULE)
 find_package(YamlCpp  MODULE)
-
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs
-  std_msgs
-  nav_msgs
-  sensor_msgs
-)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -57,23 +52,20 @@ catkin_package(
 include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
+  ${CMAKE_MODULE_PATH}
   "/opt/libs-x86_64-Linux/eigen/eigen3"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/common"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/config"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/listen"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/security"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk"
 )
 
 # link directories
 link_directories(
 	include
+  ${CMAKE_MODULE_PATH}
 )
-
-# # vcs相关
-# include_directories(${EPCppc_INCLUDE_DIR})
-# target_link_libraries(${PROJECT_NAME} ${EPCppc_LIBRARYS})
-# include_directories(${Spdlog_INCLUDE_DIR})
-# target_link_libraries(${PROJECT_NAME} ${Spdlog_LIBRARYS})
-# include_directories(${EPVcsSdk_INCLUDE_DIR})
-# target_link_libraries(${PROJECT_NAME} ${EPVcsSdk_LIBRARYS})
-# include_directories(${YamlCpp_INCLUDE_DIR})
-# target_link_libraries(${PROJECT_NAME} ${YamlCpp_LIBRARYS})
 
 ###########
 ## Build ##
@@ -81,6 +73,23 @@ link_directories(
 
 add_executable(${PROJECT_NAME}_node src/QRCodeLoc.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} )
+
+include_directories(${EPCppc_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_node ${EPCppc_LIBRARYS})
+
+include_directories(${Spdlog_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_node ${Spdlog_LIBRARYS})
+
+include_directories(${EPVcsSdk_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_node ${EPVcsSdk_LIBRARYS})
+
+
+include_directories(${YamlCpp_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_node ${YamlCpp_LIBRARYS})
+
+#############
+## Install ##
+#############
 
 install(TARGETS
       ${PROJECT_NAME}_node
@@ -96,9 +105,9 @@ install(FILES
       DESTINATION deb_package/opt/xmover/ros/melodic/${PROJECT_NAME}/share/${PROJECT_NAME}
 )
 
-#################
+##################
 ## 打包、安装脚本 ##
-#################
+##################
 
 install(FILES      install/control   DESTINATION deb_package/DEBIAN)
 install(PROGRAMS   install/postinst  DESTINATION deb_package/DEBIAN)
