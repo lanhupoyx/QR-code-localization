@@ -6,7 +6,7 @@
 class QRcodeTable
 {
 public:
-    QRcodeTable(std::string dir, qrcode::Param& param) : param(param)
+    QRcodeTable(std::string dir, qrcode::ParamServer_v2& param) : param(param)
     {
         path = dir; // 文件位置
         logger = &Logger::getInstance();
@@ -282,5 +282,5 @@ private:
 
     Logger *logger;
     std::stringstream stream;
-    qrcode::Param& param;
+    qrcode::ParamServer_v2& param;
 };

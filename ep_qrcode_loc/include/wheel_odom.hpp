@@ -32,11 +32,11 @@ private:
     ros::Subscriber sub_realvel;                        // /real_vel消息订阅器
     double path_dis;                                    // 本段递推中轮子走过的路径长度
     bool path_dis_overflow;                             // 递推路径过长
-    qrcode::Param& param;
+    qrcode::ParamServer_v2& param;
 
 public:
 
-    WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, qrcode::Param& param) : param(param)
+    WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, qrcode::ParamServer_v2& param) : param(param)
     {
         logger = &Logger::getInstance();
         logger->info("WheelSpeedOdometer");

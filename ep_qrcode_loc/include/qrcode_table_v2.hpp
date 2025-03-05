@@ -186,10 +186,10 @@ private:
     ros::Subscriber sub_pos;
     std::list<nav_msgs::Odometry> tf_buffer;
     std::list<ColumnCodeList> ground_codes;
-    qrcode::Param& param;
+    qrcode::ParamServer_v2& param;
 
 public:
-    QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, qrcode::Param& param) : param(param)
+    QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, qrcode::ParamServer_v2& param) : param(param)
     {
         // 配置文件路径
         cfg_path_ = cfg_path;

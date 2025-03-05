@@ -399,7 +399,7 @@ public:
 
 namespace qrcode {
 // 参数服务器v2
-class Param
+class ParamServer_v2
 {
 public:
     ros::NodeHandle nh;
@@ -450,7 +450,7 @@ public:
     bool cal_yaw;
     double ground_code_yaw_offset;
 
-    Param(ros::NodeHandle& nh) : nh(nh)
+    ParamServer_v2(ros::NodeHandle& nh) : nh(nh)
     {
         std::string DefaultParamFilePath = "/var/xmover/params/vechileInfo.yaml";
 
@@ -629,7 +629,7 @@ private:
     
     std::string loglevel_;
     std::string log_dir_;
-    qrcode::Param* param_;
+    qrcode::ParamServer_v2* param_;
  
     // 私有构造函数确保不能直接创建Logger实例
     Logger() {}
@@ -640,7 +640,7 @@ private:
  
 public:
     // 用于初始化
-    void init(qrcode::Param* param)
+    void init(qrcode::ParamServer_v2* param)
     {
         //初始化参数
         param_ = param;

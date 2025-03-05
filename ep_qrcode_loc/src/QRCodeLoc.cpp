@@ -63,11 +63,11 @@ private:
     
     bool is_handle;
 
-    qrcode::Param& param;
+    qrcode::ParamServer_v2& param;
 
 public:
     // 构造函数
-    QRcodeLoc(qrcode::Param& param) : param(param)
+    QRcodeLoc(qrcode::ParamServer_v2& param) : param(param)
     {
         std::cout << param.low_speed_UL << std::endl;
         // 记录器
@@ -1578,7 +1578,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "qrcode_loc");                                  // ros初始化
     ros::NodeHandle nh;
 
-    qrcode::Param param(nh);
+    qrcode::ParamServer_v2 param(nh);
 
     Logger *logger;
     logger = &Logger::getInstance();

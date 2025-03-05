@@ -6,7 +6,7 @@
 class MV_SC2005AM
 {
 public:
-    MV_SC2005AM(qrcode::Param& param) : param(param)
+    MV_SC2005AM(qrcode::ParamServer_v2& param) : param(param)
     {
         logger = &Logger::getInstance();
         logger->info("MV_SC2005AM");
@@ -309,5 +309,5 @@ private:
     Logger *logger;
     std::stringstream stream;
     bool state;
-    qrcode::Param& param;
+    qrcode::ParamServer_v2& param;
 };
