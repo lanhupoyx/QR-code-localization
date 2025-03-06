@@ -1,6 +1,5 @@
 <launch>
    <!-- ns="$(arg namespace)" -->
-	<rosparam file="/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/config/ep-qrcode-loc_debug.yaml" command="load" />
 	<node pkg="ep_qrcode_loc" type="ep_qrcode_loc_node" name="ep_qrcode_loc" output="screen" >
 	</node>
 </launch>

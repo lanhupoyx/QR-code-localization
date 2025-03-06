@@ -1,6 +1,5 @@
 <launch>
    <!-- ns="$(arg namespace)" -->
-	<rosparam file="/var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml" command="load" />
 	<node pkg="ep_qrcode_loc" type="ep_qrcode_loc_node" name="ep_qrcode_loc" output="screen" >
 	</node>
 </launch>

@@ -54,11 +54,11 @@ include_directories(
 	${catkin_INCLUDE_DIRS}
   ${CMAKE_MODULE_PATH}
   "/opt/libs-x86_64-Linux/eigen/eigen3"
-  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/common"
-  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/config"
-  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/listen"
-  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk/security"
-  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/src/ep_vcs_sdk"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/common"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/config"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/listen"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/security"
+  "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk"
 )
 
 # link directories
@@ -71,7 +71,15 @@ link_directories(
 ## Build ##
 ###########
 
-add_executable(${PROJECT_NAME}_node src/QRCodeLoc.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp 
+                                    src/QRCodeLoc.cpp
+                                    src/utility_qloc.cpp 
+                                    src/logger.cpp
+                                    src/camera.cpp
+                                    src/wheel_odom.cpp
+                                    src/qrcode_table_v2.cpp
+                                    src/qrcode_table.cpp)
+                                    
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} )
 
 include_directories(${EPCppc_INCLUDE_DIR})
