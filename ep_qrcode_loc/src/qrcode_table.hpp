@@ -1,7 +1,5 @@
 #pragma once
-
 #include "utility_qloc.hpp"
-#include "logger.hpp"
 
 // 二维码坐标对照表
 class QRcodeTable

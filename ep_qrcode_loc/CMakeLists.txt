@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ep_qrcode_loc)
 
-set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "RelWithDebInfo")
-#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
@@ -53,6 +53,7 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
   ${CMAKE_MODULE_PATH}
+  "/usr/include/x86_64-linux-gnu/"
   "/opt/libs-x86_64-Linux/eigen/eigen3"
   "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/common"
   "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/config"

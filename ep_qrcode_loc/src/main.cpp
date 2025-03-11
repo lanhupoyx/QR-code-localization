@@ -1,5 +1,4 @@
 #include "utility_qloc.hpp"
-#include "logger.hpp"
 #include "QRCodeLoc.hpp"
 
 
@@ -23,3 +22,17 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+
+/*
+TODO：
+1、相机数据作为topic发出，订阅该topic进行使用，可通过录包形式保存数据
+
+2、二维码序号参数文件放在vcs进行管理，需配合单码调试工具进行升级
+
+3、监控vcs中参数文件的变动，自动重启程序
+
+
+
+
+*/

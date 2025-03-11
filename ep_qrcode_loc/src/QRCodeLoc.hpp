@@ -4,7 +4,6 @@
 #include "qrcode_table.hpp"
 #include "qrcode_table_v2.hpp"
 #include "BasicState.h"
-#include "logger.hpp"
 
 // 偏差值信息
 struct err_val
@@ -133,6 +132,9 @@ public:
 
     // 模式:代码测试
     void CodeDebug_mode();
+
+    // 模式:辅助驾驶
+    void AssistedDriving_mode();
 
     // 主循环
     void mainloop();

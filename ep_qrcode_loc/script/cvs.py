@@ -1,6 +1,6 @@
-import pandas as pd
+import pandas as pd # type: ignore
 import numpy as np
-import openpyxl
+import openpyxl # type: ignore
 import csv
 
 def csv2xlsx(txt_file, excel_file):

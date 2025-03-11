@@ -11,36 +11,39 @@
 #include <string>
 #include <array>
 #include <thread>
-#include <boost/filesystem.hpp>
 #include <algorithm>
 #include <chrono>
 
 #include "ros/ros.h"
-#include <tf/tf.h>
-#include <ros/console.h>
-#include <boost/asio.hpp>
+#include "ros/console.h"
 
-#include "std_msgs/String.h"
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
-#include <tf2_msgs/TFMessage.h>
+#include "tf/tf.h"
+#include "tf/transform_broadcaster.h"
+#include "tf2_msgs/TFMessage.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/message_filter.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-#include <geometry_msgs/PoseStamped.h>
-#include "message_filters/subscriber.h"
 #include "tf2_ros/buffer.h"
 #include "tf2/convert.h"
-#include <tf/transform_broadcaster.h>
-#include <Eigen/Dense>
-#include "geometry_msgs/PointStamped.h"
 
-#include <file/file.h>
-#include <file/path.h>
-#include <process/signal_manager.h>
-#include <vcs_manager.h>
-#include <yaml-cpp/yaml.h>
-#include <datetime/datetime.h>
+#include "std_msgs/String.h"
+#include "nav_msgs/Odometry.h"
+#include "nav_msgs/Path.h"
+#include "geometry_msgs/PointStamped.h"
+#include "geometry_msgs/PoseStamped.h"
+#include "message_filters/subscriber.h"
+
+#include "Eigen/Dense"
+
+#include "boost/asio.hpp"
+#include "boost/filesystem.hpp"
+
+#include "file/file.h"
+#include "file/path.h"
+#include "process/signal_manager.h"
+#include "vcs_manager.h"
+#include "yaml-cpp/yaml.h"
+#include "datetime/datetime.h"
 
 #include "logger.hpp"
 
@@ -192,7 +195,16 @@ public:
     bool cal_yaw;
     double ground_code_yaw_offset;
 
+    std::string mainParamPath;
+    std::string siteTablePath;
+
+    size_t logKeepDays;
+
     ParamServer(ros::NodeHandle &nh);
+
+    std::string loadMainParamPath();
+
+    std::string loadSitetableParamPath();
 
     // 加载单个参数条目
     template <typename T>

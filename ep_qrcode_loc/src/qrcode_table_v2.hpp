@@ -1,8 +1,6 @@
 #pragma once
 
 #include "utility_qloc.hpp"
-#include "camera.hpp"
-#include "logger.hpp"
 
 // 贴在地上的二维码
 struct QRcodeGround

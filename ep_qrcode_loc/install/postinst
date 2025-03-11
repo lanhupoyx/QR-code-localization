@@ -7,21 +7,21 @@ echo "USER_NAME=$USER_NAME"
 sed -i -r 's/^User=.*/User='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-loc.service
 sed -i -r 's/^Group=.*/Group='"$USER_NAME"'/g' /usr/lib/systemd/system/ep-qrcode-loc.service
 
-#检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
-if [ ! -f /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml ]; then
- mkdir -p /var/xmover/params/ep-qrcode-loc
- echo "copy params file ep-qrcode-loc.yaml"
- cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/ep-qrcode-loc.yaml /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
- chmod 777 /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
-fi
+# #检查目标配置文件是否存在，不存在则拷贝一份，存在则啥都不干
+# if [ ! -f /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml ]; then
+#  mkdir -p /var/xmover/params/ep-qrcode-loc
+#  echo "copy params file ep-qrcode-loc.yaml"
+#  cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/ep-qrcode-loc.yaml /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
+#  chmod 777 /var/xmover/params/ep-qrcode-loc/ep-qrcode-loc.yaml
+# fi
 
-#检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
-if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.txt ]; then
- mkdir -p /var/xmover/params/ep-qrcode-loc
- echo "copy params file SiteTable.txt"
- cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.txt /var/xmover/params/ep-qrcode-loc/SiteTable.txt
- chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.txt
-fi
+# #检查库位表文件是否存在，不存在则拷贝一份，存在则啥都不干
+# if [ ! -f /var/xmover/params/ep-qrcode-loc/SiteTable.txt ]; then
+#  mkdir -p /var/xmover/params/ep-qrcode-loc
+#  echo "copy params file SiteTable.txt"
+#  cp /opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.txt /var/xmover/params/ep-qrcode-loc/SiteTable.txt
+#  chmod 777 /var/xmover/params/ep-qrcode-loc/SiteTable.txt
+# fi
 
 mkdir -p /var/xmover/log/QR_code_loc
 

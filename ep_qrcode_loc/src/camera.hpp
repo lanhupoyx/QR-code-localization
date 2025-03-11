@@ -1,7 +1,5 @@
 #pragma once
-
 #include "utility_qloc.hpp"
-#include "logger.hpp"
 
 // 相机数据预处理
 class MV_SC2005AM

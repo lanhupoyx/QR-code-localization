@@ -1,7 +1,5 @@
 #pragma once
-
 #include "utility_qloc.hpp"
-#include "logger.hpp"
 
 class WheelSpeedOdometer
 {
