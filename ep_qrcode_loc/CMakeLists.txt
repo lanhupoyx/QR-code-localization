@@ -30,6 +30,18 @@ add_service_files(
   FILES
 )
 
+## 配置 msg 源文件
+add_message_files(
+  FILES
+  LocCamera.msg
+)
+
+# 生成消息时依赖于 std_msgs
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 #添加依赖库
 find_package(Boost REQUIRED)
 find_package(EPVcsSdk  MODULE)

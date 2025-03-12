@@ -8,7 +8,7 @@ err_val::err_val(double err, uint32_t num)
 }
 
 // 构造函数
-QRcodeLoc::QRcodeLoc(ParamServer &param) : param(param)
+QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),camera(camera)
 {
     std::cout << param.low_speed_UL << std::endl;
     // 记录器
@@ -57,8 +57,8 @@ QRcodeLoc::QRcodeLoc(ParamServer &param) : param(param)
             if (loop_num > 10)
             {
                 logger->info("lookupTransform locCamera_link to base_link failed!");
-                logger->info("即将进入异常模式! (param.operating_mode = 0)");
-                param.operating_mode = 0;//进入异常模式
+                logger->info("即将进入异常模式! (param.operating_mode = \"0\")");
+                param.operating_mode = "0";//进入异常模式
                 break;
             }
 
@@ -102,7 +102,6 @@ QRcodeLoc::QRcodeLoc(ParamServer &param) : param(param)
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
-    camera = new MV_SC2005AM(param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
     logger->info("QRcodeLoc() End");
@@ -111,7 +110,6 @@ QRcodeLoc::QRcodeLoc(ParamServer &param) : param(param)
 // 析构函数
 QRcodeLoc::~QRcodeLoc()
 {
-    delete camera;
     delete qrcode_table;
     delete wheel_odom;
 }
@@ -1399,59 +1397,45 @@ void QRcodeLoc::mainloop()
 {
     logger->info("mainloop()");
 
-    if (0 == param.operating_mode) // 异常模式
+    // 使用 std::map 存储字符串和对应的函数
+    std::map<std::string, std::function<void()>> switch_map = {
+        {"1",                       std::bind(&QRcodeLoc::CollectQRCodePose_mode, this)},
+        {"CollectQRCodePose_mode",  std::bind(&QRcodeLoc::CollectQRCodePose_mode, this)},
+
+        {"2",                       std::bind(&QRcodeLoc::CollectQRCodeIndex_mode, this)},
+        {"CollectQRCodeIndex_mode", std::bind(&QRcodeLoc::CollectQRCodeIndex_mode, this)},
+
+        {"3",                       std::bind(&QRcodeLoc::NormalRun_mode, this)},
+        {"NormalRun_mode",          std::bind(&QRcodeLoc::NormalRun_mode, this)},
+
+        {"4",                       std::bind(&QRcodeLoc::TestRun_mode, this)},
+        {"TestRun_mode",            std::bind(&QRcodeLoc::TestRun_mode, this)},
+
+        {"5",                       std::bind(&QRcodeLoc::GetYaw_mode, this)},
+        {"GetYaw_mode",             std::bind(&QRcodeLoc::GetYaw_mode, this)},
+
+        {"6",                       std::bind(&QRcodeLoc::CalYawErr_mode, this)},
+        {"CalYawErr_mode",          std::bind(&QRcodeLoc::CalYawErr_mode, this)},
+
+        {"7",                       std::bind(&QRcodeLoc::CheckCameraHorizon_mode, this)},
+        {"CheckCameraHorizon_mode", std::bind(&QRcodeLoc::CheckCameraHorizon_mode, this)},
+
+        {"8",                       std::bind(&QRcodeLoc::AssistedDriving_mode, this)},
+        {"AssistedDriving_mode",    std::bind(&QRcodeLoc::AssistedDriving_mode, this)},
+
+        {"9",                       std::bind(&QRcodeLoc::CodeDebug_mode, this)},
+        {"CodeDebug_mode",          std::bind(&QRcodeLoc::CodeDebug_mode, this)}
+    };
+
+    // 检查输入是否在 map 中
+    if (switch_map.find(param.operating_mode) != switch_map.end())
     {
-        logger->info("Mode 0:");
-        logger->info("程序进入异常模式！请检查配置情况，或联系开发人员。");
-    }
-    else if (1 == param.operating_mode) // 采集二维码位姿
-    {
-        logger->info("Mode 1:");
-        CollectQRCodePose_mode();
-    }
-    else if (2 == param.operating_mode) // 采集二维码编号
-    {
-        logger->info("Mode 2:");
-        CollectQRCodeIndex_mode();
-    }
-    else if (3 == param.operating_mode) // 正常模式v1，使用轮速计递推
-    {
-        logger->info("Mode 3:");
-        NormalRun_mode();
-    }
-    else if (4 == param.operating_mode) // 测试模式，只输出二维码得到的定位值，不使用轮速计递推
-    {
-        logger->info("Mode 4:");
-        TestRun_mode();
-    }
-    else if (5 == param.operating_mode) // 采集角度模式
-    {
-        logger->info("Mode 5:");
-        GetYaw_mode();
-    }
-    else if (6 == param.operating_mode) // 计算角度模式
-    {
-        logger->info("Mode 6:");
-        CalYawErr_mode();
-    }
-    else if (7 == param.operating_mode) // 检查相机安装是否水平
-    {
-        logger->info("Mode 7:");
-        CheckCameraHorizon_mode();
-    }
-    else if (8 == param.operating_mode) // 正常模式v3，使用轮速计递推
-    {
-        logger->info("Mode 8:");
-        AssistedDriving_mode();
-    }
-    else if (9 == param.operating_mode) // 正常模式v3，使用轮速计递推
-    {
-        logger->info("Mode 9:");
-        CodeDebug_mode();
+        switch_map[param.operating_mode](); // 调用对应的函数
     }
     else
     {
-        logger->info("Mode识别失败: " + std::to_string(param.operating_mode));
+        std::cout << "Mode识别失败: " + param.operating_mode << std::endl;
+        logger->info("Mode识别失败: " + param.operating_mode);
     }
 
     logger->info("mainloop() return");

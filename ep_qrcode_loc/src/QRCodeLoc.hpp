@@ -55,7 +55,7 @@ private:
 
 public:
     // 构造函数
-    QRcodeLoc(ParamServer& param);
+    QRcodeLoc(ParamServer& param, MV_SC2005AM* camera);
     ~QRcodeLoc();
 
     // 获取/xmover_basic_state的回调函数
@@ -117,6 +117,9 @@ public:
 
     // 模式:正常运行
     void NormalRun_mode();
+        
+    // 模式:正常运行v4
+    void NormalRun_mode_v4();
 
     // 模式:测试
     void TestRun_mode();

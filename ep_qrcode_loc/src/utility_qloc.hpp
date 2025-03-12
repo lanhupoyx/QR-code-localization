@@ -13,6 +13,8 @@
 #include <thread>
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <functional>
 
 #include "ros/ros.h"
 #include "ros/console.h"
@@ -99,21 +101,22 @@ geometry_msgs::Pose poseInverse(geometry_msgs::Pose source);
 // 扫码相机数据帧格式
 struct CameraFrame
 {
-    std::string hex;
-    std::string head;
-    uint32_t index;
-    double duration;
-    uint32_t code;
-    double error_x;
-    double error_y;
-    double error_yaw;
-    std::string sum;
-    ros::Time stamp;
-    std::string sender;
+    ros::Time stamp;    // 时间辍
+    std::string sender; // 相机IP
+    std::string hex;    // 数据帧内容（16进制）
+    std::string head;   // 帧头
+    std::string sum;    // 字节校验和
+    uint32_t index;     // 序号
+    double duration;    // 算法耗时
 
-    bool is_decode;
-    bool is_accurate_loc;
-    bool is_broad_loc;
+    uint32_t code;    // 二维码编号
+    double error_x;   // 中心坐标x
+    double error_y;   // 中心坐标y
+    double error_yaw; // 中心yaw
+
+    bool is_decode;       // 是否译码成功
+    bool is_accurate_loc; // 是否精准定位成功
+    bool is_broad_loc;    // 是否粗定位成功
 };
 
 // 二维码信息帧格式
@@ -158,7 +161,7 @@ public:
     std::string pathMapCamera;
     std::string msgTopic;
 
-    int operating_mode;
+    std::string operating_mode;
     bool show_original_msg;
     bool is_pub_tf;
     double low_speed_UL;
@@ -199,6 +202,8 @@ public:
     std::string siteTablePath;
 
     size_t logKeepDays;
+
+    bool is_mainloop_query_camera;
 
     ParamServer(ros::NodeHandle &nh);
 

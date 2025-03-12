@@ -53,7 +53,7 @@ QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
             continue;
         }
     }
-    if (1 == param.operating_mode)
+    if ("1" == param.operating_mode)
     {
         sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                          &QRcodeTable::tfCallback, this,
@@ -61,7 +61,7 @@ QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
         logger->info("sub: /ep_localization/odometry/lidar");
     }
 
-    if (5 == param.operating_mode)
+    if ("5" == param.operating_mode)
     {
         sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
                                                          &QRcodeTable::tfCallback, this,

@@ -7,13 +7,36 @@ MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
 
     // UDP端口监测初始化
     socket = new boost::asio::ip::udp::socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::atoi(param.port.c_str())));
+
+    // 创建发布者对象
+    pub_frame = param.nh.advertise<ep_qrcode_loc::LocCamera>("ep_qrcode_loc/cemera/frame",10);
+    sub_frame = param.nh.subscribe<ep_qrcode_loc::LocCamera>("ep_qrcode_loc/cemera/frame", 1,
+                                &MV_SC2005AM::LocCameraCallback, this, ros::TransportHints().tcpNoDelay());
+    is_subNewFrame = false;
 }
 
 MV_SC2005AM::~MV_SC2005AM() {}
 
 bool MV_SC2005AM::getframe(CameraFrame *frame)
 {
-    return getframe_v2(frame);
+    if (param.is_mainloop_query_camera)
+    {
+        return getframe_v2(frame);
+    }
+    else
+    {
+        std::lock_guard<std::mutex> locker(mtx);
+        if(is_subNewFrame)
+        {
+            is_subNewFrame = false;
+            *frame = subFrameData;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
 
 // 海康定位相机，固件版本：2.5.0
@@ -282,7 +305,8 @@ bool MV_SC2005AM::getframe_v2(CameraFrame *frame)
                        << " " << frame->error_x << "mm " << frame->error_y << "mm " << frame->error_yaw;
                 logger->info(stream.str());
             }
-
+            
+            publishFrame(*frame);
             return true;
         }
         // 接收到的数据异常
@@ -291,4 +315,74 @@ bool MV_SC2005AM::getframe_v2(CameraFrame *frame)
         logger->info(stream.str());
     }
     return false;
+}
+
+// 发布topic数据
+void MV_SC2005AM::publishFrame(CameraFrame frame)
+{
+    // 发布消息
+    ep_qrcode_loc::LocCamera pubData;
+    pubData.stamp = frame.stamp;                     // 时间辍
+    pubData.sender = frame.sender;                   // 相机IP
+    pubData.hex = frame.hex;                         // 数据帧内容（16进制）
+    pubData.head = frame.head;                       // 帧头
+    pubData.sum = frame.sum;                         // 字节校验和
+    pubData.index = frame.index;                     // 序号
+    pubData.duration = frame.duration;               // 算法耗时
+    pubData.code = frame.code;                       // 二维码编号
+    pubData.error_x = frame.error_x;                 // 中心坐标x
+    pubData.error_y = frame.error_y;                 // 中心坐标y
+    pubData.error_yaw = frame.error_yaw;             // 中心yaw
+    pubData.is_decode = frame.is_decode;             // 是否译码成功
+    pubData.is_accurate_loc = frame.is_accurate_loc; // 是否精准定位成功
+    pubData.is_broad_loc = frame.is_broad_loc;       // 是否粗定位成功
+    pub_frame.publish(pubData);
+}
+
+// 相机处理循环
+void MV_SC2005AM::cameraLoop()
+{
+    if(param.is_mainloop_query_camera)
+        return;
+    
+    double loop_rate = 200.0; // 控制主循环频率200Hz
+    ros::Rate loop_rate_ctrl(loop_rate);
+    while (ros::ok())
+    {
+        CameraFrame frame;
+        if (getframe_v2(&frame))
+        {
+            publishFrame(frame);
+        }
+
+        loop_rate_ctrl.sleep();
+        ros::spinOnce();
+    }
+    logger->info("cameraLoop() stop!");
+    return;
+}
+
+// 获取"/ep_qrcode_loc/cemera/frame"的回调函数
+void MV_SC2005AM::LocCameraCallback(const ep_qrcode_loc::LocCamera::ConstPtr &p_frame_msg)
+{
+    ep_qrcode_loc::LocCamera newFrame = *p_frame_msg;
+
+    std::lock_guard<std::mutex> locker(mtx);
+
+    is_subNewFrame = true;
+
+    subFrameData.stamp = newFrame.stamp;                 // 时间辍
+    subFrameData.sender = newFrame.sender;                   // 相机IP
+    subFrameData.hex = newFrame.hex;                         // 数据帧内容（16进制）
+    subFrameData.head = newFrame.head;                       // 帧头
+    subFrameData.sum = newFrame.sum;                         // 字节校验和
+    subFrameData.index = newFrame.index;                     // 序号
+    subFrameData.duration = newFrame.duration;               // 算法耗时
+    subFrameData.code = newFrame.code;                       // 二维码编号
+    subFrameData.error_x = newFrame.error_x;                 // 中心坐标x
+    subFrameData.error_y = newFrame.error_y;                 // 中心坐标y
+    subFrameData.error_yaw = newFrame.error_yaw;             // 中心yaw
+    subFrameData.is_decode = newFrame.is_decode;             // 是否译码成功
+    subFrameData.is_accurate_loc = newFrame.is_accurate_loc; // 是否精准定位成功
+    subFrameData.is_broad_loc = newFrame.is_broad_loc;       // 是否粗定位成功
 }
