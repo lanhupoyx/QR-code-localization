@@ -1,3 +1,5 @@
+#pragma once
+
 #include "utility_qloc.hpp"
 #include "wheel_odom.hpp"
 #include "camera.hpp"
@@ -17,7 +19,7 @@ struct err_val
 // 二维码定位
 class QRcodeLoc
 {
-private:
+public:
 
     // 互斥锁
     std::mutex mtx;
@@ -109,37 +111,40 @@ public:
 //-------------------------------------------各种运行模式----------------------------------------------//
 
 
-    // 模式:采集二维码位姿
-    void CollectQRCodePose_mode();
+    // // 模式:采集二维码位姿
+    // void CollectQRCodePose_mode();
 
-    // 模式:采集二维码编号
-    void CollectQRCodeIndex_mode();
+    // // 模式:采集二维码编号
+    // void CollectQRCodeIndex_mode();
 
-    // 模式:正常运行
-    void NormalRun_mode();
+    // // 模式:正常运行
+    // void NormalRun_mode();
         
-    // 模式:正常运行v4
-    void NormalRun_mode_v4();
+    // // 模式:正常运行v4
+    // void NormalRun_mode_v4();
 
-    // 模式:测试
-    void TestRun_mode();
+    // // 模式:测试
+    // void TestRun_mode();
 
-    // 模式:采集地码角度
-    void GetYaw_mode();
+    // // 模式:采集地码角度
+    // void GetYaw_mode();
 
-    // 模式:补偿地码角度
-    void CalYawErr_mode();
+    // // 模式:补偿地码角度
+    // void CalYawErr_mode();
 
-    // 模式:检查相机水平
-    void CheckCameraHorizon_mode();
+    // // 模式:检查相机水平
+    // void CheckCameraHorizon_mode();
 
-    // 模式:代码测试
-    void CodeDebug_mode();
+    // // 模式:代码测试
+    // void CodeDebug_mode();
 
-    // 模式:辅助驾驶
-    void AssistedDriving_mode();
+    // // 模式:辅助驾驶
+    // void AssistedDriving_mode();
 
-    // 主循环
-    void mainloop();
+    // // 主循环
+    // void mainloop();
+    
+    // 循环
+    virtual void loop()=0;
 };
 

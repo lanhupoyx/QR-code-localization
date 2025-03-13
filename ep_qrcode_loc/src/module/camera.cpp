@@ -320,6 +320,7 @@ bool MV_SC2005AM::getframe_v2(CameraFrame *frame)
 // 发布topic数据
 void MV_SC2005AM::publishFrame(CameraFrame frame)
 {
+    logger->info("MV_SC2005AM::publishFrame()");
     // 发布消息
     ep_qrcode_loc::LocCamera pubData;
     pubData.stamp = frame.stamp;                     // 时间辍
@@ -343,7 +344,10 @@ void MV_SC2005AM::publishFrame(CameraFrame frame)
 void MV_SC2005AM::cameraLoop()
 {
     if(param.is_mainloop_query_camera)
+    {
+        logger->info("cameraLoop() stop! param.is_mainloop_query_camera = 1");
         return;
+    }
     
     double loop_rate = 200.0; // 控制主循环频率200Hz
     ros::Rate loop_rate_ctrl(loop_rate);
@@ -365,6 +369,7 @@ void MV_SC2005AM::cameraLoop()
 // 获取"/ep_qrcode_loc/cemera/frame"的回调函数
 void MV_SC2005AM::LocCameraCallback(const ep_qrcode_loc::LocCamera::ConstPtr &p_frame_msg)
 {
+    logger->info("MV_SC2005AM::LocCameraCallback()");
     ep_qrcode_loc::LocCamera newFrame = *p_frame_msg;
 
     std::lock_guard<std::mutex> locker(mtx);

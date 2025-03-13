@@ -53,24 +53,19 @@ QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
             continue;
         }
     }
-    if ("1" == param.operating_mode)
-    {
-        sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
-                                                         &QRcodeTable::tfCallback, this,
-                                                         ros::TransportHints().tcpNoDelay());
-        logger->info("sub: /ep_localization/odometry/lidar");
-    }
-
-    if ("5" == param.operating_mode)
-    {
-        sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
-                                                         &QRcodeTable::tfCallback, this,
-                                                         ros::TransportHints().tcpNoDelay());
-        logger->info("sub: /ep_localization/odometry/lidar");
-    }
 }
 
 QRcodeTable::~QRcodeTable() {}
+
+
+void QRcodeTable::subPose()
+{
+    sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
+                                                     &QRcodeTable::tfCallback, this,
+                                                     ros::TransportHints().tcpNoDelay());
+    logger->info("sub: /ep_localization/odometry/lidar");
+}
+
 
 // 根据二维码编号查表，得到位姿信息
 bool QRcodeTable::find_add(CameraFrame frame, QRcodeInfo *info)

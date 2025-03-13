@@ -65,6 +65,8 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
   ${CMAKE_MODULE_PATH}
+  ${PROJECT_SOURCE_DIR}/src/mode
+  ${PROJECT_SOURCE_DIR}/src/module
   "/usr/include/x86_64-linux-gnu/"
   "/opt/libs-x86_64-Linux/eigen/eigen3"
   "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk/common"
@@ -74,24 +76,29 @@ include_directories(
   "/home/xun/work/ep-qrcode-loc/src/ep_qrcode_loc/lib/ep_vcs_sdk"
 )
 
-# link directories
-link_directories(
-	include
-  ${CMAKE_MODULE_PATH}
-)
 
 ###########
 ## Build ##
 ###########
 
 add_executable(${PROJECT_NAME}_node src/main.cpp 
-                                    src/QRCodeLoc.cpp
-                                    src/utility_qloc.cpp 
-                                    src/logger.cpp
-                                    src/camera.cpp
-                                    src/wheel_odom.cpp
-                                    src/qrcode_table_v2.cpp
-                                    src/qrcode_table.cpp)
+                                    src/module/QRCodeLoc.cpp
+                                    src/module/utility_qloc.cpp 
+                                    src/module/logger.cpp
+                                    src/module/camera.cpp
+                                    src/module/wheel_odom.cpp
+                                    src/module/qrcode_table_v2.cpp
+                                    src/module/qrcode_table.cpp
+                                    src/mode/Mode_AssistedDriving.cpp  
+                                    src/mode/Mode_CheckCameraHorizon.cpp  
+                                    src/mode/Mode_CollectQRCodePose.cpp
+                                    src/mode/Mode_ShiHua.cpp
+                                    src/mode/Mode_CalYawErr.cpp        
+                                    src/mode/Mode_CollectQRCodeIndex.cpp  
+                                    src/mode/Mode_GetYaw.cpp             
+                                    src/mode/Mode_North.cpp  
+                                    src/mode/Mode_TestRun.cpp
+                                    )
                                     
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} )
 

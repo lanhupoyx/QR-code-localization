@@ -21,6 +21,8 @@ public:
     // callback获取baselink位姿
     void tfCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
+    void subPose();
+
 private:
     // 计算二维码位姿
     QRcodeInfo calPose();
