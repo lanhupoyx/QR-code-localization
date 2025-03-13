@@ -10,7 +10,6 @@ err_val::err_val(double err, uint32_t num)
 // 构造函数
 QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),camera(camera)
 {
-    std::cout << param.low_speed_UL << std::endl;
     // 记录器
     logger = &Logger::getInstance();
     logger->info("QRcodeLoc() Start");

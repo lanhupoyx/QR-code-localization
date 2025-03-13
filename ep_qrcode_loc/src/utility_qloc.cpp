@@ -400,11 +400,12 @@ std::string ParamServer::loadSitetableParamPath()
 
     bool configValid = false;
 
+    ConfigInfo configInfo;
+
     if (false) //是否使用VCS管理地码信息
     {
         DefaultParamFilePath = "/opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.txt";
 
-        ConfigInfo configInfo;
         configInfo.setDataId("ep_qrcode_sitetable");
         configInfo.setGroupId("SLAM");
         configInfo.setType("text"); // yaml/toml/json/text
@@ -507,7 +508,7 @@ void ParamServer::importItem(YAML::Node &config, std::string FirstName, std::str
 // 保存log
 void ParamServer::saveLog(Logger *logger)
 {
-    logger->info(yamlData); // 原始文本
-    logger->info(logData);  // 读取记录
+    logger->info("\n" + yamlData); // 原始文本
+    logger->info("\n" + logData);  // 读取记录
 }
 

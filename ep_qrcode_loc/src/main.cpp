@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     QRcodeLoc QLoc(param, &Camera);                           // 实例化二维码定位对象
     std::thread mainLoopThread(&QRcodeLoc::mainloop, &QLoc); // 主循环线程
 
-    ROS_INFO("\033[1;32m----> Localization with QRcode Started.\033[0m"); // 输出提示
+    ROS_INFO("\033[1;32m----> Localization with QR-code Started.\033[0m"); // 输出提示
     ros::spin();                                                          // spin
 
     return 0;
