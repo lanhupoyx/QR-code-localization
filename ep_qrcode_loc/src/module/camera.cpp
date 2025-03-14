@@ -306,7 +306,6 @@ bool MV_SC2005AM::getframe_v2(CameraFrame *frame)
                 logger->info(stream.str());
             }
             
-            publishFrame(*frame);
             return true;
         }
         // 接收到的数据异常
