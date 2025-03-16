@@ -195,6 +195,8 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
             {
                 line_ss >> aux.index_ >> aux.x_err_ >> aux.y_err_ >> aux.yaw_err_;
                 aux.yaw_err_ *= param.err_ratio_offline;
+                aux.yaw_err_ += list_yaw_offset;
+                aux.yaw_err_ += param.ground_code_yaw_offset;
 
                 std::vector<QRcodeGround> qrcodes;
                 qrcodes.push_back(aux);
