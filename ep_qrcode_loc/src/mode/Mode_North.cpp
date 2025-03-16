@@ -15,7 +15,6 @@ void Mode_North::loop()
     QRcodeInfo code_info;     // 存放查询到的地码信息
     code_info.frame.code = 0; // 初始化地码编号
     double loop_rate = 200.0; // 控制主循环频率200Hz
-    uint32_t loop_num = 0;
     ros::Rate loop_rate_ctrl(loop_rate);
     while (ros::ok())
     {
@@ -41,64 +40,49 @@ void Mode_North::loop()
         }
 
         // 二、处理扫码解算结果
-        nav_msgs::Odometry base2map = qrcode_table->getCurLidarPose(); // 获取tf输出的baselink
-        logger->debug("base2map: " +
-                      base2map.header.frame_id + ", " +
-                      base2map.child_frame_id + ",  " +
-                      std::to_string(base2map.pose.pose.position.x) + ", " +
-                      std::to_string(base2map.pose.pose.position.y) + ", " +
-                      std::to_string(base2map.pose.pose.position.z) + ",  ");
         if (v_pose_new.size() > 0) // 本次循环解算出相机数据
         {
             logger->debug("v_pose_new.size() > 0");
-            if (qrcode_table->is_in_queue(base2map, -0.3)) // baselink在列范围内
+
+            // // 监测车身方向角度是否超过限制
+            // if (!is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
+            //     err_type = err_type | 0x01; // 角度超过限制
+
+            // // 监测是否顺序扫码
+            // if (!is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+            //     err_type = err_type | 0x02; // 未按顺序扫码
+
+            // // 监测是否在二维码处发生跳变
+            // if (is_output_available)
+            // {
+            //     if (is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
+            //         err_type = err_type | 0x04; // 发生跳变
+            // }
+
+            // // 卡尔曼滤波
+            // if (!qrcode_table->is_head(pic.code)) // 不是列首码
+            // {
+            //     geometry_msgs::Pose pose_observe = v_pose_new[0];
+            //     geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
+            //     v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
+            // }
+
+            // 打包生成消息
+            v_odom = packageMsg(v_pose_new, code_info);
+
+            // 扫码无异常后设置轮速里程计初值
+            if (0x00 == err_type)
             {
-                logger->debug("qrcode_table->is_in_queue(base2map, -0.3)");
-
-                // 监测车身方向角度是否超过限制
-                if (!is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
-                    err_type = err_type | 0x01; // 角度超过限制
-
-                // 监测是否顺序扫码
-                if (!is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
-                    err_type = err_type | 0x02; // 未按顺序扫码
-
-                // 监测是否在二维码处发生跳变
-                if (is_output_available)
-                {
-                    if (is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
-                        err_type = err_type | 0x04; // 发生跳变
-                }
-
-                // 卡尔曼滤波
-                if (!qrcode_table->is_head(pic.code)) // 不是列首码
-                {
-                    geometry_msgs::Pose pose_observe = v_pose_new[0];
-                    geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-                    v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
-                }
-
-                // 打包生成消息
-                v_odom = packageMsg(v_pose_new, code_info);
-
-                // 扫码无异常后设置轮速里程计初值
-                if (0x00 == err_type)
-                {
-                    wheel_odom->setEstimationInitialPose(v_odom[0]); // 设置递推初值
-                    v_odom[0].pose.covariance[6] = 1;                // 扫码正常，已根据二维码结果设置递推初值”
-                }
-                else
-                {
-                    v_odom[0].pose.covariance[6] = 2; // 扫码异常，未根据二维码结果设置递推初值”
-                }
-
-                publist.push_back(v_odom);  // 放入发送队列
-                is_output_available = true; // 入列并扫码后输出可用
+                wheel_odom->setEstimationInitialPose(v_odom[0]); // 设置递推初值
+                v_odom[0].pose.covariance[6] = 1;                // 扫码正常，已根据二维码结果设置递推初值”
             }
             else
             {
-                // 在列外道路上扫到地码
+                v_odom[0].pose.covariance[6] = 2; // 扫码异常，未根据二维码结果设置递推初值”
             }
+
+            publist.push_back(v_odom);  // 放入发送队列
+            is_output_available = true; // 入列并扫码后输出可用
         }
 
         // 三、轮速里程计递推
@@ -116,20 +100,12 @@ void Mode_North::loop()
                 publist.push_back(v_odom_wheel); // 发布递推后的位姿
                 logger->debug("wheel odom publist.push_back(v_odom_wheel)");
 
-                // 递推距离清零、判断递推是否过远
-                if (qrcode_table->is_in_queue(base2map, -0.5)) // 在列内
-                {
-                    if (!qrcode_table->is_in_queue(base2map, -0.4))
-                    {
-                        wheel_odom->reset_path_dis(); // 进入列首，递推距离清零
-                    }
-
-                    if (wheel_odom->is_path_dis_overflow()) // 递推过远
-                    {
-                        logger->debug("在列内递推过远");
-                        err_type = err_type | 0x08; // 在列内递推过远
-                    }
-                }
+                // // 递推距离清零、判断递推是否过远
+                // if (wheel_odom->is_path_dis_overflow()) // 递推过远
+                // {
+                //     logger->debug("在列内递推过远");
+                //     err_type = err_type | 0x08; // 在列内递推过远
+                // }
             }
         }
 
@@ -143,7 +119,7 @@ void Mode_North::loop()
 
             // 状态判断
             mtx.lock();
-            if (qrcode_table->is_in_queue(base2map, -0.4) && (!is_handle)) // 在列内
+            if (!is_handle) // 自动
             {
                 // 判断数据是否可用
 
@@ -171,7 +147,7 @@ void Mode_North::loop()
                 else
                     output[0].pose.covariance[1] = 0; // 故障急停：否
             }
-            else // 在列外
+            else // 手动
             {
                 is_output_available = false;       // 数据不可用
                 err_type = 0x00;                   // 清除故障急停状态
@@ -202,12 +178,6 @@ void Mode_North::loop()
             }
         }
 
-        // 五、循环控制延时函数
-        loop_num = loop_num + 1;
-        if (loop_num > 10000)
-        {
-            loop_num = 10000;
-        }
         loop_rate_ctrl.sleep();
         ros::spinOnce();
     }
