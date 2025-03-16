@@ -52,6 +52,13 @@ int main(int argc, char **argv)
         QLoc = new Mode_CheckCameraHorizon(param, &Camera);  
     else if ("Mode_AssistedDriving" == param.operating_mode)
         QLoc = new Mode_AssistedDriving(param, &Camera);  
+    else if ("Mode_North" == param.operating_mode)
+        QLoc = new Mode_North(param, &Camera);  
+    else
+    {
+        logger->info("not found Mode!");
+        return 0;
+    }
 
     std::thread mainLoopThread(&QRcodeLoc::loop, QLoc); // 主循环线程
 
