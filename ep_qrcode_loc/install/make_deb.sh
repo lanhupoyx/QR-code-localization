@@ -35,4 +35,11 @@ dpkg -b deb_package ./deb_output/$PackageName-$Version-$CurrentTime.deb
 
 
 echo "构造完成 --> "./deb_output/$PackageName-$Version-$CurrentTime.deb
+
+cd ..
+cd src/
+git add .
+git commit -m $Version
+cd ..
+
 exit 0
