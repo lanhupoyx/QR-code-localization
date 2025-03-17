@@ -34,6 +34,7 @@ add_service_files(
 add_message_files(
   FILES
   LocCamera.msg
+  CameraFrame_msg.msg
 )
 
 # 生成消息时依赖于 std_msgs
