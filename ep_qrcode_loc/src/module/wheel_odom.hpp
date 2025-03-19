@@ -6,7 +6,7 @@ class WheelSpeedOdometer
 private:
     std::mutex mtx;                                     // 互斥锁
     std::mutex init_mtx;                                // 初值互斥锁
-    Logger *logger;                                     // 计录器
+    epLogger *logger;                                     // 计录器
     bool state_;                                        // 轮速递推器状态
     bool map_o_init_;                                   // 刚上电时，使用地图原点初始化递推器
     geometry_msgs::TransformStamped trans_camera2base_; // 相机到base的变换

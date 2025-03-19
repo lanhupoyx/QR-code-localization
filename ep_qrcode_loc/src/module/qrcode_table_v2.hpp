@@ -1,21 +1,5 @@
 #pragma once
-
 #include "utility_qloc.hpp"
-
-// 贴在地上的二维码
-struct QRcodeGround
-{
-    uint32_t index_;           // 序号
-    geometry_msgs::Pose pose_; // 位姿
-
-    uint8_t type;
-
-    double x_err_;   // x方向补偿值，单位m
-    double y_err_;   // y方向补偿值，单位m
-    double yaw_err_; // yaw方向补偿值,单位角度
-
-    void turn(double d_yaw);
-};
 
 // 库位
 struct Site
@@ -83,7 +67,7 @@ private:
 
     std::mutex mtx;
 
-    Logger *logger;
+    epLogger *logger;
     std::stringstream stream;
 
     std::string cfg_path_;

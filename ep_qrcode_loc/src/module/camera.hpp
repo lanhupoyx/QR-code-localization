@@ -36,7 +36,7 @@ private:
     std::array<char, 1024> recv_buf;
     boost::system::error_code error;
     std::ofstream log_file;
-    Logger *logger;
+    epLogger *logger;
     std::mutex mtx; // 互斥锁
     std::stringstream stream;
     bool state;

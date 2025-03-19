@@ -15,6 +15,7 @@
 #include <chrono>
 #include <map>
 #include <functional>
+#include <cstddef>
 
 #include "ros/ros.h"
 #include "ros/console.h"
@@ -119,7 +120,7 @@ struct CameraFrame
     bool is_broad_loc;    // 是否粗定位成功
 };
 
-// 二维码信息帧格式
+// 二维码信息帧格式，查询到的地码信息
 struct QRcodeInfo
 {
     uint32_t code;
@@ -142,7 +143,25 @@ struct QRcodeInfo
     ~QRcodeInfo() {}
 };
 
-class Logger;
+// 贴在地上的二维码信息
+struct QRcodeGround
+{
+public:
+    uint32_t index_;           // 序号
+    geometry_msgs::Pose pose_; // 位姿
+
+    uint8_t type; // 列内 0， 列首 1
+    bool is_head;
+
+    double x_err_;   // x方向补偿值，单位m
+    double y_err_;   // y方向补偿值，单位m
+    double yaw_err_; // yaw方向补偿值,单位角度
+
+    void turn(double d_yaw);
+};
+
+// logger类声明
+class epLogger;
 
 // 参数服务器
 
@@ -216,5 +235,5 @@ public:
     void importItem(YAML::Node &config, std::string FirstName, std::string LastName, T &TargetParam, T DefaultVal);
 
     // 保存log
-    void saveLog(Logger *logger);
+    void saveLog(epLogger *logger);
 };

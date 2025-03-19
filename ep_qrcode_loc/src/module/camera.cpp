@@ -2,7 +2,7 @@
 
 MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
 {
-    logger = &Logger::getInstance();
+    logger = &epLogger::getInstance();
     logger->info("MV_SC2005AM");
 
     // UDP端口监测初始化

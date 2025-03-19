@@ -11,7 +11,7 @@ err_val::err_val(double err, uint32_t num)
 QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),camera(camera)
 {
     // 记录器
-    logger = &Logger::getInstance();
+    logger = &epLogger::getInstance();
     logger->info("QRcodeLoc() Start");
     logger->roll_delete_old_folders(param.logKeepDays);
 
@@ -96,10 +96,6 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
                  std::to_string(trans_camera2base.transform.rotation.y) + ", " +
                  std::to_string(trans_camera2base.transform.rotation.z) + ", " +
                  std::to_string(trans_camera2base.transform.rotation.w));
-
-    // 实例化功能对象
-    qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
-    wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
     logger->info("QRcodeLoc() End");
 }

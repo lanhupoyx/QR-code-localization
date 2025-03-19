@@ -72,6 +72,8 @@ public:
 // 北区二维码定位改造
 class Mode_North : public QRcodeLoc
 {
+private:
+    QRcodeTableV3* qrcode_table_v3;
 public:
     // 构造函数
     Mode_North(ParamServer &param, MV_SC2005AM *camera);

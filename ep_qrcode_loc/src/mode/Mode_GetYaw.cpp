@@ -3,6 +3,9 @@
 // 构造函数
 Mode_GetYaw::Mode_GetYaw(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
+    // 实例化功能对象
+    qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
+    wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 }
 
 Mode_GetYaw::~Mode_GetYaw() {}
@@ -11,6 +14,9 @@ Mode_GetYaw::~Mode_GetYaw() {}
 void Mode_GetYaw::loop()
 {
     logger->info("Mode_GetYaw::loop()");
+    
+    param.read_yaw_err = false;
+    logger->info("param.read_yaw_err = false;");
 
     QRcodeInfo code_info;     // 查询二维码坐标
     ros::Rate loop_rate(200); // 主循环 100Hz

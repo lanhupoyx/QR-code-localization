@@ -1,18 +1,18 @@
 #include "logger.hpp"
 
-std::ofstream Logger::logFile_;
-std::mutex Logger::mutex;
-std::ofstream Logger::poseFile_;
-std::mutex Logger::mutex_pose;
-std::ofstream Logger::otherFile_;
-std::mutex Logger::mutex_other;
-std::ofstream Logger::yawerrFile_;
-std::mutex Logger::mutex_yawerr;
-std::ofstream Logger::jumperrFile_;
-std::mutex Logger::mutex_jumperr;
+std::ofstream epLogger::logFile_;
+std::mutex epLogger::mutex;
+std::ofstream epLogger::poseFile_;
+std::mutex epLogger::mutex_pose;
+std::ofstream epLogger::otherFile_;
+std::mutex epLogger::mutex_other;
+std::ofstream epLogger::yawerrFile_;
+std::mutex epLogger::mutex_yawerr;
+std::ofstream epLogger::jumperrFile_;
+std::mutex epLogger::mutex_jumperr;
 
 // 用于初始化
-void Logger::init(ParamServer *param)
+void epLogger::init(ParamServer *param)
 {
     // 初始化参数
     param_ = param;
@@ -93,44 +93,44 @@ void Logger::init(ParamServer *param)
 }
 
 // 获取单例对象
-Logger& Logger::getInstance()
+epLogger& epLogger::getInstance()
 {
-    static Logger instance; // 懒汉式，在第一次调用时实例化
+    static epLogger instance; // 懒汉式，在第一次调用时实例化
     return instance;
 }
 
 // 记录日志的方法
-void Logger::log(const std::string &message)
+void epLogger::log(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex); // 线程安全
     logFile_ << message << std::endl;
 }
 
-void Logger::fatal(const std::string &message)
+void epLogger::fatal(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex); // 线程安全
     logFile_ << format_time(ros::Time::now()) << "[FATAL]" << message << std::endl;
 }
 
-void Logger::error(const std::string &message)
+void epLogger::error(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex); // 线程安全
     logFile_ << format_time(ros::Time::now()) << " [ERROR] " << message << std::endl;
 }
 
-void Logger::warn(const std::string &message)
+void epLogger::warn(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex); // 线程安全
     logFile_ << format_time(ros::Time::now()) << " [WARN] " << message << std::endl;
 }
 
-void Logger::info(const std::string &message)
+void epLogger::info(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex); // 线程安全
     logFile_ << format_time(ros::Time::now()) << " [INFO] " << message << std::endl;
 }
 
-void Logger::debug_endl()
+void epLogger::debug_endl()
 {
     if ("DEBUG" == loglevel_)
     {
@@ -139,7 +139,7 @@ void Logger::debug_endl()
     }
 }
 
-void Logger::debug(const std::string &message)
+void epLogger::debug(const std::string &message)
 {
     if ("DEBUG" == loglevel_)
     {
@@ -148,37 +148,37 @@ void Logger::debug(const std::string &message)
     }
 }
 
-void Logger::pose(const std::string &message)
+void epLogger::pose(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex_pose); // 线程安全
     poseFile_ << del_n_end(format_time(ros::Time::now()), 3) << "," << message << std::endl;
 }
 
-void Logger::other(const std::string &message)
+void epLogger::other(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex_other); // 线程安全
     otherFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
 }
 
-void Logger::yawerr(const std::string &message)
+void epLogger::yawerr(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex_yawerr); // 线程安全
     yawerrFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
 }
 
-void Logger::close_yawerr()
+void epLogger::close_yawerr()
 {
     yawerrFile_.close();
 }
 
-void Logger::jumperr(const std::string &message)
+void epLogger::jumperr(const std::string &message)
 {
     std::lock_guard<std::mutex> lock(mutex_jumperr); // 线程安全
     jumperrFile_ << format_time(ros::Time::now()) << " " << message << std::endl;
 }
 
 // 滚动删除历史文件夹
-void Logger::roll_delete_old_folders(size_t keep_count)
+void epLogger::roll_delete_old_folders(size_t keep_count)
 {
     fs::path dir_path(log_dir_);
 

@@ -7,7 +7,7 @@ class ParamServer;
 
 namespace fs = boost::filesystem;
 // 记录服务器
-class Logger
+class epLogger
 {
 private:
     static std::ofstream logFile_;
@@ -30,18 +30,18 @@ private:
     ParamServer *param_;
 
     // 私有构造函数确保不能直接创建Logger实例
-    Logger() {}
+    epLogger() {}
 
     // 防止拷贝构造和赋值
-    Logger(const Logger &) = delete;
-    Logger &operator=(const Logger &) = delete;
+    epLogger(const epLogger &) = delete;
+    epLogger &operator=(const epLogger &) = delete;
 
 public:
     // 用于初始化
     void init(ParamServer *param);
 
     // 获取单例对象
-    static Logger &getInstance();
+    static epLogger &getInstance();
 
     // 记录日志的方法
     void log(const std::string &message);

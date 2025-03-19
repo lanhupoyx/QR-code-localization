@@ -5,6 +5,7 @@
 #include "camera.hpp"
 #include "qrcode_table.hpp"
 #include "qrcode_table_v2.hpp"
+#include "qrcode_table_v3.hpp"
 #include "BasicState.h"
 
 // 偏差值信息
@@ -25,7 +26,7 @@ public:
     std::mutex mtx;
 
     // 记录器
-    Logger *logger;
+    epLogger *logger;
 
     // ros发布器、接收器
     ros::Publisher pub_odom_map_base;

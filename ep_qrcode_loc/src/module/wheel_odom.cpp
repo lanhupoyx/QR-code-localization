@@ -2,7 +2,7 @@
 
 WheelSpeedOdometer::WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, ParamServer &param) : param(param)
 {
-    logger = &Logger::getInstance();
+    logger = &epLogger::getInstance();
     logger->info("WheelSpeedOdometer");
     trans_camera2base_ = trans_camera2base;
     sub_realvel = param.nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,

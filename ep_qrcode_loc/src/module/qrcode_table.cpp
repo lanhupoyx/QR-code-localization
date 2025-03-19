@@ -3,7 +3,7 @@
 QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
 {
     path = dir; // 文件位置
-    logger = &Logger::getInstance();
+    logger = &epLogger::getInstance();
     logger->info("QRcodeTable Start");
     ifs.open(dir, std::ios::in);
     if (!ifs.is_open())
@@ -57,7 +57,7 @@ QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
 
 QRcodeTable::~QRcodeTable() {}
 
-
+// 开始订阅lidar输出位姿
 void QRcodeTable::subPose()
 {
     sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
@@ -65,7 +65,6 @@ void QRcodeTable::subPose()
                                                      ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
 }
-
 
 // 根据二维码编号查表，得到位姿信息
 bool QRcodeTable::find_add(CameraFrame frame, QRcodeInfo *info)

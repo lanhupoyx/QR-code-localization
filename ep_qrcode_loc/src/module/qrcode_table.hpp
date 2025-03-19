@@ -42,7 +42,7 @@ private:
     std::mutex mtx;
     std::list<nav_msgs::Odometry> tf_buffer;
 
-    Logger *logger;
+    epLogger *logger;
     std::stringstream stream;
     ParamServer& param;
 };

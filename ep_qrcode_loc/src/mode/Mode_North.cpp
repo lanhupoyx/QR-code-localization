@@ -3,6 +3,9 @@
 // 构造函数
 Mode_North::Mode_North(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
+    logger->info("Mode_North::Mode_North()");
+    qrcode_table_v3 = new QRcodeTableV3(param);
+    wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 }
 
 Mode_North::~Mode_North() {}
@@ -32,7 +35,7 @@ void Mode_North::loop()
             logger->debug("getframe");
             if (do_not_jump_this_frame(pic)) // 检查是否需要跳过该帧数据
             {
-                if (qrcode_table->onlyfind(pic, &code_info)) // 查询地码信息
+                if (qrcode_table_v3->onlyfind(pic, &code_info)) // 查询地码信息
                 {
                     v_pose_new = get_pose(code_info); // 计算base_link在qrmap坐标和map坐标的坐标
                 }
@@ -59,13 +62,13 @@ void Mode_North::loop()
             //         err_type = err_type | 0x04; // 发生跳变
             // }
 
-            // // 卡尔曼滤波
-            // if (!qrcode_table->is_head(pic.code)) // 不是列首码
-            // {
-            //     geometry_msgs::Pose pose_observe = v_pose_new[0];
-            //     geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
-            //     v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
-            // }
+            // 卡尔曼滤波
+            if (!qrcode_table_v3->is_head(pic.code)) // 不是列首码
+            {
+                geometry_msgs::Pose pose_observe = v_pose_new[0];
+                geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
+                v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
+            }
 
             // 打包生成消息
             v_odom = packageMsg(v_pose_new, code_info);

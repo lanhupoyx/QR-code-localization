@@ -3,6 +3,9 @@
 // 构造函数
 Mode_CheckCameraHorizon::Mode_CheckCameraHorizon(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
+    // 实例化功能对象
+    qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
+    wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 }
 
 Mode_CheckCameraHorizon::~Mode_CheckCameraHorizon() {}

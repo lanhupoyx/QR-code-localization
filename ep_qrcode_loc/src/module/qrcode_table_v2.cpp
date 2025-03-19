@@ -1,15 +1,5 @@
 #include "qrcode_table_v2.hpp"
 
-// 贴在地上的二维码
-void QRcodeGround::turn(double d_yaw)
-{
-    double yaw = getYawRad(pose_.orientation);
-    // yaw += d_yaw;
-    yaw += d_yaw * M_PI / 180.0;
-    tf::Quaternion q;
-    q.setRPY(0.0, 0.0, yaw);
-    tf::quaternionTFToMsg(q, pose_.orientation);
-}
 
 Site::Site(uint32_t list_index,                               // 所在列编号
            uint32_t index,                                    // 库位编号
@@ -126,7 +116,7 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
     cfg_path_ = cfg_path;
 
     // 记录器
-    logger = &Logger::getInstance();
+    logger = &epLogger::getInstance();
     logger->info("QRcodeTableV2() Start");
 
     // 打开库位信息文件

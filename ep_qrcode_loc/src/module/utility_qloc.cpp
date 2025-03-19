@@ -1,7 +1,6 @@
 #include "utility_qloc.hpp"
 
 using namespace vcs;
-
 namespace fs = boost::filesystem;
 
 // 数据帧转换到16进制
@@ -156,7 +155,7 @@ double getYaw(geometry_msgs::Pose pose)
                      pose.orientation.w);      // 初始化四元数
     double roll = 0.0, pitch = 0.0, yaw = 0.0; // 初始化欧拉角
     tf::Matrix3x3(q).getRPY(roll, pitch, yaw); // 四元数转欧拉角
-    return yaw * 180 / M_PI;
+    return yaw * 180.0 / M_PI;
 }
 
 // get yaw frome pose
@@ -165,7 +164,7 @@ double getYaw(geometry_msgs::Quaternion q)
     tf::Quaternion quaternion(q.x, q.y, q.z, q.w);      // 初始化四元数
     double roll = 0.0, pitch = 0.0, yaw = 0.0;          // 初始化欧拉角
     tf::Matrix3x3(quaternion).getRPY(roll, pitch, yaw); // 四元数转欧拉角
-    return yaw * 180 / M_PI;
+    return yaw * 180.0 / M_PI;
 }
 
 // get yaw frome TransformStamped
@@ -177,7 +176,7 @@ double getYaw(geometry_msgs::TransformStamped trans)
                      trans.transform.rotation.w); // 初始化四元数
     double roll = 0.0, pitch = 0.0, yaw = 0.0;    // 初始化欧拉角
     tf::Matrix3x3(q).getRPY(roll, pitch, yaw);    // 四元数转欧拉角
-    return yaw * 180 / M_PI;
+    return yaw * 180.0 / M_PI;
 }
 
 // get yaw(rad) frome pose
@@ -218,6 +217,7 @@ geometry_msgs::Pose poseInverse(geometry_msgs::Pose source)
     return result;
 }
 
+// 构造函数
 QRcodeInfo::QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_, bool is_head_)
 {
     code = code_;
@@ -228,8 +228,18 @@ QRcodeInfo::QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_, bool i
     type = 0;
 }
 
-// 参数服务器v2
+// 转动角度
+void QRcodeGround::turn(double d_yaw)
+{
+    double yaw = getYawRad(pose_.orientation);
+    // yaw += d_yaw;
+    yaw += d_yaw * M_PI / 180.0;
+    tf::Quaternion q;
+    q.setRPY(0.0, 0.0, yaw);
+    tf::quaternionTFToMsg(q, pose_.orientation);
+}
 
+// 参数服务器v2
 ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
 {
     //获取vcs参数文件，或者默认参数文件路径
@@ -270,15 +280,12 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
         importItem<std::string>(config, "ep_qrcode_loc", "pathMapBase", pathMapBase, "ep_qrcode_loc/path/base");
         importItem<std::string>(config, "ep_qrcode_loc", "pathMapCamera", pathMapCamera, "ep_qrcode_loc/path/locCamera");
         importItem<std::string>(config, "ep_qrcode_loc", "msgTopic", msgTopic, "ep_qrcode_loc/msg");
-
         importItem<bool>(config, "ep_qrcode_loc", "show_original_msg", show_original_msg, false);
         importItem<bool>(config, "ep_qrcode_loc", "is_pub_tf", is_pub_tf, false);
         importItem<double>(config, "ep_qrcode_loc", "yaw_jump_UL", yaw_jump_UL, 2.0);
         importItem<double>(config, "ep_qrcode_loc", "x_jump_UL", x_jump_UL, 0.05);
         importItem<double>(config, "ep_qrcode_loc", "y_jump_UL", y_jump_UL, 0.05);
         importItem<bool>(config, "ep_qrcode_loc", "read_yaw_err", read_yaw_err, false);
-        if ("5" == operating_mode)
-            read_yaw_err = false;
         importItem<double>(config, "ep_qrcode_loc", "err_ratio_offline", err_ratio_offline, 1.0);
         importItem<double>(config, "ep_qrcode_loc", "rec_p1", rec_p1, 0.0);
         importItem<double>(config, "ep_qrcode_loc", "avliable_yaw", avliable_yaw, 0.0);
@@ -310,6 +317,7 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
     }
 }
 
+// 加载主参数
 std::string ParamServer::loadMainParamPath()
 {
     std::string DefaultParamFilePath = "/opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/ep-qrcode-loc.yaml";
@@ -394,6 +402,7 @@ std::string ParamServer::loadMainParamPath()
     }
 }
 
+// 加载库位参数
 std::string ParamServer::loadSitetableParamPath()
 {
     std::string DefaultParamFilePath = "/var/xmover/params/ep-qrcode-loc//SiteTable.txt";
@@ -506,7 +515,7 @@ void ParamServer::importItem(YAML::Node &config, std::string FirstName, std::str
 }
 
 // 保存log
-void ParamServer::saveLog(Logger *logger)
+void ParamServer::saveLog(epLogger *logger)
 {
     logger->info("\n" + yamlData); // 原始文本
     logger->info("\n" + logData);  // 读取记录
