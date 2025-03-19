@@ -16,6 +16,7 @@
 #include <map>
 #include <functional>
 #include <cstddef>
+#include <math.h>
 
 #include "ros/ros.h"
 #include "ros/console.h"
@@ -95,6 +96,20 @@ double getYawRad(geometry_msgs::Pose pose);
 
 // get yaw(rad) frome pose
 double getYawRad(geometry_msgs::Quaternion q);
+
+/// @brief 得到pose，yaw单位deg
+/// @param x 
+/// @param y 
+/// @param yaw 
+/// @return pose
+geometry_msgs::Pose toPoseDeg(double x, double y, double yawDeg);
+
+/// @brief 得到pose，yaw单位rad
+/// @param x 
+/// @param y 
+/// @param yaw 
+/// @return pose
+geometry_msgs::Pose toPoseRad(double x, double y, double yawRad);
 
 // get yaw frome pose
 geometry_msgs::Pose poseInverse(geometry_msgs::Pose source);
@@ -223,6 +238,9 @@ public:
     size_t logKeepDays;
 
     bool is_mainloop_query_camera;
+
+    geometry_msgs::TransformStamped trans_base2camera;
+    geometry_msgs::TransformStamped trans_camera2base;
 
     ParamServer(ros::NodeHandle &nh);
 

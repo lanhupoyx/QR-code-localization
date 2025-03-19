@@ -42,6 +42,7 @@ public:
     geometry_msgs::TransformStamped trans_base2camera;
     geometry_msgs::TransformStamped trans_camera2base;
     geometry_msgs::TransformStamped trans_base2map;
+    geometry_msgs::TransformStamped trans_camera2map;
     tf::TransformBroadcaster br;
 
     // 功能对象
@@ -58,8 +59,10 @@ public:
 
 public:
     // 构造函数
-    QRcodeLoc(ParamServer& param, MV_SC2005AM* camera);
+    QRcodeLoc(ParamServer &param, MV_SC2005AM *camera);
     ~QRcodeLoc();
+
+    void getTrans_BaseToCamera();
 
     // 获取/xmover_basic_state的回调函数
     void BasicStateCallback(const xmover_msgs::BasicState::ConstPtr &p_base_state_msg);

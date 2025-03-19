@@ -200,6 +200,38 @@ double getYawRad(geometry_msgs::Quaternion q)
     return yaw;
 }
 
+/// @brief 得到pose，yaw单位deg
+/// @param x 
+/// @param y 
+/// @param yaw 
+/// @return pose
+geometry_msgs::Pose toPoseDeg(double x, double y, double yawDeg)
+{
+    geometry_msgs::Pose pose;
+    pose.position.x = x;
+    pose.position.y = y;
+    tf::Quaternion q;
+    q.setRPY(0.0, 0.0, yawDeg * M_PI / 180.0);
+    tf::quaternionTFToMsg(q, pose.orientation);
+    return pose;
+}
+
+/// @brief 得到pose，yaw单位rad
+/// @param x 
+/// @param y 
+/// @param yaw 
+/// @return pose
+geometry_msgs::Pose toPoseRad(double x, double y, double yawRad)
+{
+    geometry_msgs::Pose pose;
+    pose.position.x = x;
+    pose.position.y = y;
+    tf::Quaternion q;
+    q.setRPY(0.0, 0.0, yawRad);
+    tf::quaternionTFToMsg(q, pose.orientation);
+    return pose;
+}
+
 // get yaw frome pose
 geometry_msgs::Pose poseInverse(geometry_msgs::Pose source)
 {

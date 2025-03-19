@@ -12,6 +12,7 @@ int main(int argc, char **argv)
     logger = &epLogger::getInstance();
     logger->init(&param);
     param.saveLog(logger);
+    logger->roll_delete_old_folders(param.logKeepDays);//滚动删除历史文件夹
 
     MV_SC2005AM Camera(param);                                       // 相机对象
     std::thread cameraLoopThread(&MV_SC2005AM::cameraLoop, &Camera); // 相机循环线程

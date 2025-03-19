@@ -1,4 +1,5 @@
 #include "qrcode_table_v3.hpp"
+#include <math.h>
 
 QRcodeColumn::QRcodeColumn(uint32_t index_, double x_, double y_, double yaw_, double space_, double yawOffset_)
 {
@@ -8,13 +9,7 @@ QRcodeColumn::QRcodeColumn(uint32_t index_, double x_, double y_, double yaw_, d
     pose_x = x_;
     pose_y = y_;
     pose_yaw = yaw_;
-
-    // 列首地码pose
-    first_pose.position.x = x_;
-    first_pose.position.y = y_;
-    tf::Quaternion q;
-    q.setRPY(0.0, 0.0, yaw_);
-    tf::quaternionTFToMsg(q, first_pose.orientation);
+    first_pose = toPoseRad(x_, y_, yaw_);
 }
 
 QRcodeColumn::~QRcodeColumn() {}
@@ -60,11 +55,9 @@ QRcodeTableV3::QRcodeTableV3(ParamServer &param) : param(param)
     loadCodeTable();
 
     sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
-                                                     &QRcodeTableV3::tfCallback, this,
+                                                     &QRcodeTableV3::lidarPoseCallback, this,
                                                      ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
-
-    //test();
 
     logger->info("QRcodeTableV3() End");
 }
@@ -153,14 +146,14 @@ bool QRcodeTableV3::loadCodeTable()
 
     for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
     {
-        logger->info(   std::to_string((*it).second.code) + ", " + 
-                        std::to_string((*it).second.x) + ", " + 
-                        std::to_string((*it).second.y) + ", " + 
-                        std::to_string((*it).second.yaw));
+        logger->info(std::to_string((*it).second.code) + ", " +
+                     std::to_string((*it).second.x) + ", " +
+                     std::to_string((*it).second.y) + ", " +
+                     std::to_string((*it).second.yaw));
     }
+    return true;
 }
 
-// 根据二维码编号查表，得到位姿信息
 bool QRcodeTableV3::onlyfind(CameraFrame frame, QRcodeInfo *info)
 {
     std::lock_guard<std::mutex> locker(mtx);
@@ -178,7 +171,6 @@ bool QRcodeTableV3::onlyfind(CameraFrame frame, QRcodeInfo *info)
     return false;
 }
 
-// 根据二维码编号查表，得到位姿信息
 bool QRcodeTableV3::onlyfind(CameraFrame frame)
 {
     std::lock_guard<std::mutex> locker(mtx);
@@ -194,8 +186,7 @@ bool QRcodeTableV3::onlyfind(CameraFrame frame)
     }
 }
 
-// callback获取baselink位姿
-void QRcodeTableV3::tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
+void QRcodeTableV3::lidarPoseCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
     std::lock_guard<std::mutex> locker(mtx);
     const nav_msgs::Odometry transform = *msg; //->transforms[i];
@@ -205,26 +196,30 @@ void QRcodeTableV3::tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
     {
         tf_buffer.pop_front();
     }
-    logger->debug("QRcodeTableV3 tfCallback()");
+    logger->debug("QRcodeTableV3 lidarPoseCallback()");
 }
 
-// 最新基于lidar的baselink位姿
-nav_msgs::Odometry QRcodeTableV3::getCurLidarPose()
+geometry_msgs::Pose QRcodeTableV3::getCameraPose()
 {
     std::lock_guard<std::mutex> locker(mtx);
     if (tf_buffer.size() > 0)
     {
-        return tf_buffer.back();
+        nav_msgs::Odometry base2map = tf_buffer.back();
+        geometry_msgs::Pose pose_camera2base = t2p(param.trans_camera2base);
+        geometry_msgs::Pose pose_camera2map = transformPoint(pose_camera2base,
+                                                             base2map.pose.pose.position.x,
+                                                             base2map.pose.pose.position.y,
+                                                             getYawRad(base2map.pose.pose.orientation));
+        return pose_camera2map;
     }
     else
     {
         logger->info("getCurLidarPose(): zero");
-        nav_msgs::Odometry zero;
+        geometry_msgs::Pose zero;
         return zero;
     }
 }
 
-// 获取所有列首二维码编号
 std::vector<uint32_t> QRcodeTableV3::get_all_head()
 {
     static std::vector<uint32_t> v_out;
@@ -233,7 +228,7 @@ std::vector<uint32_t> QRcodeTableV3::get_all_head()
     {
         for (std::map<uint32_t, QRcodeInfo>::iterator it = map.begin(); it != map.end(); it++)
         {
-            if((*it).second.is_head)
+            if ((*it).second.is_head)
             {
                 v_out.push_back((*it).second.code);
             }
@@ -241,10 +236,8 @@ std::vector<uint32_t> QRcodeTableV3::get_all_head()
     }
 
     return v_out;
-
 }
 
-// 检查是否为列首地码
 bool QRcodeTableV3::is_head(uint32_t code_new)
 {
     std::vector<uint32_t> code_could_be = get_all_head();
@@ -260,7 +253,6 @@ bool QRcodeTableV3::is_head(uint32_t code_new)
     return false;
 }
 
-// 获取前后二维码
 std::vector<uint32_t> QRcodeTableV3::get_neighbor(uint32_t base_code)
 {
     // 创建二维码矩阵
@@ -312,13 +304,12 @@ std::vector<uint32_t> QRcodeTableV3::get_neighbor(uint32_t base_code)
     return v_out;
 }
 
-// 是否在列内
-bool QRcodeTableV3::isAGVInQueue(nav_msgs::Odometry camera2map, double head_offset)
+bool QRcodeTableV3::isAGVInQueue(double head_offset)
 {
     // 遍历每列
     for (std::vector<QRcodeColumn>::iterator column_it = columns.begin(); column_it != columns.end(); column_it++)
     {
-        if (isPointInColumn(camera2map.pose.pose, *column_it, head_offset, 0.6))
+        if (isPointInColumn(getCameraPose(), *column_it, head_offset, 0.6))
         {
             return true;
         }
@@ -326,8 +317,7 @@ bool QRcodeTableV3::isAGVInQueue(nav_msgs::Odometry camera2map, double head_offs
     return false;
 }
 
-// 判断点是否在矩形内
-bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcodeColumn& column, double offset_x, double range_y)
+bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcodeColumn &column, double offset_x, double range_y)
 {
     // 局部坐标系在map中的原点和方向，以列尾地码为原点，列方向为x轴方向
     double local_ox = column.qrcodes.back().pose_.position.x;
@@ -341,12 +331,12 @@ bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcod
 
     // 列首约束
     double cameraToFrontLine = point_local.position.x - (head_local.position.x + offset_x);
-    // if (cameraToFrontLine > 0)
-    //     return false;
+    if (cameraToFrontLine > 0)
+        return false;
     // 列尾约束
     double cameraToBackLine = point_local.position.x - (-0.7);
-    // if (cameraToBackLine < 0)
-    //     return false;
+    if (cameraToBackLine < 0)
+        return false;
     // 横向约束
     if (abs(point_local.position.y) > range_y)
         return false;
@@ -354,7 +344,6 @@ bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcod
     return true;
 }
 
-// 将点从坐标系A转换到坐标系B
 geometry_msgs::Pose QRcodeTableV3::transformPoint(const geometry_msgs::Pose pointA, double T_x, double T_y, double theta)
 {
     // 平移
@@ -362,8 +351,8 @@ geometry_msgs::Pose QRcodeTableV3::transformPoint(const geometry_msgs::Pose poin
     double y_B_prime = pointA.position.y - T_y;
 
     // 旋转
-    double cos_theta = cos(-1*theta);
-    double sin_theta = sin(-1*theta);
+    double cos_theta = cos(-1 * theta);
+    double sin_theta = sin(-1 * theta);
 
     geometry_msgs::Pose pointB;
     pointB.position.x = x_B_prime * cos_theta - y_B_prime * sin_theta;
@@ -372,21 +361,79 @@ geometry_msgs::Pose QRcodeTableV3::transformPoint(const geometry_msgs::Pose poin
     return pointB;
 }
 
-// 测试程序
 void QRcodeTableV3::test()
 {
     logger->info("QRcodeTableV3::test()");
 
-    // geometry_msgs::Pose pointA;
-    // pointA.position.x = 1;
-    // pointA.position.y = 1;
-    // geometry_msgs::Pose pointB = transformPoint(pointA, 0.5, 0.5, 45 * M_PI /180.0 );
-
-    //get_neighbor(100);
-    nav_msgs::Odometry camera2map;
-    camera2map.pose.pose.position.x = 2.0;
-    camera2map.pose.pose.position.y = 1.0;
-    isAGVInQueue(camera2map,-1.0);
-
     logger->info("QRcodeTableV3::test() end");
+}
+
+bool QRcodeTableV3::is_code_in_order(uint32_t code_new, double vel_x, bool reset)
+{
+    static uint32_t last_code = 0;
+
+    if (!param.check_sequence)
+    {
+        return true;
+    }
+
+    if (reset)
+    {
+        last_code = 0;
+        return true;
+    }
+    else if (last_code == code_new)
+    {
+        logger->debug("is_code_in_order: same code, return true");
+        return true;
+    }
+    else if (0 == last_code) // 首次扫码
+    {
+        if (is_head(code_new))
+        {
+            last_code = code_new;
+            logger->debug("is_code_in_order: is head, return true");
+            return true;
+        }
+        else
+        {
+            logger->info("is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
+            last_code = code_new;
+            // return false;//必须扫到列首地码
+            return true; // 不需要扫到列首地码
+        }
+    }
+    else
+    {
+        std::vector<uint32_t> nbr = get_neighbor(last_code);
+        if ((vel_x > 0) && (code_new == nbr[0]))
+        {
+            if (is_head(code_new))
+            {
+                last_code = 0;
+                logger->debug("is_code_in_order: forward out, return true");
+            }
+            else
+            {
+                last_code = code_new;
+                logger->debug("is_code_in_order: forward, return true");
+            }
+            return true;
+        }
+        else if ((vel_x < 0) && (code_new == nbr[1]))
+        {
+            last_code = code_new;
+            logger->debug("is_code_in_order: retreat, return true");
+            return true;
+        }
+        else
+        {
+            last_code = code_new;
+            logger->info("is_code_in_order: other, return false  code_new=" + std::to_string(code_new) +
+                         " vel_x=" + std::to_string(vel_x) +
+                         " nbr[0]=" + std::to_string(nbr[0]) +
+                         " nbr[1]=" + std::to_string(nbr[1]));
+            return false;
+        }
+    }
 }

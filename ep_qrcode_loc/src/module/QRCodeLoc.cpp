@@ -13,9 +13,6 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
     // 记录器
     logger = &epLogger::getInstance();
     logger->info("QRcodeLoc() Start");
-    logger->roll_delete_old_folders(param.logKeepDays);
-
-    is_handle = false;
 
     // 初始化发布器
     pub_odom_map_base = param.nh.advertise<nav_msgs::Odometry>(param.odomMapBase, 10);
@@ -23,9 +20,23 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
     pub_path_map_base = param.nh.advertise<nav_msgs::Path>(param.pathMapBase, 10);
     pub_path_map_camera = param.nh.advertise<nav_msgs::Path>(param.pathMapCamera, 10);
 
+    // 订阅手自动状态
+    is_handle = false;
     sub_BasicState = param.nh.subscribe<xmover_msgs::BasicState>("/xmover_basic_state", 1, &QRcodeLoc::BasicStateCallback,
                                                                  this, ros::TransportHints().tcpNoDelay());
+    
+    // 获取tf值，base和camera
+    getTrans_BaseToCamera();
 
+    logger->info("QRcodeLoc() End");
+}
+
+// 析构函数
+QRcodeLoc::~QRcodeLoc(){}
+
+// 获取tf值，base和camera
+void QRcodeLoc::getTrans_BaseToCamera()
+{
     if (param.is_debug)
     {
         trans_base2camera.transform.translation.x = -1.639;
@@ -75,6 +86,11 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
         }
     }
 
+    // 保存进参数服务器
+    param.trans_base2camera = trans_base2camera;
+    param.trans_camera2base = trans_camera2base;
+
+    // 输出到log
     logger->info("trans_base2camera: " +
                  trans_base2camera.header.frame_id + ", " +
                  trans_base2camera.child_frame_id + ",  " +
@@ -96,15 +112,6 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
                  std::to_string(trans_camera2base.transform.rotation.y) + ", " +
                  std::to_string(trans_camera2base.transform.rotation.z) + ", " +
                  std::to_string(trans_camera2base.transform.rotation.w));
-
-    logger->info("QRcodeLoc() End");
-}
-
-// 析构函数
-QRcodeLoc::~QRcodeLoc()
-{
-    delete qrcode_table;
-    delete wheel_odom;
 }
 
 // 获取/xmover_basic_state的回调函数
