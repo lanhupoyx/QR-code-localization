@@ -1,5 +1,7 @@
 #include "logger.hpp"
 
+namespace fs = boost::filesystem;
+
 // 获取单例对象
 epLogger& epLogger::getInstance()
 {
@@ -8,23 +10,23 @@ epLogger& epLogger::getInstance()
 }
 
 // 用于初始化
-void epLogger::init(ParamServer *param)
+void epLogger::init(std::string logLevel, std::string log_dir, std::size_t logKeepDays)
 {
     // 初始化参数
-    param_ = param;
-    log_dir_ = param_->log_dir;
-    loglevel_ = param_->logLevel;
+    logLevel_ = logLevel;
+    log_dir_ = log_dir;
+    logKeepDays_ = logKeepDays;
 
     // 根据日期创建文件夹
     createDateFolder(log_dir_);    
     
     // 创建日志文件
-    openFile(logFile_, mutex, log_dir_today + "qrcode_log_" + format_time(ros::Time::now()) + ".txt"); // log文件
+    openFile(logFile_, mutex, log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt"); // log文件
 
     // 创建数据文件
-    openFile(poseFile_, mutex_pose, log_dir_today + "pose.txt");       // pose文件
+    openFile(poseFile_, mutex_pose, log_dir_today_ + "pose.txt");       // pose文件
     openFile(yawerrFile_, mutex_yawerr, log_dir_ + "yawerr.txt");        // yawerr文件
-    openFile(jumperrFile_, mutex_jumperr, log_dir_today + "jumperr.txt"); // jumperr文件
+    openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
 }
 
 // 记录日志的方法
@@ -60,7 +62,7 @@ void epLogger::info(const std::string &message)
 
 void epLogger::debug(const std::string &message)
 {
-    if ("DEBUG" == loglevel_)
+    if ("DEBUG" == logLevel_)
     {
         std::lock_guard<std::mutex> lock(mutex); // 线程安全
         logFile_ << format_time(ros::Time::now()) << " [DEBUG] " << message << std::endl;
@@ -69,7 +71,7 @@ void epLogger::debug(const std::string &message)
 
 void epLogger::debug_endl()
 {
-    if ("DEBUG" == loglevel_)
+    if ("DEBUG" == logLevel_)
     {
         std::lock_guard<std::mutex> lock(mutex); // 线程安全
         logFile_ << std::endl;
@@ -120,7 +122,7 @@ void epLogger::roll_delete_old_folders()
         }
     }
 
-    if (directories.size() <= param_->logKeepDays)
+    if (directories.size() <= logKeepDays_)
     {
         this->info("No old log folders to delete. Total folders: " + std::to_string(directories.size()));
         return;
@@ -129,7 +131,7 @@ void epLogger::roll_delete_old_folders()
     std::sort(directories.begin(), directories.end(), [](const fs::directory_entry &a, const fs::directory_entry &b)
               { return fs::last_write_time(a.path()) < fs::last_write_time(b.path()); });
 
-    for (size_t i = 0; i < directories.size() - param_->logKeepDays; ++i)
+    for (std::size_t i = 0; i < directories.size() - logKeepDays_; ++i)
     {
         fs::remove_all(directories[i].path());
         this->info("Deleted: " + directories[i].path().string());
@@ -139,16 +141,16 @@ void epLogger::roll_delete_old_folders()
 bool epLogger::createDateFolder(std::string logdir)
 {
     // 创建文件夹
-    log_dir_today = logdir + format_date(ros::Time::now()) + "/";
-    fs::path fsdir(log_dir_today);
+    log_dir_today_ = logdir + format_date(ros::Time::now()) + "/";
+    fs::path fsdir(log_dir_today_);
     if (fs::create_directory(fsdir))
     {
-        std::cout << log_dir_today + " created successfully." << std::endl;
+        std::cout << log_dir_today_ + " created successfully." << std::endl;
         return true;
     }
     else
     {
-        std::cout << log_dir_today + " already exists, cannot be created." << std::endl;
+        std::cout << log_dir_today_ + " already exists, cannot be created." << std::endl;
         return false;
     }
 }
@@ -188,12 +190,13 @@ void epLogger::logLoop()
         if (dayNumLast != dayNum) // 检查是否更新日期
         {
             createDateFolder(log_dir_); // 根据日期创建文件夹
+            roll_delete_old_folders();  // 删除过早log
 
-            openFile(poseFile_, mutex_pose, log_dir_today + "pose.txt"); // pose文件
-            info("reopen pose.txt in :" + log_dir_today + "pose.txt");
+            openFile(poseFile_, mutex_pose, log_dir_today_ + "pose.txt"); // pose文件
+            info("reopen pose.txt in :" + log_dir_today_ + "pose.txt");
 
-            openFile(jumperrFile_, mutex_jumperr, log_dir_today + "jumperr.txt"); // jumperr文件
-            info("reopen jumperr.txt in :" + log_dir_today + "jumperr.txt");
+            openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
+            info("reopen jumperr.txt in :" + log_dir_today_ + "jumperr.txt");
         }
         dayNumLast = dayNum;
 
@@ -202,7 +205,7 @@ void epLogger::logLoop()
         static std::string hourNumLast = hourNum;
         if (hourNumLast != hourNum) // 检查是否更新小时
         {
-            std::string logPath = log_dir_today + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
+            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
             info("is reopening qrcode_log.txt in :" + logPath);
             openFile(logFile_, mutex, logPath); // log文件
         }

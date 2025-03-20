@@ -1,6 +1,8 @@
 #pragma once
 
 #include "utility_qloc.hpp"
+#include "ParamServer.hpp"
+#include "logger.hpp"
 #include "QRCodeLoc.hpp"
 
 /// @brief 辅助驾驶三向车模式，巷道内使用

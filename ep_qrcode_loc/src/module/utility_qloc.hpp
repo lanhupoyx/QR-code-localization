@@ -1,5 +1,6 @@
 #pragma once
 
+// 标准库
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -18,9 +19,11 @@
 #include <cstddef>
 #include <math.h>
 
+// ros基础
 #include "ros/ros.h"
 #include "ros/console.h"
 
+// ros/tf消息
 #include "tf/tf.h"
 #include "tf/transform_broadcaster.h"
 #include "tf2_msgs/TFMessage.h"
@@ -30,6 +33,7 @@
 #include "tf2_ros/buffer.h"
 #include "tf2/convert.h"
 
+// ros消息
 #include "std_msgs/String.h"
 #include "nav_msgs/Odometry.h"
 #include "nav_msgs/Path.h"
@@ -37,11 +41,12 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "message_filters/subscriber.h"
 
+// 第三方
 #include "Eigen/Dense"
-
 #include "boost/asio.hpp"
 #include "boost/filesystem.hpp"
 
+// VCS
 #include "file/file.h"
 #include "file/path.h"
 #include "process/signal_manager.h"
@@ -49,14 +54,8 @@
 #include "yaml-cpp/yaml.h"
 #include "datetime/datetime.h"
 
-#include "logger.hpp"
-
-using namespace vcs;
-
-namespace fs = boost::filesystem;
-
 // 数据帧转换到16进制
-std::string charArrayToHex(std::array<char, 1024> array, size_t size);
+std::string charArrayToHex(std::array<char, 1024> array, std::size_t size);
 
 // 十六进制转换为十进制
 uint32_t convert_16_to_10(std::string str2);
@@ -179,85 +178,4 @@ public:
     double yaw_err_; // yaw方向补偿值,单位角度
 
     void turn(double d_yaw);
-};
-
-// logger类声明
-class epLogger;
-
-// 参数服务器
-
-class ParamServer
-{
-public:
-    ros::NodeHandle nh;
-    std::string yamlData;
-    std::string logData;
-
-    std::string logLevel;
-
-    std::string odomMapBase;
-    std::string odomMapCamera;
-    std::string pathMapBase;
-    std::string pathMapCamera;
-    std::string msgTopic;
-
-    std::string operating_mode;
-    bool show_original_msg;
-    bool is_pub_tf;
-    double low_speed_UL;
-    std::string port;
-    std::string log_dir;
-    std::string cfg_dir;
-    float maxEstimationDis;
-
-    bool read_yaw_err;
-
-    double yaw_jump_UL;
-    double x_jump_UL;
-    double y_jump_UL;
-
-    double rec_p1;
-    double wheel_diameter;
-    double wheel_reduction_ratio;
-    double wheel_base_dis;
-    double wheel_angular_forward;
-    double wheel_angular_backward;
-
-    double err_ratio_offline;
-
-    double detect_site_dis;
-    double aux_site_dis;
-    double forkaction_site_dis;
-    double site_site_dis;
-
-    double avliable_yaw;
-
-    bool is_debug;
-    bool check_sequence;
-    bool cal_yaw;
-    double ground_code_yaw_offset;
-
-    std::string mainParamPath;
-    std::string siteTablePath;
-    std::string GroundCodeTablePath;
-
-    size_t logKeepDays;
-
-    bool is_mainloop_query_camera;
-
-    geometry_msgs::TransformStamped trans_base2camera;
-    geometry_msgs::TransformStamped trans_camera2base;
-
-    ParamServer(ros::NodeHandle &nh);
-
-    std::string loadMainParamPath();
-    std::string loadSiteTableParamPath();
-    std::string loadGroundCodeTableParamPath();
-    
-    // 加载单个参数条目
-    template <typename T>
-    void importItem(YAML::Node &config, std::string FirstName, std::string LastName, T &TargetParam, T DefaultVal);
-
-    // 保存log
-    void saveLog(epLogger *logger);
 };

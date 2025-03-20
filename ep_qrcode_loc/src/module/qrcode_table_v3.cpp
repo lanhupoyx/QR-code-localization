@@ -1,5 +1,4 @@
 #include "qrcode_table_v3.hpp"
-#include <math.h>
 
 QRcodeColumn::QRcodeColumn(uint32_t index_, double x_, double y_, double yaw_, double space_, double yawOffset_)
 {

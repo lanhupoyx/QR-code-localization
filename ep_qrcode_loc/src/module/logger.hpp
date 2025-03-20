@@ -1,11 +1,6 @@
 #pragma once
 #include "utility_qloc.hpp"
 
-class ParamServer;
-
-using namespace vcs;
-namespace fs = boost::filesystem;
-
 // 记录服务器
 class epLogger
 {
@@ -21,10 +16,11 @@ private:
     std::ofstream jumperrFile_;
     std::mutex mutex_jumperr;
 
-    std::string loglevel_;
+    std::string logLevel_;
     std::string log_dir_;
-    std::string log_dir_today;
-    ParamServer *param_;
+    std::size_t logKeepDays_;
+
+    std::string log_dir_today_;
 
     // 私有构造函数确保不能直接创建Logger实例
     epLogger() {}
@@ -35,7 +31,7 @@ private:
 
 public:
     // 用于初始化
-    void init(ParamServer *param);
+    void init(std::string logLevel, std::string log_dir, std::size_t logKeepDays);
 
     // 获取单例对象
     static epLogger &getInstance();

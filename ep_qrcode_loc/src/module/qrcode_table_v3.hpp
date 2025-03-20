@@ -1,5 +1,7 @@
 #pragma once
 #include "utility_qloc.hpp"
+#include "ParamServer.hpp"
+#include "logger.hpp"
 
 /// @brief 地码列类，用于存储一列地码的信息
 class QRcodeColumn

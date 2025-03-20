@@ -1,5 +1,7 @@
 #pragma once
 #include "utility_qloc.hpp"
+#include "ParamServer.hpp"
+#include "logger.hpp"
 
 // 库位
 struct Site

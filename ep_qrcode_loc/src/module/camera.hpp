@@ -1,5 +1,7 @@
 #pragma once
 #include "utility_qloc.hpp"
+#include "ParamServer.hpp"
+#include "logger.hpp"
 #include "LocCamera.h"
 
 // 相机数据预处理

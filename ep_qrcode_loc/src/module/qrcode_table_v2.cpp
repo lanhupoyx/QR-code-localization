@@ -1,6 +1,5 @@
 #include "qrcode_table_v2.hpp"
 
-
 Site::Site(uint32_t list_index,                               // 所在列编号
            uint32_t index,                                    // 库位编号
            geometry_msgs::Pose pose,                          // 库位位姿

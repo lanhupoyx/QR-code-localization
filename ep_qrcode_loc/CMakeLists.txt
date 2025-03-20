@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ep_qrcode_loc)
 
-set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "RelWithDebInfo")
-#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -pthread")
@@ -86,6 +86,7 @@ add_executable(${PROJECT_NAME}_node src/main.cpp
                                     src/module/QRCodeLoc.cpp
                                     src/module/utility_qloc.cpp 
                                     src/module/logger.cpp
+                                    src/module/ParamServer.cpp
                                     src/module/camera.cpp
                                     src/module/wheel_odom.cpp
                                     src/module/qrcode_table_v3.cpp

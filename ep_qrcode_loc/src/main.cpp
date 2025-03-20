@@ -1,5 +1,9 @@
 #include "utility_qloc.hpp"
+#include "ParamServer.hpp"
+#include "logger.hpp"
 #include "Mode.hpp"
+#include "camera.hpp"
+#include "QRCodeLoc.hpp"
 
 bool chooseMode(QRcodeLoc *qloc, ParamServer &param, MV_SC2005AM &Camera)
 {
@@ -107,8 +111,9 @@ int main(int argc, char **argv)
     // 记录管理器
     epLogger *logger;
     logger = &epLogger::getInstance();
-    logger->init(&param);
-    param.saveLog(logger);
+    logger->init(param.logLevel, param.log_dir, param.logKeepDays);
+    logger->info("\n" + param.yamlData); // 参数原始文本
+    logger->info("\n" + param.logData);  // 读取记录
     logger->roll_delete_old_folders();                     // 滚动删除历史文件夹
     std::thread logLoopThread(&epLogger::logLoop, logger); // 相机循环线程
 
@@ -120,13 +125,9 @@ int main(int argc, char **argv)
     QRcodeLoc *QLoc;
     bool res = chooseMode(QLoc, param, Camera);
     if (res)
-    {
         std::thread mainLoopThread(&QRcodeLoc::loop, QLoc); // 主循环线程
-    }
     else
-    {
         logger->info("not found Mode!");
-    }
 
     // 输出提示
     ROS_INFO("\033[1;32m----> Localization with QR-code Started.\033[0m");
@@ -141,6 +142,7 @@ TODO:
 DONE:
 1、相机数据作为topic发出，订阅该topic进行使用，可通过录包形式保存数据
 4、考虑车辆一直运行带来的log保存问题
+5、每天运行一次log循环删除
 
 DELAY:
 2、二维码序号参数文件放在vcs进行管理，需配合单码调试工具进行升级
