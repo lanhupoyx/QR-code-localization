@@ -220,7 +220,6 @@ public:
     double wheel_diameter;
     double wheel_reduction_ratio;
     double wheel_base_dis;
-    double wheel_angular_offset;
     double wheel_angular_forward;
     double wheel_angular_backward;
 
@@ -240,6 +239,7 @@ public:
 
     std::string mainParamPath;
     std::string siteTablePath;
+    std::string GroundCodeTablePath;
 
     size_t logKeepDays;
 
@@ -251,9 +251,9 @@ public:
     ParamServer(ros::NodeHandle &nh);
 
     std::string loadMainParamPath();
-
-    std::string loadSitetableParamPath();
-
+    std::string loadSiteTableParamPath();
+    std::string loadGroundCodeTableParamPath();
+    
     // 加载单个参数条目
     template <typename T>
     void importItem(YAML::Node &config, std::string FirstName, std::string LastName, T &TargetParam, T DefaultVal);

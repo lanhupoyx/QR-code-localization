@@ -44,7 +44,6 @@ ep_qrcode_loc:
   wheel_diameter: 0.343 # 轮子直径
   wheel_reduction_ratio: 20.0 # 主动轮电机转速比
   wheel_base_dis: 1.524 # 主动轮与后轮之间的轴距
-  wheel_angular_offset: 0.0  # 主动轮零位偏移，单位：度
   wheel_angular_forward: 0.0  # 主动轮零位偏移，单位：度
   wheel_angular_backward: 0.0  # 主动轮零位偏移，单位：度
 #----------------------------------------------------------------------------------

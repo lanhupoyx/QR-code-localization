@@ -46,16 +46,16 @@ public:
     tf::TransformBroadcaster br;
 
     // 功能对象
+    ParamServer& param;
     MV_SC2005AM *camera;
     QRcodeTableV2 *qrcode_table;
     WheelSpeedOdometer *wheel_odom;
     
     //相机当前frame数据
-    CameraFrame pic; // 相机数据
+    CameraFrame pic; 
     
+    // 是否手动状态
     bool is_handle;
-
-    ParamServer& param;
 
 public:
     // 构造函数
