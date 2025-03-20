@@ -23,7 +23,7 @@ fi
 cd ../src/
 git add .
 git commit -am $Version: $CommitInfo
-git branch $Version
+#git branch $Version
 cd ../install
 
 sed -i -r 's/^Version:.*/Version:'"$Version"'/g' $CRTDIR/deb_package/DEBIAN/control
