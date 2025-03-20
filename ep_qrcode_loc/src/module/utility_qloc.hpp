@@ -18,6 +18,7 @@
 #include <functional>
 #include <cstddef>
 #include <math.h>
+#include <memory>
 
 // ros基础
 #include "ros/ros.h"

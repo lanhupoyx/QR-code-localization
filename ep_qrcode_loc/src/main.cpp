@@ -5,91 +5,91 @@
 #include "camera.hpp"
 #include "QRCodeLoc.hpp"
 
-bool chooseMode(QRcodeLoc *qloc, ParamServer &param, MV_SC2005AM &Camera)
+bool chooseMode(std::shared_ptr<QRcodeLoc> QRcodeLocPtr, ParamServer &param, MV_SC2005AM &Camera)
 {
     if ("1" == param.operating_mode)
     {
-        qloc = new Mode_CollectQRCodePose(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CollectQRCodePose>(param, &Camera);
         return true;
     }
     else if ("2" == param.operating_mode)
     {
-        qloc = new Mode_CollectQRCodeIndex(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CollectQRCodeIndex>(param, &Camera);
         return true;
     }
     else if ("3" == param.operating_mode)
     {
-        qloc = new Mode_ShiHua(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_ShiHua>(param, &Camera);
         return true;
     }
     else if ("4" == param.operating_mode)
     {
-        qloc = new Mode_TestRun(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_TestRun>(param, &Camera);
         return true;
     }
     else if ("5" == param.operating_mode)
     {
-        qloc = new Mode_GetYaw(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_GetYaw>(param, &Camera);
         return true;
     }
     else if ("6" == param.operating_mode)
     {
-        qloc = new Mode_CalYawErr(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CalYawErr>(param, &Camera);
         return true;
     }
     else if ("7" == param.operating_mode)
     {
-        qloc = new Mode_CheckCameraHorizon(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CheckCameraHorizon>(param, &Camera);
         return true;
     }
     else if ("8" == param.operating_mode)
     {
-        qloc = new Mode_AssistedDriving(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_AssistedDriving>(param, &Camera);
         return true;
     }
     else if ("Mode_CollectQRCodePose" == param.operating_mode)
     {
-        qloc = new Mode_CollectQRCodePose(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CollectQRCodePose>(param, &Camera);
         return true;
     }
     else if ("Mode_CollectQRCodeIndex" == param.operating_mode)
     {
-        qloc = new Mode_CollectQRCodeIndex(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CollectQRCodeIndex>(param, &Camera);
         return true;
     }
     else if ("Mode_ShiHua" == param.operating_mode)
     {
-        qloc = new Mode_ShiHua(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_ShiHua>(param, &Camera);
         return true;
     }
     else if ("Mode_TestRun" == param.operating_mode)
     {
-        qloc = new Mode_TestRun(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_TestRun>(param, &Camera);
         return true;
     }
     else if ("Mode_GetYaw" == param.operating_mode)
     {
-        qloc = new Mode_GetYaw(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_GetYaw>(param, &Camera);
         return true;
     }
     else if ("Mode_CalYawErr" == param.operating_mode)
     {
-        qloc = new Mode_CalYawErr(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CalYawErr>(param, &Camera);
         return true;
     }
     else if ("Mode_CheckCameraHorizon" == param.operating_mode)
     {
-        qloc = new Mode_CheckCameraHorizon(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_CheckCameraHorizon>(param, &Camera);
         return true;
     }
     else if ("Mode_AssistedDriving" == param.operating_mode)
     {
-        qloc = new Mode_AssistedDriving(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_AssistedDriving>(param, &Camera);
         return true;
     }
     else if ("Mode_North" == param.operating_mode)
     {
-        qloc = new Mode_North(param, &Camera);
+        QRcodeLocPtr = std::make_shared<Mode_North>(param, &Camera);
         return true;
     }
     else
@@ -122,12 +122,21 @@ int main(int argc, char **argv)
     std::thread cameraLoopThread(&MV_SC2005AM::cameraLoop, &Camera); // 相机循环线程
 
     // 运行模式对象
-    QRcodeLoc *QLoc;
-    bool res = chooseMode(QLoc, param, Camera);
+    std::shared_ptr<QRcodeLoc> QRcodeLocPtr;
+    bool res = chooseMode(QRcodeLocPtr, param, Camera);
     if (res)
-        std::thread mainLoopThread(&QRcodeLoc::loop, QLoc); // 主循环线程
+    { 
+        // 使用 std::thread 启动线程，通过基类指针调用多态的成员函数
+        std::thread mainLoopThread([QRcodeLocPtr]()
+                      {
+                        QRcodeLocPtr->loop(); // 调用多态的成员函数
+                      });
+        mainLoopThread.detach();
+    }
     else
+    {
         logger->info("not found Mode!");
+    }
 
     // 输出提示
     ROS_INFO("\033[1;32m----> Localization with QR-code Started.\033[0m");
