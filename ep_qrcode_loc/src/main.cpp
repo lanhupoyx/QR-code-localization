@@ -122,21 +122,24 @@ int main(int argc, char **argv)
     std::thread cameraLoopThread(&MV_SC2005AM::cameraLoop, &Camera); // 相机循环线程
 
     // 运行模式对象
-    std::shared_ptr<QRcodeLoc> QRcodeLocPtr;
-    bool res = chooseMode(QRcodeLocPtr, param, Camera);
-    if (res)
-    { 
-        // 使用 std::thread 启动线程，通过基类指针调用多态的成员函数
-        std::thread mainLoopThread([QRcodeLocPtr]()
-                      {
-                        QRcodeLocPtr->loop(); // 调用多态的成员函数
-                      });
-        mainLoopThread.detach();
-    }
-    else
-    {
-        logger->info("not found Mode!");
-    }
+    // std::shared_ptr<QRcodeLoc> QRcodeLocPtr;
+    // bool res = chooseMode(QRcodeLocPtr, param, Camera);
+    // if (res)
+    // { 
+    //     // 使用 std::thread 启动线程，通过基类指针调用多态的成员函数
+    //     std::thread mainLoopThread([QRcodeLocPtr]()
+    //                   {
+    //                     QRcodeLocPtr->loop(); // 调用多态的成员函数
+    //                   });
+    //     mainLoopThread.detach();
+    // }
+    // else
+    // {
+    //     logger->info("not found Mode!");
+    // }
+    Mode_North north(param, &Camera);
+    std::thread mainLoopThread(&Mode_North::loop, &north); // 相机循环线程
+
 
     // 输出提示
     ROS_INFO("\033[1;32m----> Localization with QR-code Started.\033[0m");

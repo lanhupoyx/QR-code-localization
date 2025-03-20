@@ -22,7 +22,7 @@ fi
 
 cd ../src/
 git add .
-git commit -m $Version:$CommitInfo
+git commit -m $Version--$CommitInfo
 #git branch $Version
 cd ../install
 
