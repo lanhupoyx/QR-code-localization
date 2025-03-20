@@ -18,7 +18,7 @@ read -p '请输入commit信息:' CommitInfo
 if [ -z $CommitInfo ]; then
     echo "未输入commit信息，退出"
     exit 1
-fi
+fi    
 
 cd ../src/
 git add .
