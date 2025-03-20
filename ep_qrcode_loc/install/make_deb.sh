@@ -22,7 +22,7 @@ fi
 
 cd ../src/
 git add .
-git commit -am $Version: $CommitInfo
+git commit -m $Version:$CommitInfo
 #git branch $Version
 cd ../install
 
@@ -40,7 +40,7 @@ sed -i -r 's/^Installed-Size:.*/Installed-Size:'"$PackageSize"'/g' $CRTDIR/deb_p
 #缺少该文件或者该文件不为空，会造成服务无法启动
 touch     ./deb_package/opt/xmover/ros/melodic/ep_qrcode_loc/.catkin
 
-sudo chmod 755 -R /home/xun/work/ep-qrcode-loc/install/deb_package/DEBIAN
+sudo chmod 755 -R ./deb_package/DEBIAN
 mkdir ./deb_output/
 dpkg -b deb_package ./deb_output/$PackageName-$Version-$CurrentTime.deb
 
