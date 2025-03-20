@@ -67,8 +67,14 @@ std::string hexToAscii(const std::string &hex);
 // 时间格式化输出
 std::string format_time(ros::Time t);
 
+// 小时数输出
+std::string getHour(ros::Time t);
+
 // 日期格式化输出
 std::string format_date(ros::Time t);
+
+// 日期数输出
+std::string getDay(ros::Time t);
 
 // string 替换字符
 std::string replaceChar(std::string str, char toReplace, char replacement);

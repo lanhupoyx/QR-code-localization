@@ -88,6 +88,15 @@ std::string format_time(ros::Time t)
     return ss.str();
 }
 
+// 小时数输出
+std::string getHour(ros::Time t)
+{
+    std::stringstream ss;
+    ros::WallTime wall_time = ros::WallTime(t.toSec() + 28800.0); // 移动8个时区
+    ss << wall_time.toBoost().time_of_day().hours();
+    return ss.str();
+}
+
 // 日期格式化输出
 std::string format_date(ros::Time t)
 {
@@ -95,6 +104,15 @@ std::string format_date(ros::Time t)
     ros::WallTime wall_time = ros::WallTime(t.toSec() + 28800.0); // 移动8个时区
     ss << wall_time.toBoost().date().year() << '-';
     ss << wall_time.toBoost().date().month() << '-';
+    ss << wall_time.toBoost().date().day();
+    return ss.str();
+}
+
+// 日期数输出
+std::string getDay(ros::Time t)
+{
+    std::stringstream ss;
+    ros::WallTime wall_time = ros::WallTime(t.toSec() + 28800.0); // 移动8个时区
     ss << wall_time.toBoost().date().day();
     return ss.str();
 }

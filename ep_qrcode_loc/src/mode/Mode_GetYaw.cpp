@@ -61,7 +61,7 @@ void Mode_GetYaw::loop()
             }
             else
             {
-                logger->other("未识别index: " + std::to_string(pic.code));
+                logger->info("未识别index: " + std::to_string(pic.code));
             }
         }
 

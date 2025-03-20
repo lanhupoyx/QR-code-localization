@@ -1,32 +1,29 @@
 #pragma once
 #include "utility_qloc.hpp"
 
-using namespace vcs;
-
 class ParamServer;
 
+using namespace vcs;
 namespace fs = boost::filesystem;
+
 // 记录服务器
 class epLogger
 {
 private:
-    static std::ofstream logFile_;
-    static std::mutex mutex;
-
-    static std::ofstream poseFile_;
-    static std::mutex mutex_pose;
-
-    static std::ofstream otherFile_;
-    static std::mutex mutex_other;
-
-    static std::ofstream yawerrFile_;
-    static std::mutex mutex_yawerr;
-
-    static std::ofstream jumperrFile_;
-    static std::mutex mutex_jumperr;
+    std::ofstream logFile_;
+    std::mutex mutex;
+    std::ofstream poseFile_;
+    std::mutex mutex_pose;
+    std::ofstream otherFile_;
+    std::mutex mutex_other;
+    std::ofstream yawerrFile_;
+    std::mutex mutex_yawerr;
+    std::ofstream jumperrFile_;
+    std::mutex mutex_jumperr;
 
     std::string loglevel_;
     std::string log_dir_;
+    std::string log_dir_today;
     ParamServer *param_;
 
     // 私有构造函数确保不能直接创建Logger实例
@@ -49,14 +46,25 @@ public:
     void error(const std::string &message);
     void warn(const std::string &message);
     void info(const std::string &message);
-    void debug_endl();
     void debug(const std::string &message);
+    void debug_endl();
+
+    // 记录数据的方法
     void pose(const std::string &message);
     void other(const std::string &message);
     void yawerr(const std::string &message);
     void close_yawerr();
     void jumperr(const std::string &message);
-    // 滚动删除历史文件夹
-    void roll_delete_old_folders(size_t keep_count);
-};
 
+    // 滚动删除历史文件夹
+    void roll_delete_old_folders();
+
+    // 创建日期文件夹
+    bool createDateFolder(std::string logdir);
+
+    // 打开文件
+    bool openFile(std::ofstream &file, std::mutex &mtx, std::string path);
+
+    // 监测循环
+    void logLoop();
+};
