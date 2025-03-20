@@ -14,6 +14,18 @@ if [ -z $Version ]; then
     exit 1
 fi
 
+read -p '请输入commit信息:' CommitInfo
+if [ -z $CommitInfo ]; then
+    echo "未输入commit信息，退出"
+    exit 1
+fi
+
+cd ../src/
+git add .
+git commit -m $CommitInfo
+git branch $Version
+cd ../install
+
 sed -i -r 's/^Version:.*/Version:'"$Version"'/g' $CRTDIR/deb_package/DEBIAN/control
 #sed -i -r 's/^Build-Time:.*/Build-Time:'"$CurrentTime"'/g' $CRTDIR/deb_package/DEBIAN/control
 if grep -q '^Build-Time:' "$CRTDIR/deb_package/DEBIAN/control"; then
@@ -21,7 +33,6 @@ if grep -q '^Build-Time:' "$CRTDIR/deb_package/DEBIAN/control"; then
 else
     echo "Build-Time:$CurrentTime" >> "$CRTDIR/deb_package/DEBIAN/control"
 fi
-
 
 PackageSize=$((`du -b --max-depth=1 ${CRTDIR}/deb_package|awk 'END {print}'|awk '{print $1}'`))
 sed -i -r 's/^Installed-Size:.*/Installed-Size:'"$PackageSize"'/g' $CRTDIR/deb_package/DEBIAN/control
@@ -33,13 +44,6 @@ sudo chmod 755 -R /home/xun/work/ep-qrcode-loc/install/deb_package/DEBIAN
 mkdir ./deb_output/
 dpkg -b deb_package ./deb_output/$PackageName-$Version-$CurrentTime.deb
 
-
 echo "构造完成 --> "./deb_output/$PackageName-$Version-$CurrentTime.deb
-
-cd ..
-cd src/
-git add .
-git commit -m $Version
-cd ..
 
 exit 0
