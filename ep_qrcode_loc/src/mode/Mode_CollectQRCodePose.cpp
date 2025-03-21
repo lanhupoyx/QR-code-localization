@@ -3,9 +3,13 @@
 // 构造函数
 Mode_CollectQRCodePose::Mode_CollectQRCodePose(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
+    logger->info("Mode_CollectQRCodePose() Start");
+
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
+
+    logger->info("Mode_CollectQRCodePose() End");
 }
 
 Mode_CollectQRCodePose::~Mode_CollectQRCodePose() {}
@@ -14,7 +18,7 @@ Mode_CollectQRCodePose::~Mode_CollectQRCodePose() {}
 void Mode_CollectQRCodePose::loop()
 {
     logger->info("Mode_CollectQRCodePose::loop()");
-    QRcodeTable Lidarmap_tab(param.cfg_dir + "CaptureTable.txt", param);
+    QRcodeTableV1 Lidarmap_tab(param.cfg_dir + "CaptureTable.txt", param);
     Lidarmap_tab.subPose();
     pub_qrCodeMsg = param.nh.advertise<std_msgs::String>(param.msgTopic, 1);
 

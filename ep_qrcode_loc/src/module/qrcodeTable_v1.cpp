@@ -1,10 +1,10 @@
-#include "qrcode_table.hpp"
+#include "qrcodeTable_v1.hpp"
 
-QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
+QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : param(param)
 {
     path = dir; // 文件位置
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTable Start");
+    logger->info("QRcodeTableV1() Start");
     ifs.open(dir, std::ios::in);
     if (!ifs.is_open())
     {
@@ -53,21 +53,23 @@ QRcodeTable::QRcodeTable(std::string dir, ParamServer &param) : param(param)
             continue;
         }
     }
+
+    logger->info("QRcodeTableV1() End");
 }
 
-QRcodeTable::~QRcodeTable() {}
+QRcodeTableV1::~QRcodeTableV1() {}
 
 // 开始订阅lidar输出位姿
-void QRcodeTable::subPose()
+void QRcodeTableV1::subPose()
 {
     sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
-                                                     &QRcodeTable::tfCallback, this,
+                                                     &QRcodeTableV1::tfCallback, this,
                                                      ros::TransportHints().tcpNoDelay());
-    logger->info("sub: /ep_localization/odometry/lidar");
+    logger->info("QRcodeTableV1::subPose() sub: /ep_localization/odometry/lidar");
 }
 
 // 根据二维码编号查表，得到位姿信息
-bool QRcodeTable::find_add(CameraFrame frame, QRcodeInfo *info)
+bool QRcodeTableV1::find_add(CameraFrame frame, QRcodeInfo *info)
 {
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
@@ -88,7 +90,7 @@ bool QRcodeTable::find_add(CameraFrame frame, QRcodeInfo *info)
 }
 
 // 根据二维码编号查表，得到位姿信息
-bool QRcodeTable::onlyfind(CameraFrame frame, QRcodeInfo *info)
+bool QRcodeTableV1::onlyfind(CameraFrame frame, QRcodeInfo *info)
 {
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
@@ -108,9 +110,9 @@ bool QRcodeTable::onlyfind(CameraFrame frame, QRcodeInfo *info)
 }
 
 // 添加新的二维码
-bool QRcodeTable::add(const CameraFrame frame)
+bool QRcodeTableV1::add(const CameraFrame frame)
 {
-    // std::lock_guard<std::mutex> locker(QRcodeTable::mtx);
+    // std::lock_guard<std::mutex> locker(QRcodeTableV1::mtx);
     if (frame_buffer.size() > 240)
     {
         frame_buffer.pop_front();
@@ -155,9 +157,10 @@ bool QRcodeTable::add(const CameraFrame frame)
 }
 
 // callback获取baselink位姿
-void QRcodeTable::tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
+void QRcodeTableV1::tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
-    std::lock_guard<std::mutex> locker(QRcodeTable::mtx);
+    logger->debug("QRcodeTableV1::tfCallback()");
+    std::lock_guard<std::mutex> locker(QRcodeTableV1::mtx);
     const nav_msgs::Odometry transform = *msg; //->transforms[i];
     if (tf_buffer.size() != 0)
     {
@@ -176,9 +179,9 @@ void QRcodeTable::tfCallback(const nav_msgs::Odometry::ConstPtr &msg)
 }
 
 // 计算二维码位姿
-QRcodeInfo QRcodeTable::calPose()
+QRcodeInfo QRcodeTableV1::calPose()
 {
-    std::lock_guard<std::mutex> locker(QRcodeTable::mtx);
+    std::lock_guard<std::mutex> locker(QRcodeTableV1::mtx);
     QRcodeInfo sum;
     sum.x = 0.0;
     sum.y = 0.0;

@@ -1,4 +1,4 @@
-#include "qrcode_table_v2.hpp"
+#include "qrcodeTable_v2.hpp"
 
 Site::Site(uint32_t list_index,                               // 所在列编号
            uint32_t index,                                    // 库位编号
@@ -357,8 +357,9 @@ bool QRcodeTableV2::correct_yaw(uint32_t code, double yaw_err)
 // 读取地码方向角补偿数据
 void QRcodeTableV2::readYawErr(std::string cfg_path)
 {
+    logger->debug("QRcodeTableV2::readYawErr() Start");
+
     std::string yaw_err_path = cfg_path + "yaw_err.txt";
-    logger->debug("readYawErr Start");
     std::ifstream ifs;
     ifs.open(yaw_err_path, std::ios::in);
     if (!ifs.is_open())
@@ -393,6 +394,8 @@ void QRcodeTableV2::readYawErr(std::string cfg_path)
     }
     ifs.close();
     logger->info(yaw_err_path + "读取完毕!");
+
+    logger->debug("QRcodeTableV2::readYawErr() End");
 }
 
 // callback获取baselink位姿
@@ -415,11 +418,12 @@ nav_msgs::Odometry QRcodeTableV2::getCurLidarPose()
     std::lock_guard<std::mutex> locker(mtx);
     if (tf_buffer.size() > 0)
     {
+        logger->info("QRcodeTableV2::getCurLidarPose(): normal");
         return tf_buffer.back();
     }
     else
     {
-        logger->info("getCurLidarPose(): zero");
+        logger->info("QRcodeTableV2::getCurLidarPose(): zero");
         nav_msgs::Odometry zero;
         return zero;
     }

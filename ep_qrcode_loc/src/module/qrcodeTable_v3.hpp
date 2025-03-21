@@ -1,5 +1,5 @@
 #pragma once
-#include "utility_qloc.hpp"
+#include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
 
@@ -29,10 +29,11 @@ public:
 
     /// @brief QRcodeColumn地码列类：依次添加新的地码，从列首到列尾
     /// @param code_index 地码编号
+    /// @param row_index 地码行号
     /// @param x_offset 位姿补偿x
     /// @param y_offset 位姿补偿y
     /// @param yaw_offset 位姿补偿yaw
-    void addQRcode(uint32_t code_index, double x_offset, double y_offset, double yaw_offset);
+    void addQRcode(uint32_t code_index, uint32_t row_index, double x_offset, double y_offset, double yaw_offset);
 
     /// @brief QRcodeColumn地码列类：pose平移
     /// @param pose 目标pose

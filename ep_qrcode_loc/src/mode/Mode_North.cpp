@@ -2,13 +2,16 @@
 
 Mode_North::Mode_North(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_North::Mode_North()");
+    logger->info("Mode_North() Start");
+
     qrcode_table_v3 = new QRcodeTableV3(param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
     code_info.frame.code = 0;
     err_type = 0x00;
     is_output_available = false;
+
+    logger->info("Mode_North() End");
 }
 
 Mode_North::~Mode_North() {}

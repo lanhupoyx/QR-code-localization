@@ -178,12 +178,14 @@ bool epLogger::openFile(std::ofstream &file, std::mutex &mtx, std::string path)
 
 void epLogger::logLoop()
 {
-    info("epLogger::logLoop()");
+    info("epLogger::logLoop() Start");
 
     double loop_rate = 1.0; // 控制主循环频率1Hz
     ros::Rate loop_rate_ctrl(loop_rate);
     while (ros::ok())
     {
+        debug("epLogger::logLoop() next loop");
+
         // 随日期的文件
         std::string dayNum = getDay(ros::Time::now()); // 日期数
         static std::string dayNumLast = dayNum;
@@ -192,8 +194,9 @@ void epLogger::logLoop()
             createDateFolder(log_dir_); // 根据日期创建文件夹
             roll_delete_old_folders();  // 删除过早log
 
-            openFile(poseFile_, mutex_pose, log_dir_today_ + "pose.txt"); // pose文件
-            info("reopen pose.txt in :" + log_dir_today_ + "pose.txt");
+            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
+            info("is reopening qrcode_log.txt in :" + logPath);
+            openFile(logFile_, mutex, logPath); // log文件
 
             openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
             info("reopen jumperr.txt in :" + log_dir_today_ + "jumperr.txt");
@@ -205,9 +208,8 @@ void epLogger::logLoop()
         static std::string hourNumLast = hourNum;
         if (hourNumLast != hourNum) // 检查是否更新小时
         {
-            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
-            info("is reopening qrcode_log.txt in :" + logPath);
-            openFile(logFile_, mutex, logPath); // log文件
+            openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time(ros::Time::now()) + ".txt"); // pose文件
+            info("reopen pose.txt in :" + log_dir_today_ + "pose.txt");
         }
         hourNumLast = hourNum;
 

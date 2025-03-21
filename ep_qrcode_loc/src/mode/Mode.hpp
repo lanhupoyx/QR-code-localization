@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility_qloc.hpp"
+#include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
 #include "QRCodeLoc.hpp"
@@ -132,6 +132,18 @@ public:
     // 构造函数
     Mode_TestRun(ParamServer &param, MV_SC2005AM *camera);
     ~Mode_TestRun();
+
+    // 循环
+    void loop();
+};
+
+/// @brief 废弃模式
+class Mode_Trash : public QRcodeLoc
+{
+public:
+    // 构造函数
+    Mode_Trash(ParamServer &param, MV_SC2005AM *camera);
+    ~Mode_Trash();
 
     // 循环
     void loop();

@@ -5,6 +5,8 @@ using namespace vcs;
 // 参数服务器
 ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
 {
+    std::cout << "ParamServer() Start" << std::endl;
+
     //获取vcs参数文件，或者默认参数文件路径
     mainParamPath = loadMainParamPath();
     siteTablePath = loadSiteTableParamPath();
@@ -78,6 +80,8 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
     {
         std::cerr << "Error: " << e.what() << std::endl;
     }
+
+    std::cout << "ParamServer() End" << std::endl;
 }
 
 // 加载主参数

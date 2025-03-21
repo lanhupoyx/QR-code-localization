@@ -1,9 +1,10 @@
-#include "wheel_odom.hpp"
+#include "wheelOdom.hpp"
 
 WheelSpeedOdometer::WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, ParamServer &param) : param(param)
 {
     logger = &epLogger::getInstance();
-    logger->info("WheelSpeedOdometer");
+    logger->info("WheelSpeedOdometer() Start");
+
     trans_camera2base_ = trans_camera2base;
     sub_realvel = param.nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
                                                            this, ros::TransportHints().tcpNoDelay());
@@ -25,6 +26,8 @@ WheelSpeedOdometer::WheelSpeedOdometer(geometry_msgs::TransformStamped trans_cam
     odom.pose.pose.orientation.w = 1;
     setEstimationInitialPose(odom);
     map_o_init_ = true;
+
+    logger->info("WheelSpeedOdometer() End");
 }
 
 WheelSpeedOdometer::~WheelSpeedOdometer() {}
@@ -32,7 +35,8 @@ WheelSpeedOdometer::~WheelSpeedOdometer() {}
 // 获取/realvel的回调函数
 void WheelSpeedOdometer::realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
 {
-    logger->debug("realvelCallback");
+    logger->debug("WheelSpeedOdometer::realvelCallback");
+
     ros::Time time_now = ros::Time::now();
     std::lock_guard<std::mutex> locker(mtx);
 
@@ -64,7 +68,7 @@ void WheelSpeedOdometer::realvelCallback(const geometry_msgs::Twist::ConstPtr &p
 // 运行轮速递推器
 bool WheelSpeedOdometer::run_odom(std::vector<nav_msgs::Odometry> &v_odom)
 {
-    logger->debug("run_odom() : start");
+    logger->debug("WheelSpeedOdometer::run_odom() : start");
     std::lock_guard<std::mutex> locker(mtx);
     if (0 == speed_data.size())
     {
@@ -156,7 +160,7 @@ void WheelSpeedOdometer::reset_path_dis()
 // 使用二维码定位结果设置递推初值
 void WheelSpeedOdometer::setEstimationInitialPose(nav_msgs::Odometry odom)
 {
-    logger->debug("setEstimationInitialPose");
+    logger->debug("WheelSpeedOdometer::setEstimationInitialPose");
     std::lock_guard<std::mutex> locker(mtx);
     odom_estimation_init_ = odom;
     path_dis = 0;
@@ -195,7 +199,7 @@ void WheelSpeedOdometer::close()
 // 根据初值、速度、时间进行位姿递推
 nav_msgs::Odometry WheelSpeedOdometer::poseEstimation(nav_msgs::Odometry odom_init, geometry_msgs::Twist vel, ros::Time time_now)
 {
-    logger->debug("poseEstimation");
+    logger->debug("WheelSpeedOdometer::poseEstimation");
     nav_msgs::Odometry odom_final;
 
     // 计算时间间隔，更新时间戳
@@ -218,7 +222,7 @@ nav_msgs::Odometry WheelSpeedOdometer::poseEstimation(nav_msgs::Odometry odom_in
 // 解析轮速数据，前主动轮模型
 geometry_msgs::TwistStamped WheelSpeedOdometer::decode_msg(geometry_msgs::Twist vel_msg, ros::Time time)
 {
-    logger->debug("decode_msg");
+    logger->debug("WheelSpeedOdometer::decode_msg");
     geometry_msgs::TwistStamped vel_new;
 
     // vel_msg.linear.x  :base_link实际线速度 (m/s)

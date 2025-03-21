@@ -1,15 +1,15 @@
 #pragma once
-#include "utility_qloc.hpp"
+#include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
 
 // 二维码坐标对照表
-class QRcodeTable
+class QRcodeTableV1
 {
 public:
-    QRcodeTable(std::string dir, ParamServer& param);
+    QRcodeTableV1(std::string dir, ParamServer& param);
 
-    ~QRcodeTable();
+    ~QRcodeTableV1();
 
     // 根据二维码编号查表，得到位姿信息
     bool find_add(CameraFrame frame, QRcodeInfo *info);

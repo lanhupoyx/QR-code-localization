@@ -169,6 +169,8 @@ struct QRcodeGround
 {
 public:
     uint32_t index_;           // 序号
+    uint32_t column_index_;    // 列号
+    uint32_t row_index_;       // 行号
     geometry_msgs::Pose pose_; // 位姿
 
     uint8_t type; // 列内 0， 列首 1

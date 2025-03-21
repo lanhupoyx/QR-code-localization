@@ -14,17 +14,39 @@ if [ -z $Version ]; then
     exit 1
 fi
 
-read -p '请输入commit信息:' CommitInfo
-if [ -z $CommitInfo ]; then
-    echo "未输入commit信息，退出"
-    exit 1
-fi    
+# read -p '请输入commit信息:' CommitInfo
+# if [ -n '$CommitInfo' ]; then
+#     cd ../src/
+#     git add .
+#     git commit -m $Version--$CommitInfo
+#     cd ../install
+# else
+#     echo "未输入commit信息,不执行 git commit命令"
+# fi    
 
-cd ../src/
-git add .
-git commit -m $Version--$CommitInfo
-#git branch $Version
-cd ../install
+# read -p '请输入commit信息:' CommitInfo
+# if [ -n '$CommitInfo' ]; then
+#     cd ../src/
+#     git add .
+#     git commit -m $Version--$CommitInfo
+#     cd ../install
+# else
+#     echo "未输入commit信息,不执行 git commit命令"
+# fi 
+
+
+# 提示用户输入字符串
+echo "请输入commit信息:"
+read CommitInfo
+# 检查字符串是否为空
+if [ -n "$CommitInfo" ]; then
+    cd ../src/
+    git add .
+    git commit -m $Version--$CommitInfo
+    cd ../install
+else
+    echo "未输入commit信息,不执行'git commit'命令"
+fi
 
 sed -i -r 's/^Version:.*/Version:'"$Version"'/g' $CRTDIR/deb_package/DEBIAN/control
 #sed -i -r 's/^Build-Time:.*/Build-Time:'"$CurrentTime"'/g' $CRTDIR/deb_package/DEBIAN/control
