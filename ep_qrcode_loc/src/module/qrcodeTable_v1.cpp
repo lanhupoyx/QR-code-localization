@@ -4,7 +4,7 @@ QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : param(param)
 {
     path = dir; // 文件位置
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV1() Start");
+    logger->info("QRcodeTableV1() start");
     ifs.open(dir, std::ios::in);
     if (!ifs.is_open())
     {
@@ -54,7 +54,7 @@ QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : param(param)
         }
     }
 
-    logger->info("QRcodeTableV1() End");
+    logger->info("QRcodeTableV1() return");
 }
 
 QRcodeTableV1::~QRcodeTableV1() {}

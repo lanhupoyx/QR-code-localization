@@ -50,7 +50,7 @@ QRcodeTableV3::QRcodeTableV3(ParamServer &param) : param(param)
 {
     // 记录器
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV3() Start");
+    logger->info("QRcodeTableV3() start");
 
     loadCodeTable();
 
@@ -59,14 +59,14 @@ QRcodeTableV3::QRcodeTableV3(ParamServer &param) : param(param)
                                                      ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTableV3() End");
+    logger->info("QRcodeTableV3() return");
 }
 
 QRcodeTableV3::~QRcodeTableV3() {}
 
 bool QRcodeTableV3::loadCodeTable()
 {
-    logger->info("QRcodeTableV3::loadCodeTable() Start");
+    logger->info("QRcodeTableV3::loadCodeTable() start");
 
     // 打开文件
     std::string GroundCodeTablePath = param.GroundCodeTablePath;
@@ -157,7 +157,7 @@ bool QRcodeTableV3::loadCodeTable()
                         std::to_string((*it).second.yaw));
     }
 
-    logger->info("QRcodeTableV3::loadCodeTable() End");
+    logger->info("QRcodeTableV3::loadCodeTable() return");
     return true;
 }
 
@@ -206,26 +206,25 @@ void QRcodeTableV3::lidarPoseCallback(const nav_msgs::Odometry::ConstPtr &msg)
     logger->debug("QRcodeTableV3 lidarPoseCallback()");
 }
 
-geometry_msgs::Pose QRcodeTableV3::getCameraPose()
+bool QRcodeTableV3::getCameraPose(geometry_msgs::Pose &pose_camera2map)
 {
-    logger->debug("QRcodeTableV3::getCameraPose(): Start");
+    logger->debug("QRcodeTableV3::getCameraPose(): start");
     std::lock_guard<std::mutex> locker(mtx);
     if (tf_buffer.size() > 0)
     {
         nav_msgs::Odometry base2map = tf_buffer.back();
         geometry_msgs::Pose pose_camera2base = t2p(param.trans_camera2base);
-        geometry_msgs::Pose pose_camera2map = transformPoint(pose_camera2base,
-                                                             base2map.pose.pose.position.x,
-                                                             base2map.pose.pose.position.y,
-                                                             getYawRad(base2map.pose.pose.orientation));
-        logger->debug("QRcodeTableV3::getCameraPose(): normal");
-        return pose_camera2map;
+        pose_camera2map = transformPoint(   pose_camera2base,
+                                            base2map.pose.pose.position.x,
+                                            base2map.pose.pose.position.y,
+                                            getYawRad(base2map.pose.pose.orientation));
+        logger->debug("QRcodeTableV3::getCameraPose(): return true");
+        return true;
     }
     else
     {
-        logger->debug("QRcodeTableV3::getCameraPose(): zero");
-        geometry_msgs::Pose zero;
-        return zero;
+        logger->info("QRcodeTableV3::getCameraPose(): return false");
+        return false;
     }
 }
 
@@ -315,24 +314,32 @@ std::vector<uint32_t> QRcodeTableV3::get_neighbor(uint32_t base_code)
 
 bool QRcodeTableV3::isAGVInQueue(double head_offset)
 {
-    logger->debug("QRcodeTableV3::isAGVInQueue()");
+    logger->debug("QRcodeTableV3::isAGVInQueue() start");
     // 获取相机位姿
-    geometry_msgs::Pose cameraPose = getCameraPose();
+    geometry_msgs::Pose cameraPose;
+    bool res = getCameraPose(cameraPose);
+    if(!res)
+    {
+        logger->debug("QRcodeTableV3::isAGVInQueue() return false");
+        return false;
+    }
 
     // 遍历每列
     for (std::vector<QRcodeColumn>::iterator column_it = columns.begin(); column_it != columns.end(); column_it++)
     {
         if (isPointInColumn(cameraPose, *column_it, head_offset, 0.6))
         {
+            logger->debug("QRcodeTableV3::isAGVInQueue() return true");
             return true;
         }
     }
+    logger->debug("QRcodeTableV3::isAGVInQueue() return false");
     return false;
 }
 
 bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcodeColumn &column, double offset_x, double range_y)
 {
-    logger->debug("QRcodeTableV3::isPointInColumn() Start");
+    logger->debug("QRcodeTableV3::isPointInColumn() start");
     if(column.qrcodes.size() == 0)
     {
         logger->debug("QRcodeTableV3::isPointInColumn() : column.qrcodes.size()=" + std::to_string(column.qrcodes.size()));
@@ -351,15 +358,27 @@ bool QRcodeTableV3::isPointInColumn(const geometry_msgs::Pose point, const QRcod
     // 列首约束
     double cameraToFrontLine = point_local.position.x - (head_local.position.x + offset_x);
     if (cameraToFrontLine > 0)
+    {
+        logger->debug("QRcodeTableV3::isPointInColumn() return false");
         return false;
+    }
+        
     // 列尾约束
     double cameraToBackLine = point_local.position.x - (-0.7);
     if (cameraToBackLine < 0)
+    {
+        logger->debug("QRcodeTableV3::isPointInColumn() return false");
         return false;
+    }
+        
     // 横向约束
     if (abs(point_local.position.y) > range_y)
+    {
+        logger->debug("QRcodeTableV3::isPointInColumn() return false");
         return false;
-
+    }
+        
+    logger->debug("QRcodeTableV3::isPointInColumn() return true");
     return true;
 }
 

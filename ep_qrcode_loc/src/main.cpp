@@ -85,7 +85,8 @@ std::shared_ptr<QRcodeLoc> chooseMode(ParamServer &param, MV_SC2005AM &camera)
     return QRcodeLocPtr;
 }
 
-void runLoop(std::shared_ptr<QRcodeLoc> qloc) {
+void runLoop(std::shared_ptr<QRcodeLoc> qloc)
+{
     qloc->loop();
 }
 
@@ -103,8 +104,8 @@ int main(int argc, char **argv)
     epLogger *logger;
     logger = &epLogger::getInstance();
     logger->init(param.logLevel, param.log_dir, param.logKeepDays);
-    logger->info("\n" + param.yamlData); // 参数原始文本
-    logger->info("\n" + param.logData);  // 读取记录
+    logger->info("\n" + param.yamlData);                   // 参数原始文本
+    logger->info("\n" + param.logData);                    // 读取记录
     logger->roll_delete_old_folders();                     // 滚动删除历史文件夹
     std::thread logLoopThread(&epLogger::logLoop, logger); // 相机循环线程
 

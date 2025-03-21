@@ -3,13 +3,13 @@
 // 构造函数
 Mode_CollectQRCodeIndex::Mode_CollectQRCodeIndex(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_CollectQRCodeIndex() Start");
+    logger->info("Mode_CollectQRCodeIndex() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_CollectQRCodeIndex() End");
+    logger->info("Mode_CollectQRCodeIndex() return");
 }
 
 Mode_CollectQRCodeIndex::~Mode_CollectQRCodeIndex() {}

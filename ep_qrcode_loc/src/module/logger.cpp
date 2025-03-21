@@ -24,7 +24,7 @@ void epLogger::init(std::string logLevel, std::string log_dir, std::size_t logKe
     openFile(logFile_, mutex, log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt"); // log文件
 
     // 创建数据文件
-    openFile(poseFile_, mutex_pose, log_dir_today_ + "pose.txt");       // pose文件
+    openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time(ros::Time::now()) + ".txt"); // pose文件
     openFile(yawerrFile_, mutex_yawerr, log_dir_ + "yawerr.txt");        // yawerr文件
     openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
 }
@@ -178,7 +178,7 @@ bool epLogger::openFile(std::ofstream &file, std::mutex &mtx, std::string path)
 
 void epLogger::logLoop()
 {
-    info("epLogger::logLoop() Start");
+    info("epLogger::logLoop() start");
 
     double loop_rate = 1.0; // 控制主循环频率1Hz
     ros::Rate loop_rate_ctrl(loop_rate);

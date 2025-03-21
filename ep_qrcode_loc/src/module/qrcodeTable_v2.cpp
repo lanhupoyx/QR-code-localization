@@ -116,7 +116,7 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
 
     // 记录器
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV2() Start");
+    logger->info("QRcodeTableV2() start");
 
     // 打开库位信息文件
     //std::string site_info_path = cfg_path + "SiteTable.txt";
@@ -294,7 +294,7 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
                                                      ros::TransportHints().tcpNoDelay());
     logger->debug("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTableV2() End");
+    logger->info("QRcodeTableV2() return");
 }
 
 QRcodeTableV2::~QRcodeTableV2() {}
@@ -357,7 +357,7 @@ bool QRcodeTableV2::correct_yaw(uint32_t code, double yaw_err)
 // 读取地码方向角补偿数据
 void QRcodeTableV2::readYawErr(std::string cfg_path)
 {
-    logger->debug("QRcodeTableV2::readYawErr() Start");
+    logger->debug("QRcodeTableV2::readYawErr() start");
 
     std::string yaw_err_path = cfg_path + "yaw_err.txt";
     std::ifstream ifs;
@@ -395,7 +395,7 @@ void QRcodeTableV2::readYawErr(std::string cfg_path)
     ifs.close();
     logger->info(yaw_err_path + "读取完毕!");
 
-    logger->debug("QRcodeTableV2::readYawErr() End");
+    logger->debug("QRcodeTableV2::readYawErr() return");
 }
 
 // callback获取baselink位姿

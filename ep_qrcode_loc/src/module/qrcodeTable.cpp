@@ -50,7 +50,7 @@ QRcodeTable::QRcodeTable(ParamServer &param) : param(param)
 {
     // 记录器
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTable() Start");
+    logger->info("QRcodeTable() start");
 
     loadCodeTable();
 
@@ -59,14 +59,14 @@ QRcodeTable::QRcodeTable(ParamServer &param) : param(param)
                                                      ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTable() End");
+    logger->info("QRcodeTable() return");
 }
 
 QRcodeTable::~QRcodeTable() {}
 
 bool QRcodeTable::loadCodeTable()
 {
-    logger->info("QRcodeTable::loadCodeTable() Start");
+    logger->info("QRcodeTable::loadCodeTable() start");
 
     // 打开文件
     std::string GroundCodeTablePath = param.GroundCodeTablePath;
@@ -157,7 +157,7 @@ bool QRcodeTable::loadCodeTable()
                         std::to_string((*it).second.yaw));
     }
 
-    logger->info("QRcodeTable::loadCodeTable() End");
+    logger->info("QRcodeTable::loadCodeTable() return");
     return true;
 }
 

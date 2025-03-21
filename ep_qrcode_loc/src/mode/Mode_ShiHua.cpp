@@ -3,13 +3,13 @@
 // 构造函数
 Mode_ShiHua::Mode_ShiHua(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_ShiHua() Start");
+    logger->info("Mode_ShiHua() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_ShiHua() End");
+    logger->info("Mode_ShiHua() return");
 }
 
 Mode_ShiHua::~Mode_ShiHua() {}

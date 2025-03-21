@@ -65,9 +65,7 @@ private:
     /// @param msg nav_msgs::Odometry消息
     void lidarPoseCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
-    /// @brief 获取最新相机pose
-    /// @return 相机pose
-    geometry_msgs::Pose getCameraPose();
+    bool getCameraPose(geometry_msgs::Pose &pose_camera2map);
 
     /// @brief 获取所有列首地码编号
     /// @return 列首地码编号集合vector

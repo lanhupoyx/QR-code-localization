@@ -3,13 +3,13 @@
 // 构造函数
 Mode_CalYawErr::Mode_CalYawErr(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_CalYawErr() Start");
+    logger->info("Mode_CalYawErr() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_CalYawErr() End");
+    logger->info("Mode_CalYawErr() return");
 }
 
 Mode_CalYawErr::~Mode_CalYawErr() {}

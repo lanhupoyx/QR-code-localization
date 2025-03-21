@@ -14,27 +14,6 @@ if [ -z $Version ]; then
     exit 1
 fi
 
-# read -p '请输入commit信息:' CommitInfo
-# if [ -n '$CommitInfo' ]; then
-#     cd ../src/
-#     git add .
-#     git commit -m $Version--$CommitInfo
-#     cd ../install
-# else
-#     echo "未输入commit信息,不执行 git commit命令"
-# fi    
-
-# read -p '请输入commit信息:' CommitInfo
-# if [ -n '$CommitInfo' ]; then
-#     cd ../src/
-#     git add .
-#     git commit -m $Version--$CommitInfo
-#     cd ../install
-# else
-#     echo "未输入commit信息,不执行 git commit命令"
-# fi 
-
-
 # 提示用户输入字符串
 echo "请输入commit信息:"
 read CommitInfo

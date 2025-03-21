@@ -3,7 +3,7 @@
 MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
 {
     logger = &epLogger::getInstance();
-    logger->info("MV_SC2005AM() Start");
+    logger->info("MV_SC2005AM() start");
 
     is_subNewFrame = false;
 
@@ -16,7 +16,7 @@ MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
                                 &MV_SC2005AM::LocCameraCallback, this, ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
 
-    logger->info("MV_SC2005AM() End");
+    logger->info("MV_SC2005AM() return");
 }
 
 MV_SC2005AM::~MV_SC2005AM() {}
