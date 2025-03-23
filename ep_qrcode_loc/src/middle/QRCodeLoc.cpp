@@ -632,7 +632,45 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
         del_n_end(std::to_string(pic_latest.error_yaw), 3);             // 相机与地码偏移量yaw(度)
 
     logger->pose(new_log);
-    logger->debug(new_log);
+
+    static std::string last_log = new_log;
+    uint32_t new_code = pic_latest.code;
+    static uint32_t last_code = new_code;
+    double is_stop = publist_front[0].pose.covariance[1];
+    static double is_stop_last = is_stop;
+    
+    if(0 == new_code)
+    {
+        last_code = new_code;
+        last_log = new_log;
+        is_stop_last = is_stop;
+        return;
+    }
+    else
+    {
+        if(0 == last_code)
+        {
+            logger->info(last_log);
+        }
+
+        if(0 == is_stop_last)
+        {
+            if(1 == is_stop)
+            {
+                logger->info("stop");
+            }
+        }
+
+        logger->info(new_log);
+
+        last_code = new_code;
+        last_log = new_log;
+        is_stop_last = is_stop;
+        
+        return;
+    }
+
+
 }
 
 /// @brief 输出扫码跳变数据到指定文件

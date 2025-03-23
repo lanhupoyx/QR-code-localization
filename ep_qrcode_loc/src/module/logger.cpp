@@ -194,10 +194,6 @@ void epLogger::logLoop()
             createDateFolder(log_dir_); // 根据日期创建文件夹
             roll_delete_old_folders();  // 删除过早log
 
-            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
-            info("is reopening qrcode_log.txt in :" + logPath);
-            openFile(logFile_, mutex, logPath); // log文件
-
             openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
             info("reopen jumperr.txt in :" + log_dir_today_ + "jumperr.txt");
         }
@@ -210,6 +206,10 @@ void epLogger::logLoop()
         {
             openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time(ros::Time::now()) + ".txt"); // pose文件
             info("reopen pose.txt in :" + log_dir_today_ + "pose.txt");
+
+            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
+            info("is reopening qrcode_log.txt in :" + logPath);
+            openFile(logFile_, mutex, logPath); // log文件
         }
         hourNumLast = hourNum;
 
