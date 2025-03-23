@@ -127,13 +127,16 @@ int main(int argc, char **argv)
 TODO:
 6、自动读取版本号等基础信息到log
 7、qrcode_table多态问题
-8、log文件问题，pose分小时，其它分天
+9、sub相关的功能集合成一个模块
+10、重启后log文件接着用
 
 
 DONE:
 1、相机数据作为topic发出，订阅该topic进行使用，可通过录包形式保存数据
 4、考虑车辆一直运行带来的log保存问题
 5、每天运行一次log循环删除
+8、log文件问题，pose分小时，其它分天
+
 
 DELAY:
 2、二维码序号参数文件放在vcs进行管理，需配合单码调试工具进行升级
