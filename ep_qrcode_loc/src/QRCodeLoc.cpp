@@ -737,19 +737,35 @@ public:
             del_n_end(std::to_string(pic_latest.error_y / 10.0), 3) + "," + // 相机与地码偏移量y(cm)
             del_n_end(std::to_string(pic_latest.error_yaw), 3);             // 相机与地码偏移量yaw(度)
 
-        logger->pose(new_log);
-        //logger->debug(new_log);
-        static double is_stop_last = publist_front[0].pose.covariance[1];
-        if(0 == is_stop_last)
+        static std::string last_log = new_log;
+        uint32_t new_code = pic_latest.code;
+        static uint32_t last_code = new_code;
+        
+        if(0 == new_code)
         {
-            if(1 == publist_front[0].pose.covariance[1])
-            {
-                logger->info("stop");
-            }
+            return;
         }
-        is_stop_last = publist_front[0].pose.covariance[1];
-
-        logger->info(new_log);
+        else
+        {
+            if(0 == last_code)
+            {
+                logger->info(last_log);
+            }
+    
+            logger->pose(new_log);
+            //logger->debug(new_log);
+            static double is_stop_last = publist_front[0].pose.covariance[1];
+            if(0 == is_stop_last)
+            {
+                if(1 == publist_front[0].pose.covariance[1])
+                {
+                    logger->info("stop");
+                }
+            }
+            is_stop_last = publist_front[0].pose.covariance[1];
+    
+            logger->info(new_log);
+        }
     }
 
     /// @brief 输出扫码跳变数据到指定文件
