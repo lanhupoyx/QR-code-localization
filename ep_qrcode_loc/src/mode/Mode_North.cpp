@@ -80,8 +80,11 @@ void Mode_North::cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new
         err_type = err_type | 0x01; // 角度超过限制
 
     // 监测是否顺序扫码
-    if (!qrcode_table_v3->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
-        err_type = err_type | 0x02; // 未按顺序扫码
+    if(param.is_check_code_in_order)
+    {
+        if (!qrcode_table_v3->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+            err_type = err_type | 0x02; // 未按顺序扫码
+    }
 
     // 监测是否在二维码处发生跳变
     if (is_output_available)

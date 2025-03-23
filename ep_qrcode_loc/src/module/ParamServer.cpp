@@ -75,6 +75,7 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
         importItem<double>(config, "ep_qrcode_loc", "ground_code_yaw_offset", ground_code_yaw_offset, 0.0);
         importItem<std::size_t>(config, "ep_qrcode_loc", "logKeepDays", logKeepDays, 90);
         importItem<bool>(config, "ep_qrcode_loc", "is_mainloop_query_camera", is_mainloop_query_camera, true);
+        importItem<bool>(config, "ep_qrcode_loc", "is_check_code_in_order", is_check_code_in_order, false);
     }
     catch (YAML::Exception &e)
     {

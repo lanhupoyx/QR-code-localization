@@ -53,6 +53,8 @@ public:
     bool cal_yaw;
     double ground_code_yaw_offset;
 
+    bool is_check_code_in_order;
+
     std::string mainParamPath;
     std::string siteTablePath;
     std::string GroundCodeTablePath;
