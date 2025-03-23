@@ -351,6 +351,7 @@ public:
     bool check_sequence;
     bool cal_yaw;
     double ground_code_yaw_offset;
+    bool is_check_code_in_order;
 
     ParamServer()
     {
@@ -393,6 +394,7 @@ public:
         nh.param<bool>("ep_qrcode_loc/check_sequence", check_sequence, true);
         nh.param<bool>("ep_qrcode_loc/cal_yaw", cal_yaw, true);
         nh.param<double>("ep_qrcode_loc/ground_code_yaw_offset", ground_code_yaw_offset, 0.0);
+        nh.param<bool>("ep_qrcode_loc/is_check_code_in_order", is_check_code_in_order, false);
     }
 };
 
