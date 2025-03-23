@@ -738,7 +738,18 @@ public:
             del_n_end(std::to_string(pic_latest.error_yaw), 3);             // 相机与地码偏移量yaw(度)
 
         logger->pose(new_log);
-        logger->debug(new_log);
+        //logger->debug(new_log);
+        static double is_stop_last = publist_front[0].pose.covariance[1];
+        if(0 == is_stop_last)
+        {
+            if(1 == publist_front[0].pose.covariance[1])
+            {
+                logger->info("stop");
+            }
+        }
+        is_stop_last = publist_front[0].pose.covariance[1];
+
+        logger->info(new_log);
     }
 
     /// @brief 输出扫码跳变数据到指定文件
