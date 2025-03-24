@@ -135,13 +135,8 @@ void Mode_AssistedDriving::wheelOdomProcess()
         logger->debug("wheel odom publist.push_back(v_odom_wheel)");
 
         // 递推距离清零、判断递推是否过远
-        if (qrcode_table_v3->isAGVInQueue(-0.15)) // 在列内
+        if (is_output_available) // 可用
         {
-            if (!qrcode_table_v3->isAGVInQueue(-0.35))
-            {
-                wheel_odom->reset_path_dis(); // 进入列首，递推距离清零
-            }
-
             if (wheel_odom->is_path_dis_overflow()) // 递推过远
             {
                 logger->debug("在列内递推过远");
