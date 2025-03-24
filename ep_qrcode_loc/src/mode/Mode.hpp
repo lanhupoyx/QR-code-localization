@@ -8,13 +8,37 @@
 /// @brief 辅助驾驶三向车模式，巷道内使用
 class Mode_AssistedDriving : public QRcodeLoc
 {
+private:
+    QRcodeTableV3 *qrcode_table_v3;
+
+    QRcodeInfo code_info;     // 存放查询到的地码信息
+    uint8_t err_type;         // 16进制数据，存放故障类型
+    bool is_output_available; // 记录是否可以输出数据
+
+    std::list<std::vector<nav_msgs::Odometry>> publist; // 最终数据发送队列
+
 public:
-    // 构造函数
+    /// @brief 构造函数
+    /// @param param 参数服务对象
+    /// @param camera 相机对象
     Mode_AssistedDriving(ParamServer &param, MV_SC2005AM *camera);
+
+    /// @brief 析构函数
     ~Mode_AssistedDriving();
 
-    // 循环
+    /// @brief 工作循环
     void loop();
+
+    /// @brief 相机处理流程
+    /// @param v_pose_new 有相机得到的最新pose
+    void cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new);
+
+    /// @brief 轮速计第推处理流程
+    void wheelOdomProcess();
+
+    /// @brief 结果发布处理流程
+    /// @param output 待发布数据
+    void publishProcess(std::vector<nav_msgs::Odometry> &output);
 };
 
 /// @brief 通过lidar获取地码方向角
