@@ -68,6 +68,7 @@ include_directories(
   ${CMAKE_MODULE_PATH}
   ${PROJECT_SOURCE_DIR}/src/mode
   ${PROJECT_SOURCE_DIR}/src/module
+  ${PROJECT_SOURCE_DIR}/src/module/qrcodeTable
   ${PROJECT_SOURCE_DIR}/src/middle
   "/usr/include/x86_64-linux-gnu/"
   "/opt/libs-x86_64-Linux/eigen/eigen3"
@@ -90,9 +91,10 @@ add_executable(${PROJECT_NAME}_node src/main.cpp
                                     src/module/ParamServer.cpp
                                     src/module/camera.cpp
                                     src/module/wheelOdom.cpp
-                                    src/module/qrcodeTable_v3.cpp
-                                    src/module/qrcodeTable_v2.cpp
-                                    src/module/qrcodeTable_v1.cpp
+                                    src/module/qrcodeTable/qrcodeTable.cpp
+                                    src/module/qrcodeTable/qrcodeTable_v3.cpp
+                                    src/module/qrcodeTable/qrcodeTable_v2.cpp
+                                    src/module/qrcodeTable/qrcodeTable_v1.cpp
                                     src/mode/Mode_AssistedDriving.cpp  
                                     src/mode/Mode_CheckCameraHorizon.cpp  
                                     src/mode/Mode_CollectQRCodePose.cpp

@@ -2,9 +2,10 @@
 #include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
+#include "qrcodeTable.hpp"
 
 // 二维码坐标对照表
-class QRcodeTableV1
+class QRcodeTableV1 : public QRcodeTable
 {
 public:
     QRcodeTableV1(std::string dir, ParamServer& param);
@@ -25,13 +26,16 @@ public:
 
     void subPose();
 
+    bool is_head(uint32_t code_new);
+    std::vector<uint32_t> get_neighbor(uint32_t base_code);
+    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset);
+
 private:
     // 计算二维码位姿
     QRcodeInfo calPose();
 
 private:
     std::ifstream ifs;
-    std::map<uint32_t, QRcodeInfo> map;
     std::map<uint32_t, QRcodeInfo> new_map;
     std::ofstream log_file;
     std::list<CameraFrame> frame_buffer;
@@ -39,12 +43,5 @@ private:
     geometry_msgs::TransformStamped trans_camera2base;
     std::string path;
 
-    ros::Subscriber sub_pos;
-
-    std::mutex mtx;
-    std::list<nav_msgs::Odometry> tf_buffer;
-
-    epLogger *logger;
     std::stringstream stream;
-    ParamServer& param;
 };

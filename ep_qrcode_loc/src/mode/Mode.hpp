@@ -4,13 +4,15 @@
 #include "ParamServer.hpp"
 #include "logger.hpp"
 #include "QRCodeLoc.hpp"
+#include "qrcodeTable_v1.hpp"
+#include "qrcodeTable_v2.hpp"
+#include "qrcodeTable_v3.hpp"
 
 /// @brief 辅助驾驶三向车模式，巷道内使用
 class Mode_AssistedDriving : public QRcodeLoc
 {
 private:
-    QRcodeTableV3 *qrcode_table_v3;
-
+    QRcodeTableV3 *qrcode_table;
     QRcodeInfo code_info;     // 存放查询到的地码信息
     uint8_t err_type;         // 16进制数据，存放故障类型
     bool is_output_available; // 记录是否可以输出数据
@@ -44,6 +46,9 @@ public:
 /// @brief 通过lidar获取地码方向角
 class Mode_GetYaw : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_GetYaw(ParamServer &param, MV_SC2005AM *camera);
@@ -56,6 +61,9 @@ public:
 /// @brief 计算地码方向角偏差
 class Mode_CalYawErr : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_CalYawErr(ParamServer &param, MV_SC2005AM *camera);
@@ -68,6 +76,9 @@ public:
 /// @brief 检查相机水平模式
 class Mode_CheckCameraHorizon : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_CheckCameraHorizon(ParamServer &param, MV_SC2005AM *camera);
@@ -80,6 +91,9 @@ public:
 /// @brief 获取地码编号模式
 class Mode_CollectQRCodeIndex : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_CollectQRCodeIndex(ParamServer &param, MV_SC2005AM *camera);
@@ -92,6 +106,9 @@ public:
 /// @brief 获取地码pose模式
 class Mode_CollectQRCodePose : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_CollectQRCodePose(ParamServer &param, MV_SC2005AM *camera);
@@ -105,8 +122,7 @@ public:
 class Mode_North : public QRcodeLoc
 {
 private:
-    QRcodeTableV3 *qrcode_table_v3;
-
+    QRcodeTableV3 *qrcode_table;
     QRcodeInfo code_info;     // 存放查询到的地码信息
     uint8_t err_type;         // 16进制数据，存放故障类型
     bool is_output_available; // 记录是否可以输出数据
@@ -140,6 +156,9 @@ public:
 /// @brief 石花项目，地码间距与库位间距、动作点位置等紧密相关
 class Mode_ShiHua : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_ShiHua(ParamServer &param, MV_SC2005AM *camera);
@@ -152,6 +171,9 @@ public:
 /// @brief 测试模式
 class Mode_TestRun : public QRcodeLoc
 {
+private:
+    QRcodeTableV2 *qrcode_table;
+
 public:
     // 构造函数
     Mode_TestRun(ParamServer &param, MV_SC2005AM *camera);

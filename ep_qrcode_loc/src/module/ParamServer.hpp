@@ -63,6 +63,9 @@ public:
 
     bool is_mainloop_query_camera;
 
+    bool is_moter_speed_reverse;
+    bool is_wheel_angular_reverse;
+
     geometry_msgs::TransformStamped trans_base2camera;
     geometry_msgs::TransformStamped trans_camera2base;
 

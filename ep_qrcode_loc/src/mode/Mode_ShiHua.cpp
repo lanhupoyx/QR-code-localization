@@ -69,7 +69,7 @@ void Mode_ShiHua::loop()
                 // 监测是否顺序扫码
                 if(param.is_check_code_in_order)
                 {
-                    if (!is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+                    if (!qrcode_table->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
                     err_type = err_type | 0x02; // 未按顺序扫码
                 }
 
@@ -188,7 +188,7 @@ void Mode_ShiHua::loop()
                 output[0].pose.covariance[0] = 0;  // 数据不可用
                 output[0].pose.covariance[1] = 0;  // 故障急停：否
                 pic.code = 0;                      // 列外码值清零
-                is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
+                qrcode_table->is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
                 do_not_jump_this_frame(pic, true); // 复位该功能
                 wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
             }
@@ -202,7 +202,7 @@ void Mode_ShiHua::loop()
             }
 
             // 记录本帧数据
-            output_log(pic, code_info, wheel_odom->get_vel_msg(), output);
+            output_log(pic, code_info, wheel_odom->get_vel_msg(), output, qrcode_table->is_head(pic.code));
 
             // 扫码无异常，则发布消息
             if (2 != output[0].pose.covariance[6])

@@ -1,6 +1,6 @@
 #include "qrcodeTable_v1.hpp"
 
-QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : param(param)
+QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : QRcodeTable(param)
 {
     path = dir; // 文件位置
     logger = &epLogger::getInstance();
@@ -92,11 +92,13 @@ bool QRcodeTableV1::find_add(CameraFrame frame, QRcodeInfo *info)
 // 根据二维码编号查表，得到位姿信息
 bool QRcodeTableV1::onlyfind(CameraFrame frame, QRcodeInfo *info)
 {
+    logger->debug("QRcodeTableV1::onlyfind() start");
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
     {
         *info = (*it).second;
         info->frame = frame;
+        logger->debug("QRcodeTableV1::onlyfind() end true");
         return true;
     }
     else
@@ -106,6 +108,7 @@ bool QRcodeTableV1::onlyfind(CameraFrame frame, QRcodeInfo *info)
         // logger->info(stream.str());
         std::cout << "can not identify code:" << frame.code << std::endl;
     }
+    logger->debug("QRcodeTableV1::onlyfind() end false");
     return false;
 }
 
@@ -253,3 +256,11 @@ QRcodeInfo QRcodeTableV1::calPose()
     logger->info(stream.str());
     return (average);
 }
+
+
+bool QRcodeTableV1::is_head(uint32_t code_new){}
+
+
+std::vector<uint32_t> QRcodeTableV1::get_neighbor(uint32_t base_code){}
+
+bool QRcodeTableV1::is_code_in_order(uint32_t code_new, double vel_x, bool reset){}

@@ -49,7 +49,6 @@ public:
     // 功能对象
     ParamServer& param;
     MV_SC2005AM *camera;
-    QRcodeTableV2 *qrcode_table;
     WheelSpeedOdometer *wheel_odom;
     
     //相机当前frame数据
@@ -97,14 +96,12 @@ public:
     // 判断是否跳变过大
     bool is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose pose_now);
 
-    // 是否按顺序扫码
-    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
-
     // 输出记录
     void output_log(CameraFrame pic_latest, 
                     QRcodeInfo code_info, 
                     geometry_msgs::Twist wheel_msg,
-                    std::vector<nav_msgs::Odometry> publist_front);
+                    std::vector<nav_msgs::Odometry> publist_front,
+                    bool is_head);
 
     /// @brief 输出扫码跳变数据到指定文件
     /// @param output

@@ -46,7 +46,7 @@ geometry_msgs::Pose QRcodeColumn::poseMove(geometry_msgs::Pose pose, double dis_
     return pose_move;
 }
 
-QRcodeTableV3::QRcodeTableV3(ParamServer &param) : param(param)
+QRcodeTableV3::QRcodeTableV3(ParamServer &param) : QRcodeTable(param)
 {
     // 记录器
     logger = &epLogger::getInstance();
@@ -163,6 +163,7 @@ bool QRcodeTableV3::loadCodeTable()
 
 bool QRcodeTableV3::onlyfind(CameraFrame frame, QRcodeInfo *info)
 {
+    logger->debug("QRcodeTableV3::onlyfind() start");
     std::lock_guard<std::mutex> locker(mtx);
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
@@ -175,11 +176,13 @@ bool QRcodeTableV3::onlyfind(CameraFrame frame, QRcodeInfo *info)
     {
         std::cout << "can not identify code:" << frame.code << std::endl;
     }
+    logger->debug("QRcodeTableV3::onlyfind() end false");
     return false;
 }
 
 bool QRcodeTableV3::onlyfind(CameraFrame frame)
 {
+    logger->debug("QRcodeTableV3::onlyfind() start");
     std::lock_guard<std::mutex> locker(mtx);
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
@@ -189,6 +192,7 @@ bool QRcodeTableV3::onlyfind(CameraFrame frame)
     else
     {
         std::cout << "can not identify code:" << frame.code << std::endl;
+        logger->debug("QRcodeTableV3::onlyfind() end false");
         return false;
     }
 }

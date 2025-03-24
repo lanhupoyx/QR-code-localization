@@ -35,7 +35,7 @@ WheelSpeedOdometer::~WheelSpeedOdometer() {}
 // 获取/realvel的回调函数
 void WheelSpeedOdometer::realvelCallback(const geometry_msgs::Twist::ConstPtr &p_velmsg)
 {
-    logger->debug("WheelSpeedOdometer::realvelCallback");
+    logger->debug("WheelSpeedOdometer::realvelCallback() start");
 
     ros::Time time_now = ros::Time::now();
     std::lock_guard<std::mutex> locker(mtx);
@@ -63,6 +63,8 @@ void WheelSpeedOdometer::realvelCallback(const geometry_msgs::Twist::ConstPtr &p
         speed_data.pop_front();
         logger->debug("speed_data.pop_front();");
     }
+    logger->debug("WheelSpeedOdometer::realvelCallback() end");
+    return;
 }
 
 // 运行轮速递推器
@@ -222,7 +224,7 @@ nav_msgs::Odometry WheelSpeedOdometer::poseEstimation(nav_msgs::Odometry odom_in
 // 解析轮速数据，前主动轮模型
 geometry_msgs::TwistStamped WheelSpeedOdometer::decode_msg(geometry_msgs::Twist vel_msg, ros::Time time)
 {
-    logger->debug("WheelSpeedOdometer::decode_msg");
+    logger->debug("WheelSpeedOdometer::decode_msg start");
     geometry_msgs::TwistStamped vel_new;
 
     // vel_msg.linear.x  :base_link实际线速度 (m/s)
@@ -236,17 +238,36 @@ geometry_msgs::TwistStamped WheelSpeedOdometer::decode_msg(geometry_msgs::Twist 
     vel_new.header.stamp = time;
     // 保存原始数据
     vel_new.twist = vel_msg;
+
     // 轮子进退电机转速 rpm
-    double wheel_moter_speed = vel_msg.linear.z;
-    // 轮子角速度：弧度
-    double wheel_angular;
+    double wheel_moter_speed;
+    if (param.is_moter_speed_reverse)
+    {
+        wheel_moter_speed = (-1) * vel_new.twist.linear.z;
+    }
+    else
+    {
+        wheel_moter_speed = vel_new.twist.linear.z;
+    }
+
+    // 轮子角度：弧度
+    double wheel_angular_rad, wheel_angular_deg;
+    if (param.is_wheel_angular_reverse)
+    {
+        wheel_angular_deg = (-1) * vel_new.twist.angular.y;
+    }
+    else
+    {
+        wheel_angular_deg = vel_new.twist.angular.y;
+    }
+
     if (wheel_moter_speed >= 0.0) // 前进
     {
-        wheel_angular = (vel_msg.angular.y + param.wheel_angular_forward) * M_PI / 180;
+        wheel_angular_rad = (wheel_angular_deg + param.wheel_angular_forward) * M_PI / 180;
     }
     else // 后退
     {
-        wheel_angular = (vel_msg.angular.y + param.wheel_angular_backward) * M_PI / 180;
+        wheel_angular_rad = (wheel_angular_deg + param.wheel_angular_backward) * M_PI / 180;
     }
 
     // 轮子速度 m/s
@@ -257,19 +278,19 @@ geometry_msgs::TwistStamped WheelSpeedOdometer::decode_msg(geometry_msgs::Twist 
     double base_vel_yaw = 0;
 
     // 根据轮子转角大小分情况解析
-    if (abs(wheel_angular) < 0.001) // 角度过小
+    if (abs(wheel_angular_rad) < 0.001) // 角度过小
     {
         base_vel_x = wheel_vel;
         base_vel_yaw = 0;
     }
-    else if (abs(wheel_angular) < 1.570) // 一般角度
+    else if (abs(wheel_angular_rad) < 1.570) // 一般角度
     {
-        base_vel_yaw = wheel_vel * std::sin(wheel_angular) / param.wheel_base_dis;
-        base_vel_x = base_vel_yaw * (param.wheel_base_dis / std::tan(wheel_angular));
+        base_vel_yaw = wheel_vel * std::sin(wheel_angular_rad) / param.wheel_base_dis;
+        base_vel_x = base_vel_yaw * (param.wheel_base_dis / std::tan(wheel_angular_rad));
     }
     else // 角度过大
     {
-        if (wheel_angular > 0)
+        if (wheel_angular_rad > 0)
         {
             base_vel_yaw = wheel_vel / param.wheel_base_dis;
         }
@@ -284,6 +305,8 @@ geometry_msgs::TwistStamped WheelSpeedOdometer::decode_msg(geometry_msgs::Twist 
     vel_new.twist.linear.x = base_vel_x;    // base线速递
     vel_new.twist.linear.y = wheel_vel;     // 轮子速度
     vel_new.twist.angular.z = base_vel_yaw; // base角速度
+
+    logger->debug("WheelSpeedOdometer::decode_msg end");
 
     // 返回值
     return vel_new;

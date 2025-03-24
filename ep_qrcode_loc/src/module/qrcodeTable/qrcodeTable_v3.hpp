@@ -2,6 +2,7 @@
 #include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
+#include "qrcodeTable.hpp"
 
 /// @brief 地码列类，用于存储一列地码的信息
 class QRcodeColumn
@@ -44,18 +45,10 @@ public:
 };
 
 /// @brief 地码表类，用于处理地码表相关功能
-class QRcodeTableV3
+class QRcodeTableV3 : public QRcodeTable
 {
 private:
-    std::mutex mtx;
-    epLogger *logger;
-    ParamServer &param;
-
     std::vector<QRcodeColumn> columns;  // 存放地码初始信息
-    std::map<uint32_t, QRcodeInfo> map; // 最终生成的二维码位姿表
-
-    ros::Subscriber sub_pos;
-    std::list<nav_msgs::Odometry> tf_buffer;
 
     /// @brief 加载地码信息文件
     /// @return 是否成功

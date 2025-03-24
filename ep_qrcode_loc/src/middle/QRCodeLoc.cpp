@@ -134,6 +134,8 @@ void QRcodeLoc::BasicStateCallback(const xmover_msgs::BasicState::ConstPtr &p_ba
 // 发布定位结果
 void QRcodeLoc::pubOdom(std::vector<nav_msgs::Odometry> v_odom)
 {
+    logger->debug("QRcodeLoc::pubOdom() start");
+
     // 主要需要输出的消息
     nav_msgs::Odometry odom_map_base = v_odom[0];
     nav_msgs::Odometry odom_map_camera = v_odom[1];
@@ -141,7 +143,6 @@ void QRcodeLoc::pubOdom(std::vector<nav_msgs::Odometry> v_odom)
     // 发布odom消息
     pub_odom_map_base.publish(odom_map_base);
     pub_odom_map_camera.publish(odom_map_camera);
-    logger->debug("QRcodeLoc::pubOdom()");
 
     // 发布TF
     if (param.is_pub_tf)
@@ -173,12 +174,14 @@ void QRcodeLoc::pubOdom(std::vector<nav_msgs::Odometry> v_odom)
             pub_path_map_camera.publish(path_map_camera);
         }
     }
+    logger->debug("QRcodeLoc::pubOdom() end");
+    return;
 }
 
 // 发布TF
 void QRcodeLoc::pubTf(const nav_msgs::Odometry odom)
 {
-    logger->debug("QRcodeLoc::pubTf()");
+    logger->debug("QRcodeLoc::pubTf() start");
 
     // 定义变换
     tf::Transform transform;
@@ -216,6 +219,8 @@ void QRcodeLoc::pubTf(const nav_msgs::Odometry odom)
     // logger->info(stream.str());
     odom_history = odom;
     // std::cout << stream.str() << std::endl;
+    logger->debug("QRcodeLoc::pubTf() end");
+    return;
 }
 
 // 计算base_link在map坐标系下的坐标
@@ -524,93 +529,30 @@ bool QRcodeLoc::is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose 
     return result;
 }
 
-// 是否按顺序扫码
-bool QRcodeLoc::is_code_in_order(uint32_t code_new, double vel_x, bool reset)
-{
-    static uint32_t last_code = 0;
-
-    if (!param.check_sequence)
-    {
-        return true;
-    }
-
-    if (reset)
-    {
-        last_code = 0;
-        logger->debug("is_code_in_order: reset, return true");
-        return true;
-    }
-    else if (last_code == code_new)
-    {
-        logger->debug("is_code_in_order: same code, return true");
-        return true;
-    }
-    else if (0 == last_code) // 首次扫码
-    {
-        if (qrcode_table->is_head(code_new))
-        {
-            last_code = code_new;
-            logger->debug("is_code_in_order: is head, return true");
-            return true;
-        }
-        else
-        {
-            logger->info("is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
-            last_code = code_new;
-            // return false;//必须扫到列首地码
-            return true; // 不需要扫到列首地码
-        }
-    }
-    else
-    {
-        std::vector<uint32_t> nbr = qrcode_table->get_neighbor(last_code);
-        if ((vel_x > 0) && (code_new == nbr[0]))
-        {
-            if (qrcode_table->is_head(code_new))
-            {
-                last_code = 0;
-                logger->debug("is_code_in_order: forward out, return true");
-            }
-            else
-            {
-                last_code = code_new;
-                logger->debug("is_code_in_order: forward, return true");
-            }
-            return true;
-        }
-        else if ((vel_x < 0) && (code_new == nbr[1]))
-        {
-            last_code = code_new;
-            logger->debug("is_code_in_order: retreat, return true");
-            return true;
-        }
-        else
-        {
-            last_code = code_new;
-            logger->info("is_code_in_order: other, return false  code_new=" + std::to_string(code_new) +
-                         " vel_x=" + std::to_string(vel_x) +
-                         " nbr[0]=" + std::to_string(nbr[0]) +
-                         " nbr[1]=" + std::to_string(nbr[1]));
-            return false;
-        }
-    }
-}
-
 // 输出记录
 void QRcodeLoc::output_log(CameraFrame pic_latest,
                            QRcodeInfo code_info,
                            geometry_msgs::Twist wheel_msg,
-                           std::vector<nav_msgs::Odometry> publist_front)
+                           std::vector<nav_msgs::Odometry> publist_front,
+                           bool is_head)
 {
+    logger->debug("QRcodeLoc::output_log() start");
     // 速度过小，不输出
     if (abs(wheel_odom->get_vel_msg().linear.x) < 0.001)
     {
+        logger->debug("QRcodeLoc::output_log() end : abs(wheel_odom->get_vel_msg().linear.x) < 0.001");
+        return;
+    }
+
+    if(publist_front.size() == 0)
+    {
+        logger->debug("QRcodeLoc::output_log() start : publist_front.size() == 0");
         return;
     }
 
     std::string new_log =
         std::to_string(pic_latest.code) + "," +                                    // 二维码编号
-        std::to_string(qrcode_table->is_head(pic_latest.code)) + "," +             // 0:不是列首地码，1:是列首地码
+        std::to_string(is_head) + "," +                                            // 0:不是列首地码，1:是列首地码
         del_n_end(std::to_string(publist_front[0].pose.covariance[6]), 7) + ", " + // 0:轮速计结果，1:扫码正常，已根据二维码结果设置递推初值，2:扫码异常，未根据二维码结果设置递推初值
 
         del_n_end(std::to_string(publist_front[0].pose.covariance[0]), 7) + "," +  // 0:数据不可用，1:数据可用
@@ -644,6 +586,7 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
         last_code = new_code;
         last_log = new_log;
         is_stop_last = is_stop;
+        logger->debug("QRcodeLoc::output_log() end : 0 == new_code");
         return;
     }
     else
@@ -667,6 +610,7 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
         last_log = new_log;
         is_stop_last = is_stop;
         
+        logger->debug("QRcodeLoc::output_log() end");
         return;
     }
 
@@ -680,9 +624,11 @@ void QRcodeLoc::output_jump_err(QRcodeInfo code_info,
                                 std::vector<nav_msgs::Odometry> output,
                                 std::vector<nav_msgs::Odometry> output_last)
 {
+    logger->debug("QRcodeLoc::output_jump_err() start");
     // 速度过小，不输出
     if (abs(wheel_odom->get_vel_msg().linear.x) < 0.1)
     {
+        logger->debug("QRcodeLoc::output_jump_err() end, abs(wheel_odom->get_vel_msg().linear.x) < 0.1 ");
         return;
     }
 
@@ -718,4 +664,5 @@ void QRcodeLoc::output_jump_err(QRcodeInfo code_info,
                     del_n_end(std::to_string(code_info.frame.error_y / 10.0), 3) + "," + // 相机与地码偏移量y
                     del_n_end(std::to_string(code_info.frame.error_yaw), 3)              // 相机与地码偏移量yaw
     );
+    logger->debug("QRcodeLoc::output_jump_err() end");
 }

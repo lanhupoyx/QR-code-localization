@@ -4,7 +4,7 @@ Mode_North::Mode_North(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(para
 {
     logger->info("Mode_North() start");
 
-    qrcode_table_v3 = new QRcodeTableV3(param);
+    qrcode_table = new QRcodeTableV3(param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
     code_info.frame.code = 0;
@@ -34,7 +34,7 @@ void Mode_North::loop()
             logger->debug("getframe");
             if (do_not_jump_this_frame(pic)) // 检查是否需要跳过该帧数据
             {
-                if (qrcode_table_v3->onlyfind(pic, &code_info)) // 查询地码信息
+                if (qrcode_table->onlyfind(pic, &code_info)) // 查询地码信息
                 {
                     v_pose_new = get_pose(code_info); // 计算base_link在qrmap坐标和map坐标的坐标
                 }
@@ -82,7 +82,7 @@ void Mode_North::cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new
     // 监测是否顺序扫码
     if(param.is_check_code_in_order)
     {
-        if (!qrcode_table_v3->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+        if (!qrcode_table->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
             err_type = err_type | 0x02; // 未按顺序扫码
     }
 
@@ -94,7 +94,7 @@ void Mode_North::cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new
     }
 
     // 卡尔曼滤波
-    if (!qrcode_table_v3->is_head(pic.code)) // 不是列首码
+    if (!qrcode_table->is_head(pic.code)) // 不是列首码
     {
         geometry_msgs::Pose pose_observe = v_pose_new[0];
         geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
@@ -134,9 +134,9 @@ void Mode_North::wheelOdomProcess()
         logger->debug("wheel odom publist.push_back(v_odom_wheel)");
 
         // 递推距离清零、判断递推是否过远
-        if (qrcode_table_v3->isAGVInQueue(-0.15)) // 在列内
+        if (qrcode_table->isAGVInQueue(-0.15)) // 在列内
         {
-            if (!qrcode_table_v3->isAGVInQueue(-0.35))
+            if (!qrcode_table->isAGVInQueue(-0.35))
             {
                 wheel_odom->reset_path_dis(); // 进入列首，递推距离清零
             }
@@ -190,7 +190,7 @@ void Mode_North::publishProcess(std::vector<nav_msgs::Odometry> &output)
         output[0].pose.covariance[0] = 0;  // 数据不可用
         output[0].pose.covariance[1] = 0;  // 故障急停：否
         pic.code = 0;                      // 列外码值清零
-        is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
+        qrcode_table->is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
         do_not_jump_this_frame(pic, true); // 复位该功能
         wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
     }
@@ -204,7 +204,7 @@ void Mode_North::publishProcess(std::vector<nav_msgs::Odometry> &output)
     }
 
     // 记录本帧数据
-    output_log(pic, code_info, wheel_odom->get_vel_msg(), output);
+    output_log(pic, code_info, wheel_odom->get_vel_msg(), output, qrcode_table->is_head(pic.code));
 
     // 扫码无异常，则发布消息
     if (2 != output[0].pose.covariance[6])

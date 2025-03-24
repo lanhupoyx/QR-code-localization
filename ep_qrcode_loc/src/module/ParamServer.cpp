@@ -76,6 +76,8 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
         importItem<std::size_t>(config, "ep_qrcode_loc", "logKeepDays", logKeepDays, 90);
         importItem<bool>(config, "ep_qrcode_loc", "is_mainloop_query_camera", is_mainloop_query_camera, true);
         importItem<bool>(config, "ep_qrcode_loc", "is_check_code_in_order", is_check_code_in_order, false);
+        importItem<bool>(config, "ep_qrcode_loc", "is_moter_speed_reverse", is_moter_speed_reverse, false);
+        importItem<bool>(config, "ep_qrcode_loc", "is_wheel_angular_reverse", is_wheel_angular_reverse, false);
     }
     catch (YAML::Exception &e)
     {

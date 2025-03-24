@@ -5,7 +5,7 @@ Mode_AssistedDriving::Mode_AssistedDriving(ParamServer &param, MV_SC2005AM *came
 {
     logger->info("Mode_AssistedDriving() start");
 
-    qrcode_table_v3 = new QRcodeTableV3(param);
+    qrcode_table = new QRcodeTableV3(param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
     code_info.frame.code = 0;
@@ -19,7 +19,7 @@ Mode_AssistedDriving::~Mode_AssistedDriving() {}
 
 void Mode_AssistedDriving::loop()
 {
-    logger->info("Mode_AssistedDriving::loop()");
+    logger->info("Mode_AssistedDriving::loop() start");
 
     double loop_rate = 200.0; // 控制主循环频率200Hz
     ros::Rate loop_rate_ctrl(loop_rate);
@@ -35,7 +35,7 @@ void Mode_AssistedDriving::loop()
             logger->debug("getframe");
             if (do_not_jump_this_frame(pic)) // 检查是否需要跳过该帧数据
             {
-                if (qrcode_table_v3->onlyfind(pic, &code_info)) // 查询地码信息
+                if (qrcode_table->onlyfind(pic, &code_info)) // 查询地码信息
                 {
                     v_pose_new = get_pose(code_info); // 计算base_link在qrmap坐标和map坐标的坐标
                 }
@@ -76,31 +76,31 @@ void Mode_AssistedDriving::cameraFrameProcess(std::vector<geometry_msgs::Pose> &
 
     logger->debug("v_pose_new.size() > 0");
 
-    // 监测车身方向角度是否超过限制
-    if (!is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
-        err_type = err_type | 0x01; // 角度超过限制
+    // // 监测车身方向角度是否超过限制
+    // if (!is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
+    //     err_type = err_type | 0x01; // 角度超过限制
 
-    // 监测是否顺序扫码
-    if(param.is_check_code_in_order)
-    {
-        if (!qrcode_table_v3->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
-            err_type = err_type | 0x02; // 未按顺序扫码
-    }
+    // // 监测是否顺序扫码
+    // if(param.is_check_code_in_order)
+    // {
+    //     if (!qrcode_table->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+    //         err_type = err_type | 0x02; // 未按顺序扫码
+    // }
 
-    // 监测是否在二维码处发生跳变
-    if (is_output_available)
-    {
-        if (is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
-            err_type = err_type | 0x04; // 发生跳变
-    }
+    // // 监测是否在二维码处发生跳变
+    // if (is_output_available)
+    // {
+    //     if (is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
+    //         err_type = err_type | 0x04; // 发生跳变
+    // }
 
     // 卡尔曼滤波
-    if (!qrcode_table_v3->is_head(pic.code)) // 不是列首码
-    {
+    // if (!qrcode_table->is_head(pic.code)) // 不是列首码
+    // {
         geometry_msgs::Pose pose_observe = v_pose_new[0];
         geometry_msgs::Pose pose_recursion = wheel_odom->getCurOdom().pose.pose;
         v_pose_new[0] = kalman_f_my(pose_recursion, param.rec_p1, pose_observe, 1.0 - param.rec_p1, 0.1);
-    }
+    // }
 
     // 打包生成消息
     v_odom = packageMsg(v_pose_new, code_info);
@@ -122,7 +122,7 @@ void Mode_AssistedDriving::cameraFrameProcess(std::vector<geometry_msgs::Pose> &
 
 void Mode_AssistedDriving::wheelOdomProcess()
 {
-    logger->debug("wheel_odom is start");
+    logger->debug("Mode_AssistedDriving::wheelOdomProcess() start");
     std::vector<nav_msgs::Odometry> v_odom_wheel;
     if (wheel_odom->run_odom(v_odom_wheel))
     {
@@ -134,64 +134,68 @@ void Mode_AssistedDriving::wheelOdomProcess()
         publist.push_back(v_odom_wheel); // 预发布递推后的位姿
         logger->debug("wheel odom publist.push_back(v_odom_wheel)");
 
-        // 递推距离清零、判断递推是否过远
-        if (is_output_available) // 可用
-        {
-            if (wheel_odom->is_path_dis_overflow()) // 递推过远
-            {
-                logger->debug("在列内递推过远");
-                err_type = err_type | 0x08; // 在列内递推过远
-            }
-        }
+        // // 递推距离清零、判断递推是否过远
+        // if (is_output_available) // 可用
+        // {
+        //     if (wheel_odom->is_path_dis_overflow()) // 递推过远
+        //     {
+        //         logger->debug("在列内递推过远");
+        //         err_type = err_type | 0x08; // 在列内递推过远
+        //     }
+        // }
     }
+    logger->debug("Mode_AssistedDriving::wheelOdomProcess() end");
 }
 
 void Mode_AssistedDriving::publishProcess(std::vector<nav_msgs::Odometry> &output)
 {
+    logger->debug("Mode_AssistedDriving::publishProcess() start");
+
     static std::vector<nav_msgs::Odometry> output_last = output; // 上个输出
-    // 状态判断
-    mtx.lock();
-    if (!is_handle) // 自动
-    {
-        // 判断数据是否可用
 
-        if (is_output_available)
-            output[0].pose.covariance[0] = 1; // 数据可用
-        else
-            output[0].pose.covariance[0] = 0; // 数据不可用
+    // // 状态判断
+    // mtx.lock();
+    // if (!is_handle) // 自动
+    // {
+    //     // 判断数据是否可用
 
-        // 二次判断跳变
-        if (1 == output_last[0].pose.covariance[0]) // 数据可用
-        {
-            if (1 == output[0].pose.covariance[0]) // 数据可用
-            {
-                if (is_pose_jump(output_last[0].pose.pose, output[0].pose.pose)) // 发生
-                {
-                    logger->info("二次监测跳变");
-                    err_type = err_type | 0x04; // 发生跳变
-                }
-            }
-        }
+    //     if (is_output_available)
+    //         output[0].pose.covariance[0] = 1; // 数据可用
+    //     else
+    //         output[0].pose.covariance[0] = 0; // 数据不可用
 
-        // 判断是否处于故障状态
-        if (0x00 != err_type)
-            output[0].pose.covariance[1] = 1; // 故障急停：是
-        else
-            output[0].pose.covariance[1] = 0; // 故障急停：否
-    }
-    else // 手动
-    {
-        is_output_available = false;       // 数据不可用
-        err_type = 0x00;                   // 清除故障急停状态
-        output[0].pose.covariance[0] = 0;  // 数据不可用
-        output[0].pose.covariance[1] = 0;  // 故障急停：否
-        pic.code = 0;                      // 列外码值清零
-        is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
-        do_not_jump_this_frame(pic, true); // 复位该功能
-        wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
-    }
-    output[0].pose.covariance[2] = err_type; // 故障类型
-    mtx.unlock();
+    //     // 二次判断跳变
+    //     if (1 == output_last[0].pose.covariance[0]) // 数据可用
+    //     {
+    //         if (1 == output[0].pose.covariance[0]) // 数据可用
+    //         {
+    //             if (is_pose_jump(output_last[0].pose.pose, output[0].pose.pose)) // 发生
+    //             {
+    //                 logger->info("二次监测跳变");
+    //                 err_type = err_type | 0x04; // 发生跳变
+    //             }
+    //         }
+    //     }
+
+    //     // 判断是否处于故障状态
+    //     if (0x00 != err_type)
+    //         output[0].pose.covariance[1] = 1; // 故障急停：是
+    //     else
+    //         output[0].pose.covariance[1] = 0; // 故障急停：否
+    // }
+    // else // 手动
+    // {
+    //     is_output_available = false;       // 数据不可用
+    //     err_type = 0x00;                   // 清除故障急停状态
+    //     output[0].pose.covariance[0] = 0;  // 数据不可用
+    //     output[0].pose.covariance[1] = 0;  // 故障急停：否
+    //     pic.code = 0;                      // 列外码值清零
+    //     is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
+    //     do_not_jump_this_frame(pic, true); // 复位该功能
+    //     wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
+    // }
+    // output[0].pose.covariance[2] = err_type; // 故障类型
+    // mtx.unlock();
 
     // 记录正常扫码的跳变值，用于地码方向角调试
     if (1 == output[0].pose.covariance[6]) // 扫码正常，已根据二维码结果设置递推初值
@@ -200,7 +204,7 @@ void Mode_AssistedDriving::publishProcess(std::vector<nav_msgs::Odometry> &outpu
     }
 
     // 记录本帧数据
-    output_log(pic, code_info, wheel_odom->get_vel_msg(), output);
+    output_log(pic, code_info, wheel_odom->get_vel_msg(), output, qrcode_table->is_head(pic.code));
 
     // 扫码无异常，则发布消息
     if (2 != output[0].pose.covariance[6])
@@ -208,4 +212,6 @@ void Mode_AssistedDriving::publishProcess(std::vector<nav_msgs::Odometry> &outpu
         pubOdom(output);      // 发布消息
         output_last = output; // 保存用于下个循环
     }
+    logger->debug("Mode_AssistedDriving::publishProcess() end");
+    return;
 }

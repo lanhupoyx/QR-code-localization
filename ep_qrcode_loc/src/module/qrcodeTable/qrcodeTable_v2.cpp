@@ -109,7 +109,7 @@ geometry_msgs::Pose SiteList::poseMove(geometry_msgs::Pose pose, double dis_fron
     return pose_move;
 }
 
-QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, ParamServer &param) : param(param)
+QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, ParamServer &param) : QRcodeTable(param)
 {
     // 配置文件路径
     cfg_path_ = cfg_path;
@@ -302,33 +302,39 @@ QRcodeTableV2::~QRcodeTableV2() {}
 // 根据二维码编号查表，得到位姿信息
 bool QRcodeTableV2::onlyfind(CameraFrame frame, QRcodeInfo *info)
 {
+    logger->debug("QRcodeTableV2::onlyfind() start");
     std::lock_guard<std::mutex> locker(mtx);
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
     {
         *info = (*it).second;
         info->frame = frame;
+        logger->debug("QRcodeTableV2::onlyfind() end true");
         return true;
     }
     else
     {
         std::cout << "can not identify code:" << frame.code << std::endl;
     }
+    logger->debug("QRcodeTableV2::onlyfind() end false");
     return false;
 }
 
 // 根据二维码编号查表，得到位姿信息
 bool QRcodeTableV2::onlyfind(CameraFrame frame)
 {
+    logger->debug("QRcodeTableV2::onlyfind() start");
     std::lock_guard<std::mutex> locker(mtx);
     std::map<uint32_t, QRcodeInfo>::iterator it = map.find(frame.code);
     if (it != map.end())
     {
+        logger->debug("QRcodeTableV2::onlyfind() end true");
         return true;
     }
     else
     {
         std::cout << "can not identify code:" << frame.code << std::endl;
+        logger->debug("QRcodeTableV2::onlyfind() end false");
         return false;
     }
 }
@@ -595,4 +601,77 @@ bool QRcodeTableV2::is_in_queue(nav_msgs::Odometry base2map, double head_offset)
     }
     logger->debug("is_in_queue: false  head_offset: " + std::to_string(head_offset));
     return false;
+}
+
+
+// 是否按顺序扫码
+bool QRcodeTableV2::is_code_in_order(uint32_t code_new, double vel_x, bool reset)
+{
+    static uint32_t last_code = 0;
+
+    if (!param.check_sequence)
+    {
+        return true;
+    }
+
+    if (reset)
+    {
+        last_code = 0;
+        logger->debug("is_code_in_order: reset, return true");
+        return true;
+    }
+    else if (last_code == code_new)
+    {
+        logger->debug("is_code_in_order: same code, return true");
+        return true;
+    }
+    else if (0 == last_code) // 首次扫码
+    {
+        if (is_head(code_new))
+        {
+            last_code = code_new;
+            logger->debug("is_code_in_order: is head, return true");
+            return true;
+        }
+        else
+        {
+            logger->info("is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
+            last_code = code_new;
+            // return false;//必须扫到列首地码
+            return true; // 不需要扫到列首地码
+        }
+    }
+    else
+    {
+        std::vector<uint32_t> nbr = get_neighbor(last_code);
+        if ((vel_x > 0) && (code_new == nbr[0]))
+        {
+            if (is_head(code_new))
+            {
+                last_code = 0;
+                logger->debug("is_code_in_order: forward out, return true");
+            }
+            else
+            {
+                last_code = code_new;
+                logger->debug("is_code_in_order: forward, return true");
+            }
+            return true;
+        }
+        else if ((vel_x < 0) && (code_new == nbr[1]))
+        {
+            last_code = code_new;
+            logger->debug("is_code_in_order: retreat, return true");
+            return true;
+        }
+        else
+        {
+            last_code = code_new;
+            logger->info("is_code_in_order: other, return false  code_new=" + std::to_string(code_new) +
+                         " vel_x=" + std::to_string(vel_x) +
+                         " nbr[0]=" + std::to_string(nbr[0]) +
+                         " nbr[1]=" + std::to_string(nbr[1]));
+            return false;
+        }
+    }
 }

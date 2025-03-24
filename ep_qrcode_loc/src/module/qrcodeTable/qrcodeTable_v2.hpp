@@ -2,6 +2,7 @@
 #include "utilityQloc.hpp"
 #include "ParamServer.hpp"
 #include "logger.hpp"
+#include "qrcodeTable.hpp"
 
 // 库位
 struct Site
@@ -61,23 +62,14 @@ struct ColumnCodeList
 };
 
 // 二维码坐标对照表
-class QRcodeTableV2
+class QRcodeTableV2 : public QRcodeTable
 {
 private:
     std::vector<SiteList> siteList_lib; // 各个列
-    std::map<uint32_t, QRcodeInfo> map; // 最终生成的二维码位姿表
-
-    std::mutex mtx;
-
-    epLogger *logger;
     std::stringstream stream;
-
     std::string cfg_path_;
-
     ros::Subscriber sub_pos;
-    std::list<nav_msgs::Odometry> tf_buffer;
     std::list<ColumnCodeList> ground_codes;
-    ParamServer& param;
 
 public:
     QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamped trans_base_camera, ParamServer& param);
@@ -113,4 +105,7 @@ public:
 
     // 是否在列内
     bool is_in_queue(nav_msgs::Odometry base2map, double head_offset);
+
+    // 是否按顺序扫码
+    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
 };
