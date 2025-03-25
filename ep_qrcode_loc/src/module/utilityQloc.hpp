@@ -67,6 +67,9 @@ std::string hexToAscii(const std::string &hex);
 // 时间格式化输出
 std::string format_time(ros::Time t);
 
+// 时间格式化输出
+std::string format_time_sec(ros::Time t);
+
 // 小时数输出
 std::string getHour(ros::Time t);
 

@@ -21,10 +21,10 @@ void epLogger::init(std::string logLevel, std::string log_dir, std::size_t logKe
     createDateFolder(log_dir_);    
     
     // 创建日志文件
-    openFile(logFile_, mutex, log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt"); // log文件
+    openFile(logFile_, mutex, log_dir_today_ + "qrcode_log_" + format_time_sec(ros::Time::now()) + ".txt"); // log文件
 
     // 创建数据文件
-    openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time(ros::Time::now()) + ".txt"); // pose文件
+    openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time_sec(ros::Time::now()) + ".txt"); // pose文件
     openFile(yawerrFile_, mutex_yawerr, log_dir_ + "yawerr.txt");        // yawerr文件
     openFile(jumperrFile_, mutex_jumperr, log_dir_today_ + "jumperr.txt"); // jumperr文件
 }
@@ -204,10 +204,10 @@ void epLogger::logLoop()
         static std::string hourNumLast = hourNum;
         if (hourNumLast != hourNum) // 检查是否更新小时
         {
-            openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time(ros::Time::now()) + ".txt"); // pose文件
+            openFile(poseFile_, mutex_pose, log_dir_today_ + "pose_" + format_time_sec(ros::Time::now()) + ".txt"); // pose文件
             info("reopen pose.txt in :" + log_dir_today_ + "pose.txt");
 
-            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time(ros::Time::now()) + ".txt";
+            std::string logPath = log_dir_today_ + "qrcode_log_" + format_time_sec(ros::Time::now()) + ".txt";
             info("is reopening qrcode_log.txt in :" + logPath);
             openFile(logFile_, mutex, logPath); // log文件
         }
@@ -221,24 +221,42 @@ void epLogger::logLoop()
 
 void epLogger::saveBasicInfo()
 {
-    std::string path = "";
-    std::string fileData = "";
-    cppc::File file(path);
-    if (file.exists())
+    try
     {
-        if (file.open(cppc::File::ReadOnly))
-        {
-            fileData = file.readAll();
-            file.close();
-            std::cout << "文件：" << path << " 读取成功！" << std::endl;
-        }
-        else
-        {
-            std::cout << "文件：" << path << " 读取失败！" << std::endl;
-        }
+        // 假设程序的包名是 "myprogram"
+        const char *packageName = "ep-qrcode-loc";
+
+        // 获取已安装的.deb包版本信息
+        std::string versionInfo = exec(("dpkg -s " + std::string(packageName)).c_str());
+
+        // 输出版本信息
+        std::cout << "Version information for package " << packageName << ":\n";
+        std::cout << versionInfo;
+        info("\n" + versionInfo);
     }
-    else
+    catch (const std::exception &e)
     {
-        std::cout << "文件：" << path << " 不存在！" << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
+        info("failed to get versionInfo!\n");
     }
+}
+
+// 函数：执行系统命令并捕获输出
+std::string epLogger::exec(const char *cmd)
+{
+    std::array<char, 128> buffer;
+    std::string result;
+    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+
+    if (!pipe)
+    {
+        throw std::runtime_error("popen() failed!");
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+    {
+        result += buffer.data();
+    }
+
+    return result;
 }

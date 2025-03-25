@@ -104,10 +104,11 @@ int main(int argc, char **argv)
     epLogger *logger;
     logger = &epLogger::getInstance();
     logger->init(param.logLevel, param.log_dir, param.logKeepDays);
+    logger->saveBasicInfo();
     logger->info("\n" + param.yamlData);                   // 参数原始文本
     logger->info("\n" + param.logData);                    // 读取记录
     logger->roll_delete_old_folders();                     // 滚动删除历史文件夹
-    std::thread logLoopThread(&epLogger::logLoop, logger); // 相机循环线程
+    std::thread logLoopThread(&epLogger::logLoop, logger); // log循环线程
 
     // 相机对象
     MV_SC2005AM camera(param);
@@ -125,10 +126,7 @@ int main(int argc, char **argv)
 
 /*
 TODO:
-6、自动读取版本号等基础信息到log
-10、重启后log文件接着用
 11、所有函数都添加开始和结束的debug信息
-
 
 DONE:
 1、相机数据作为topic发出，订阅该topic进行使用，可通过录包形式保存数据
@@ -136,7 +134,7 @@ DONE:
 5、每天运行一次log循环删除
 8、log文件问题，pose分小时，其它分天
 7、qrcode_table多态问题
-
+6、自动读取版本号等基础信息到log
 
 DELAY:
 2、二维码序号参数文件放在vcs进行管理，需配合单码调试工具进行升级
@@ -144,6 +142,7 @@ DELAY:
 
 DISCARD：
 9、sub相关的功能集合成一个模块
+10、重启后log文件接着用
 
 
 */
