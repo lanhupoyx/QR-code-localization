@@ -218,3 +218,27 @@ void epLogger::logLoop()
         ros::spinOnce();
     }
 }
+
+void epLogger::saveBasicInfo()
+{
+    std::string path = "";
+    std::string fileData = "";
+    cppc::File file(path);
+    if (file.exists())
+    {
+        if (file.open(cppc::File::ReadOnly))
+        {
+            fileData = file.readAll();
+            file.close();
+            std::cout << "文件：" << path << " 读取成功！" << std::endl;
+        }
+        else
+        {
+            std::cout << "文件：" << path << " 读取失败！" << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "文件：" << path << " 不存在！" << std::endl;
+    }
+}

@@ -63,4 +63,6 @@ public:
 
     // 监测循环
     void logLoop();
+
+    void saveBasicInfo();
 };
