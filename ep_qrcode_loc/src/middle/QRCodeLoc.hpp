@@ -85,7 +85,7 @@ public:
                                     double dis_U);
 
     // 车身方向角是否在允许识别二维码的范围内
-    bool is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, double range);
+    bool check_is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, double range);
 
     // 打包需要输出的消息
     std::vector<nav_msgs::Odometry> packageMsg(std::vector<geometry_msgs::Pose> pose, QRcodeInfo code_info);
@@ -94,7 +94,7 @@ public:
     bool do_not_jump_this_frame(CameraFrame pic_new, bool reset = false);
 
     // 判断是否跳变过大
-    bool is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose pose_now);
+    bool check_is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose pose_now);
 
     // 输出记录
     void output_log(CameraFrame pic_latest, 

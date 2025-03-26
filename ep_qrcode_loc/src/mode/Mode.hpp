@@ -8,6 +8,60 @@
 #include "qrcodeTable_v2.hpp"
 #include "qrcodeTable_v3.hpp"
 
+class ErrorInfo:
+{
+public:
+    bool yaw_out_range;
+    bool code_jump;
+    bool pose_jump;
+    bool path_dis_overflow;
+
+    ErrorInfo()
+    {
+        yaw_out_range = false;
+        code_jump = false;
+        pose_jump = false;
+        path_dis_overflow = false;
+    }
+
+    ~ErrorInfo() {}
+
+    is_noErr()
+    {
+        if (yaw_out_range)
+            return false;
+        if (code_jump)
+            return false;
+        if (pose_jump)
+            return false;
+        if (path_dis_overflow)
+            return false;
+        return true;
+    }
+
+    uint8_t errCode()
+    {
+        uint8_t err_code = 0x00;
+        if (yaw_out_range)
+            err_code += 0x01;
+        if (code_jump)
+            err_code += 0x02;
+        if (pose_jump)
+            err_code += 0x04;
+        if (path_dis_overflow)
+            err_code += 0x08;
+        return err_code;
+    }
+
+    reset()
+    {
+        yaw_out_range = false;
+        code_jump = false;
+        pose_jump = false;
+        path_dis_overflow = false;
+    }
+};
+
 /// @brief 辅助驾驶三向车模式，巷道内使用
 class Mode_AssistedDriving : public QRcodeLoc
 {
@@ -16,8 +70,7 @@ private:
     QRcodeInfo code_info;     // 存放查询到的地码信息
     uint8_t err_type;         // 16进制数据，存放故障类型
     bool is_output_available; // 记录是否可以输出数据
-
-    std::list<std::vector<nav_msgs::Odometry>> publist; // 最终数据发送队列
+    ErrorInfo err;
 
 public:
     /// @brief 构造函数

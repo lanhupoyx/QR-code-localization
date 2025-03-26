@@ -604,7 +604,7 @@ bool QRcodeTableV2::is_in_queue(nav_msgs::Odometry base2map, double head_offset)
 
 
 // 是否按顺序扫码
-bool QRcodeTableV2::is_code_in_order(uint32_t code_new, double vel_x, bool reset)
+bool QRcodeTableV2::check_is_code_in_order(uint32_t code_new, double vel_x, bool reset)
 {
     static uint32_t last_code = 0;
 
@@ -616,12 +616,12 @@ bool QRcodeTableV2::is_code_in_order(uint32_t code_new, double vel_x, bool reset
     if (reset)
     {
         last_code = 0;
-        logger->debug("is_code_in_order: reset, return true");
+        logger->debug("check_is_code_in_order: reset, return true");
         return true;
     }
     else if (last_code == code_new)
     {
-        logger->debug("is_code_in_order: same code, return true");
+        logger->debug("check_is_code_in_order: same code, return true");
         return true;
     }
     else if (0 == last_code) // 首次扫码
@@ -629,12 +629,12 @@ bool QRcodeTableV2::is_code_in_order(uint32_t code_new, double vel_x, bool reset
         if (is_head(code_new))
         {
             last_code = code_new;
-            logger->debug("is_code_in_order: is head, return true");
+            logger->debug("check_is_code_in_order: is head, return true");
             return true;
         }
         else
         {
-            logger->info("is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
+            logger->info("check_is_code_in_order: not head, return false  code_new=" + std::to_string(code_new));
             last_code = code_new;
             // return false;//必须扫到列首地码
             return true; // 不需要扫到列首地码
@@ -648,25 +648,25 @@ bool QRcodeTableV2::is_code_in_order(uint32_t code_new, double vel_x, bool reset
             if (is_head(code_new))
             {
                 last_code = 0;
-                logger->debug("is_code_in_order: forward out, return true");
+                logger->debug("check_is_code_in_order: forward out, return true");
             }
             else
             {
                 last_code = code_new;
-                logger->debug("is_code_in_order: forward, return true");
+                logger->debug("check_is_code_in_order: forward, return true");
             }
             return true;
         }
         else if ((vel_x < 0) && (code_new == nbr[1]))
         {
             last_code = code_new;
-            logger->debug("is_code_in_order: retreat, return true");
+            logger->debug("check_is_code_in_order: retreat, return true");
             return true;
         }
         else
         {
             last_code = code_new;
-            logger->info("is_code_in_order: other, return false  code_new=" + std::to_string(code_new) +
+            logger->info("check_is_code_in_order: other, return false  code_new=" + std::to_string(code_new) +
                          " vel_x=" + std::to_string(vel_x) +
                          " nbr[0]=" + std::to_string(nbr[0]) +
                          " nbr[1]=" + std::to_string(nbr[1]));

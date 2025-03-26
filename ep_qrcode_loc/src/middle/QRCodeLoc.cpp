@@ -120,21 +120,23 @@ void QRcodeLoc::getTrans_BaseToCamera()
 void QRcodeLoc::BasicStateCallback(const xmover_msgs::BasicState::ConstPtr &p_base_state_msg)
 {
     static bool last_is_handle = is_handle;
-    logger->debug("BasicStateCallback");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     std::lock_guard<std::mutex> locker(mtx);
     is_handle = p_base_state_msg->handle;
     if (last_is_handle != is_handle)
     {
         last_is_handle = is_handle;
-        logger->info("change is_handle to: " + std::to_string(is_handle));
+        logger->info(std::string(__FUNCTION__) + " change is_handle to: " + std::to_string(is_handle));
     }
+
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return;
 }
 
 // 发布定位结果
 void QRcodeLoc::pubOdom(std::vector<nav_msgs::Odometry> v_odom)
 {
-    logger->debug("QRcodeLoc::pubOdom() start");
+    logger->debug(std::string(__FUNCTION__) + "() start");
 
     // 主要需要输出的消息
     nav_msgs::Odometry odom_map_base = v_odom[0];
@@ -174,14 +176,15 @@ void QRcodeLoc::pubOdom(std::vector<nav_msgs::Odometry> v_odom)
             pub_path_map_camera.publish(path_map_camera);
         }
     }
-    logger->debug("QRcodeLoc::pubOdom() end");
+    
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return;
 }
 
 // 发布TF
 void QRcodeLoc::pubTf(const nav_msgs::Odometry odom)
 {
-    logger->debug("QRcodeLoc::pubTf() start");
+    logger->debug(std::string(__FUNCTION__) + "() start");
 
     // 定义变换
     tf::Transform transform;
@@ -219,14 +222,15 @@ void QRcodeLoc::pubTf(const nav_msgs::Odometry odom)
     // logger->info(stream.str());
     odom_history = odom;
     // std::cout << stream.str() << std::endl;
-    logger->debug("QRcodeLoc::pubTf() end");
+    
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return;
 }
 
 // 计算base_link在map坐标系下的坐标
 geometry_msgs::Pose QRcodeLoc::get_pose_lidarmap(CameraFrame pic, QRcodeInfo code_info)
 {
-    logger->debug("QRcodeLoc::get_pose_lidarmap()");
+    logger->debug(std::string(__FUNCTION__) + "() start");
 
     // 二维码到map变换关系
     geometry_msgs::Pose pose_qrcode2map;
@@ -256,13 +260,14 @@ geometry_msgs::Pose QRcodeLoc::get_pose_lidarmap(CameraFrame pic, QRcodeInfo cod
     geometry_msgs::Pose pose_base2map;
     tf2::doTransform(t2p(trans_base2camera), pose_base2map, p2t(pose_camera2map));
 
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return pose_base2map;
 }
 
 // 计算base_link在qrmap和map坐标系下的坐标
 std::vector<geometry_msgs::Pose> QRcodeLoc::get_pose(QRcodeInfo code_info)
 {
-    logger->debug("QRcodeLoc::get_pose()");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     // 二维码到mapcopy
     geometry_msgs::Pose pose_qrcode2mapcopy;
     pose_qrcode2mapcopy.position.x = code_info.x;
@@ -296,7 +301,7 @@ std::vector<geometry_msgs::Pose> QRcodeLoc::get_pose(QRcodeInfo code_info)
     output.push_back(pose_base2mapcopy);
     output.push_back(pose_camera2mapcopy);
 
-    logger->debug("QRcodeLoc::get_pose() return");
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return output;
 }
 
@@ -305,6 +310,8 @@ geometry_msgs::Pose QRcodeLoc::kalman_f_my(geometry_msgs::Pose pose_recursion, d
                                            geometry_msgs::Pose pose_observe, double p2,
                                            double dis_U)
 {
+    logger->debug(std::string(__FUNCTION__) + "() start");
+
     double dis;
     geometry_msgs::Pose pose_out;
     dis = pow(pose_recursion.position.x - pose_observe.position.x, 2) +
@@ -346,13 +353,14 @@ geometry_msgs::Pose QRcodeLoc::kalman_f_my(geometry_msgs::Pose pose_recursion, d
         pose_out = pose_observe;
     }
 
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return pose_out;
 }
 
 // 车身方向角是否在允许识别二维码的范围内
-bool QRcodeLoc::is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, double range)
+bool QRcodeLoc::check_is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, double range)
 {
-    logger->debug("QRcodeLoc::is_yaw_available()");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     // 车身方向角
     double yaw_base = getYaw(q);
 
@@ -366,11 +374,13 @@ bool QRcodeLoc::is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, do
     if (diff < std::fabs(range / 2.0))
     {
         logger->debug("yaw in range, diff: " + std::to_string(diff));
+        logger->debug(std::string(__FUNCTION__) + "() return");
         return true;
     }
     else
     {
         logger->info("角度超过限制! diff: " + std::to_string(diff));
+        logger->debug(std::string(__FUNCTION__) + "() return");
         return false;
     }
 }
@@ -378,7 +388,7 @@ bool QRcodeLoc::is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, do
 // 打包需要输出的消息
 std::vector<nav_msgs::Odometry> QRcodeLoc::packageMsg(std::vector<geometry_msgs::Pose> pose, QRcodeInfo code_info)
 {
-    logger->debug("packageMsg()");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     nav_msgs::Odometry odom;
     std::vector<nav_msgs::Odometry> v_odom;
 
@@ -405,7 +415,7 @@ std::vector<nav_msgs::Odometry> QRcodeLoc::packageMsg(std::vector<geometry_msgs:
     odom.pose.pose = pose[1];
     v_odom.push_back(odom);
 
-    logger->debug("packageMsg() return");
+    logger->debug(std::string(__FUNCTION__) + "() return");
     return v_odom;
 }
 
@@ -417,7 +427,7 @@ bool QRcodeLoc::do_not_jump_this_frame(CameraFrame pic_new, bool reset)
     static bool catch_zero = false;
 
     // 分析过程被打断的可能性与程序防护
-    logger->debug("QRcodeLoc::do_not_jump_this_frame()");
+    logger->debug(std::string(__FUNCTION__) + "() start");
 
     // 复位
     if (reset)
@@ -425,6 +435,7 @@ bool QRcodeLoc::do_not_jump_this_frame(CameraFrame pic_new, bool reset)
         pic_last.code = 0;
         min_dis_x0 = 90000; // mm,大于距离平方
         catch_zero = false;
+        logger->debug(std::string(__FUNCTION__) + "() return: reset");
         return true;
     }
 
@@ -466,13 +477,14 @@ bool QRcodeLoc::do_not_jump_this_frame(CameraFrame pic_new, bool reset)
             output_this_frame = false;
         }
     }
-    logger->debug("QRcodeLoc::do_not_jump_this_frame() return: " + std::to_string(output_this_frame));
+    logger->debug(std::string(__FUNCTION__) + "() return" + std::to_string(output_this_frame));
     return output_this_frame;
 }
 
 // 判断是否跳变过大
-bool QRcodeLoc::is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose pose_now)
+bool QRcodeLoc::check_is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose pose_now)
 {
+    logger->debug(std::string(__FUNCTION__) + "() start");
     // 定义变量
     bool result = false;
 
@@ -526,6 +538,7 @@ bool QRcodeLoc::is_pose_jump(geometry_msgs::Pose pose_last, geometry_msgs::Pose 
     }
 
     // 返回结果
+    logger->debug(std::string(__FUNCTION__) + "() return: " + std::to_string(result));
     return result;
 }
 
@@ -536,17 +549,17 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
                            std::vector<nav_msgs::Odometry> publist_front,
                            bool is_head)
 {
-    logger->debug("QRcodeLoc::output_log() start");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     // 速度过小，不输出
     if (abs(wheel_odom->get_vel_msg().linear.x) < 0.001)
     {
-        logger->debug("QRcodeLoc::output_log() end : abs(wheel_odom->get_vel_msg().linear.x) < 0.001");
+        logger->debug(std::string(__FUNCTION__) + "() return: abs(wheel_odom->get_vel_msg().linear.x) < 0.001");
         return;
     }
 
     if(publist_front.size() == 0)
     {
-        logger->debug("QRcodeLoc::output_log() start : publist_front.size() == 0");
+        logger->debug(std::string(__FUNCTION__) + "() return: publist_front.size() == 0");
         return;
     }
 
@@ -586,7 +599,7 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
         last_code = new_code;
         last_log = new_log;
         is_stop_last = is_stop;
-        logger->debug("QRcodeLoc::output_log() end : 0 == new_code");
+        logger->debug(std::string(__FUNCTION__) + "() return: 0 == new_code");
         return;
     }
     else
@@ -610,7 +623,7 @@ void QRcodeLoc::output_log(CameraFrame pic_latest,
         last_log = new_log;
         is_stop_last = is_stop;
         
-        logger->debug("QRcodeLoc::output_log() end");
+        logger->debug(std::string(__FUNCTION__) + "() return");
         return;
     }
 
@@ -624,11 +637,11 @@ void QRcodeLoc::output_jump_err(QRcodeInfo code_info,
                                 std::vector<nav_msgs::Odometry> output,
                                 std::vector<nav_msgs::Odometry> output_last)
 {
-    logger->debug("QRcodeLoc::output_jump_err() start");
+    logger->debug(std::string(__FUNCTION__) + "() start");
     // 速度过小，不输出
     if (abs(wheel_odom->get_vel_msg().linear.x) < 0.1)
     {
-        logger->debug("QRcodeLoc::output_jump_err() end, abs(wheel_odom->get_vel_msg().linear.x) < 0.1 ");
+        logger->debug(std::string(__FUNCTION__) + "() return: abs(wheel_odom->get_vel_msg().linear.x) < 0.1 ");
         return;
     }
 
@@ -664,5 +677,5 @@ void QRcodeLoc::output_jump_err(QRcodeInfo code_info,
                     del_n_end(std::to_string(code_info.frame.error_y / 10.0), 3) + "," + // 相机与地码偏移量y
                     del_n_end(std::to_string(code_info.frame.error_yaw), 3)              // 相机与地码偏移量yaw
     );
-    logger->debug("QRcodeLoc::output_jump_err() end");
+    logger->debug(std::string(__FUNCTION__) + "() return");
 }

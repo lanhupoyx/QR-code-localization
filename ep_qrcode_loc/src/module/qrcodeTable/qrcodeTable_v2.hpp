@@ -107,5 +107,5 @@ public:
     bool is_in_queue(nav_msgs::Odometry base2map, double head_offset);
 
     // 是否按顺序扫码
-    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
+    bool check_is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
 };

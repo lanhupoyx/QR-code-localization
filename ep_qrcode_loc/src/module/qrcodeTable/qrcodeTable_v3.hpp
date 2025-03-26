@@ -122,5 +122,5 @@ public:
     /// @param vel_x 轮速x
     /// @param reset 是否重置为初始状态
     /// @return bool
-    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
+    bool check_is_code_in_order(uint32_t code_new, double vel_x, bool reset = false);
 };

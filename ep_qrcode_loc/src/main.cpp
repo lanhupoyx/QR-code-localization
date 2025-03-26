@@ -130,6 +130,7 @@ int main(int argc, char **argv)
 /*
 TODO:
 11、所有函数都添加开始和结束的debug信息
+12、
 
 DONE:
 1、相机数据作为topic发出，订阅该topic进行使用，可通过录包形式保存数据

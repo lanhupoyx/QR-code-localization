@@ -63,20 +63,20 @@ void Mode_ShiHua::loop()
                 logger->debug("qrcode_table->is_in_queue(base2map, -0.3)");
 
                 // 监测车身方向角度是否超过限制
-                if (!is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
+                if (!check_is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
                     err_type = err_type | 0x01; // 角度超过限制
 
                 // 监测是否顺序扫码
                 if(param.is_check_code_in_order)
                 {
-                    if (!qrcode_table->is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
+                    if (!qrcode_table->check_is_code_in_order(pic.code, wheel_odom->get_vel_msg().linear.x))
                     err_type = err_type | 0x02; // 未按顺序扫码
                 }
 
                 // 监测是否在二维码处发生跳变
                 if (is_output_available)
                 {
-                    if (is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
+                    if (check_is_pose_jump(wheel_odom->getCurOdom().pose.pose, v_pose_new[0]))
                         err_type = err_type | 0x04; // 发生跳变
                 }
 
@@ -167,7 +167,7 @@ void Mode_ShiHua::loop()
                 {
                     if (1 == output[0].pose.covariance[0]) // 数据可用
                     {
-                        if (is_pose_jump(output_last[0].pose.pose, output[0].pose.pose)) // 发生
+                        if (check_is_pose_jump(output_last[0].pose.pose, output[0].pose.pose)) // 发生
                         {
                             logger->info("二次监测跳变");
                             err_type = err_type | 0x04; // 发生跳变
@@ -188,7 +188,7 @@ void Mode_ShiHua::loop()
                 output[0].pose.covariance[0] = 0;  // 数据不可用
                 output[0].pose.covariance[1] = 0;  // 故障急停：否
                 pic.code = 0;                      // 列外码值清零
-                qrcode_table->is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
+                qrcode_table->check_is_code_in_order(0, 0, true);      // 列外初始化二维码顺序判定
                 do_not_jump_this_frame(pic, true); // 复位该功能
                 wheel_odom->reset_path_dis();      // 进入列首，递推距离清零
             }
