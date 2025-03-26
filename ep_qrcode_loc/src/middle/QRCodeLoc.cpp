@@ -374,13 +374,29 @@ bool QRcodeLoc::check_is_yaw_available(geometry_msgs::Quaternion q, double yaw_d
     if (diff < std::fabs(range / 2.0))
     {
         logger->debug("yaw in range, diff: " + std::to_string(diff));
-        logger->debug(std::string(__FUNCTION__) + "() return");
+        logger->debug(std::string(__FUNCTION__) + "() return true");
         return true;
     }
     else
     {
         logger->info("角度超过限制! diff: " + std::to_string(diff));
-        logger->debug(std::string(__FUNCTION__) + "() return");
+        logger->debug(std::string(__FUNCTION__) + "() return false");
+        return false;
+    }
+}
+
+// 车身方向角是否在允许识别二维码的范围内(双向)
+bool QRcodeLoc::check_is_yaw_available_dual(geometry_msgs::Quaternion q, double yaw_des, double range)
+{
+    logger->debug(std::string(__FUNCTION__) + "() start");
+    if (check_is_yaw_available(q, yaw_des, range) || check_is_yaw_available(q, yaw_des + 180.0, range))
+    {
+        logger->debug(std::string(__FUNCTION__) + "() return true");
+        return true;
+    }
+    else
+    {
+        logger->debug(std::string(__FUNCTION__) + "() return false");
         return false;
     }
 }

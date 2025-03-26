@@ -78,7 +78,7 @@ bool Mode_AssistedDriving::cameraFrameProcess(std::list<std::vector<nav_msgs::Od
     if (v_pose_new.size() > 0) // 本次循环解算出相机数据
     {
         // 监测车身方向角度是否超过限制
-        if (check_is_yaw_available(v_pose_new[0].orientation, code_info.yaw, 10.0))
+        if (check_is_yaw_available_dual(v_pose_new[0].orientation, code_info.yaw, 10.0))
         {
             err.yaw_out_range = false;
         }
@@ -112,7 +112,7 @@ bool Mode_AssistedDriving::cameraFrameProcess(std::list<std::vector<nav_msgs::Od
             }
             else
             {
-                err.is_pose_jump = false;
+                err.pose_jump = false;
             }
         }
 
@@ -197,7 +197,7 @@ bool Mode_AssistedDriving::wheelOdomProcess(std::list<std::vector<nav_msgs::Odom
     }
 }
 
-void Mode_AssistedDriving::publishProcess(std::list<std::vector<nav_msgs::Odometry>> &publist)
+bool Mode_AssistedDriving::publishProcess(std::list<std::vector<nav_msgs::Odometry>> &publist)
 {
     logger->debug(std::string(__FUNCTION__) + "() start");
 
@@ -218,7 +218,7 @@ void Mode_AssistedDriving::publishProcess(std::list<std::vector<nav_msgs::Odomet
             output[0].pose.covariance[0] = 0;   // 数据不可用
             output[0].pose.covariance[1] = 0;   // 故障急停：否
             pic.code = 0;                       // 列外码值清零
-            check_is_code_in_order(0, 0, true); // 列外初始化二维码顺序判定
+            qrcode_table->check_is_code_in_order(0, 0, true); // 列外初始化二维码顺序判定
             do_not_jump_this_frame(pic, true);  // 复位该功能
             wheel_odom->reset_path_dis();       // 进入列首，递推距离清零
         }
@@ -282,7 +282,7 @@ void Mode_AssistedDriving::publishProcess(std::list<std::vector<nav_msgs::Odomet
         }
     }
     logger->debug(std::string(__FUNCTION__) + "() end");
-    return;
+    return true;
 }
 
 // void a()

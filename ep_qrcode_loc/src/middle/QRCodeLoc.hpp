@@ -86,6 +86,8 @@ public:
 
     // 车身方向角是否在允许识别二维码的范围内
     bool check_is_yaw_available(geometry_msgs::Quaternion q, double yaw_des, double range);
+    // 车身方向角是否在允许识别二维码的范围内(双向)
+    bool check_is_yaw_available_dual(geometry_msgs::Quaternion q, double yaw_des, double range);
 
     // 打包需要输出的消息
     std::vector<nav_msgs::Odometry> packageMsg(std::vector<geometry_msgs::Pose> pose, QRcodeInfo code_info);

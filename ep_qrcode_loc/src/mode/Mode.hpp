@@ -8,7 +8,7 @@
 #include "qrcodeTable_v2.hpp"
 #include "qrcodeTable_v3.hpp"
 
-class ErrorInfo:
+class ErrorInfo
 {
 public:
     bool yaw_out_range;
@@ -26,7 +26,7 @@ public:
 
     ~ErrorInfo() {}
 
-    is_noErr()
+    bool is_noErr()
     {
         if (yaw_out_range)
             return false;
@@ -53,7 +53,7 @@ public:
         return err_code;
     }
 
-    reset()
+    void reset()
     {
         yaw_out_range = false;
         code_jump = false;
@@ -84,16 +84,21 @@ public:
     /// @brief 工作循环
     void loop();
 
+
     /// @brief 相机处理流程
-    /// @param v_pose_new 有相机得到的最新pose
-    void cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new);
+    /// @param publist 
+    /// @return 
+    bool cameraFrameProcess(std::list<std::vector<nav_msgs::Odometry>> &publist);
 
     /// @brief 轮速计第推处理流程
-    void wheelOdomProcess();
+    /// @param publist 
+    /// @return 
+    bool wheelOdomProcess(std::list<std::vector<nav_msgs::Odometry>> &publist);
 
     /// @brief 结果发布处理流程
-    /// @param output 待发布数据
-    void publishProcess(std::vector<nav_msgs::Odometry> &output);
+    /// @param publist 待发布数据队列
+    /// @return 
+    bool publishProcess(std::list<std::vector<nav_msgs::Odometry>> &publist);
 };
 
 /// @brief 通过lidar获取地码方向角
