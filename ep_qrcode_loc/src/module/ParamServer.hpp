@@ -69,6 +69,8 @@ public:
     geometry_msgs::TransformStamped trans_base2camera;
     geometry_msgs::TransformStamped trans_camera2base;
 
+    bool is_shut_down;
+
     ParamServer(ros::NodeHandle &nh);
 
     std::string loadMainParamPath();
@@ -79,4 +81,6 @@ public:
     template <typename T>
     void importItem(YAML::Node &config, std::string FirstName, std::string LastName, T &TargetParam, T DefaultVal);
 
+    void shutDown();
+    bool is_shutDown();
 };

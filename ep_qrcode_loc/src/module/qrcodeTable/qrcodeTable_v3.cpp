@@ -95,8 +95,8 @@ bool QRcodeTableV3::loadCodeTable()
         line_ss << buf;
 
         // 行列信息
-        uint32_t column_index, row_index;
-        line_ss >> column_index >> row_index;
+        uint32_t column_index, unused, row_index;
+        line_ss >> column_index >> unused >> row_index;
 
         if (0 == row_index) // 0行存储本列公共信息
         {

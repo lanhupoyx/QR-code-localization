@@ -84,6 +84,8 @@ ParamServer::ParamServer(ros::NodeHandle &nh) : nh(nh)
         std::cerr << "Error: " << e.what() << std::endl;
     }
 
+    is_shut_down = false;
+
     std::cout << "ParamServer() return" << std::endl;
 }
 
@@ -267,7 +269,7 @@ std::string ParamServer::loadSiteTableParamPath()
 // 加载地码参数
 std::string ParamServer::loadGroundCodeTableParamPath()
 {
-    std::string DefaultParamFilePath = "/var/xmover/params/ep-qrcode-loc/GroundCodeTable.txt";
+    std::string DefaultParamFilePath = "/var/xmover/params/ep-qrcode-loc/SiteTable.txt";
 
     bool configValid = false;
 
@@ -275,7 +277,7 @@ std::string ParamServer::loadGroundCodeTableParamPath()
 
     if (false) //是否使用VCS管理地码信息
     {
-        DefaultParamFilePath = "/opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/GroundCodeTable.txt";
+        DefaultParamFilePath = "/opt/xmover/ros/melodic/ep_qrcode_loc/share/ep_qrcode_loc/config/SiteTable.txt";
 
         configInfo.setDataId("ep_qrcode_GroundCodeTable");
         configInfo.setGroupId("SLAM");
@@ -374,4 +376,14 @@ void ParamServer::importItem(YAML::Node &config, std::string FirstName, std::str
     buffer << LastName + ": " << TargetParam << std::endl;
     std::cout << buffer.str();
     logData += buffer.str();
+}
+
+void ParamServer::shutDown()
+{
+    is_shut_down = true;
+}
+
+bool ParamServer::is_shutDown()
+{
+    return is_shut_down;
 }
