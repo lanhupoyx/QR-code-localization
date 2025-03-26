@@ -3,12 +3,12 @@
 // 构造函数
 Mode_CheckCameraHorizon::Mode_CheckCameraHorizon(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_CheckCameraHorizon() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_CheckCameraHorizon() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_CheckCameraHorizon::~Mode_CheckCameraHorizon() {}
@@ -16,7 +16,7 @@ Mode_CheckCameraHorizon::~Mode_CheckCameraHorizon() {}
 // 检查相机水平模式
 void Mode_CheckCameraHorizon::loop()
 {
-    logger->info("Mode_CheckCameraHorizon::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     QRcodeInfo code_info;     // 查询二维码坐标
     ros::Rate loop_rate(200); // 主循环 200Hz
@@ -44,4 +44,5 @@ void Mode_CheckCameraHorizon::loop()
         loop_rate.sleep();
         ros::spinOnce();
     }
+    logger->info(std::string(__FUNCTION__) + "() return");
 }

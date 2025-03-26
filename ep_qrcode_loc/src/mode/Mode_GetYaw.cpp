@@ -3,13 +3,13 @@
 // 构造函数
 Mode_GetYaw::Mode_GetYaw(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_GetYaw() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_GetYaw() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_GetYaw::~Mode_GetYaw() {}
@@ -17,7 +17,7 @@ Mode_GetYaw::~Mode_GetYaw() {}
 // 采集地码角度模式
 void Mode_GetYaw::loop()
 {
-    logger->info("Mode_GetYaw::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
     
     param.read_yaw_err = false;
     logger->info("param.read_yaw_err = false;");
@@ -72,4 +72,5 @@ void Mode_GetYaw::loop()
         loop_rate.sleep();
         ros::spinOnce();
     }
+    logger->info(std::string(__FUNCTION__) + "() return");
 }

@@ -3,8 +3,7 @@
 QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : QRcodeTable(param)
 {
     path = dir; // 文件位置
-    logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV1() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
     ifs.open(dir, std::ios::in);
     if (!ifs.is_open())
     {
@@ -54,7 +53,7 @@ QRcodeTableV1::QRcodeTableV1(std::string dir, ParamServer &param) : QRcodeTable(
         }
     }
 
-    logger->info("QRcodeTableV1() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 QRcodeTableV1::~QRcodeTableV1() {}
@@ -257,10 +256,3 @@ QRcodeInfo QRcodeTableV1::calPose()
     return (average);
 }
 
-
-bool QRcodeTableV1::is_head(uint32_t code_new){}
-
-
-std::vector<uint32_t> QRcodeTableV1::get_neighbor(uint32_t base_code){}
-
-bool QRcodeTableV1::is_code_in_order(uint32_t code_new, double vel_x, bool reset){}

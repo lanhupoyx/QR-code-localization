@@ -3,13 +3,13 @@
 // 构造函数
 Mode_CollectQRCodeIndex::Mode_CollectQRCodeIndex(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_CollectQRCodeIndex() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_CollectQRCodeIndex() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_CollectQRCodeIndex::~Mode_CollectQRCodeIndex() {}
@@ -17,7 +17,7 @@ Mode_CollectQRCodeIndex::~Mode_CollectQRCodeIndex() {}
 // 采集二维码编号模式
 void Mode_CollectQRCodeIndex::loop()
 {
-    logger->info("Mode_CollectQRCodeIndex::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     ros::Rate loop_rate(100); // 主循环 100Hz
     while (ros::ok())
@@ -36,4 +36,5 @@ void Mode_CollectQRCodeIndex::loop()
             }
         }
     }
+    logger->info(std::string(__FUNCTION__) + "() return");
 }

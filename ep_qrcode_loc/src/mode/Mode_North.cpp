@@ -2,7 +2,7 @@
 
 Mode_North::Mode_North(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_North() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     qrcode_table = new QRcodeTableV3(param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
@@ -11,14 +11,14 @@ Mode_North::Mode_North(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(para
     err_type = 0x00;
     is_output_available = false;
 
-    logger->info("Mode_North() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_North::~Mode_North() {}
 
 void Mode_North::loop()
 {
-    logger->info("Mode_North::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     double loop_rate = 200.0; // 控制主循环频率200Hz
     ros::Rate loop_rate_ctrl(loop_rate);
@@ -67,6 +67,7 @@ void Mode_North::loop()
         loop_rate_ctrl.sleep();
         ros::spinOnce();
     }
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 void Mode_North::cameraFrameProcess(std::vector<geometry_msgs::Pose> &v_pose_new)

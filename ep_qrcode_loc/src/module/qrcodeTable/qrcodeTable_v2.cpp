@@ -115,8 +115,7 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
     cfg_path_ = cfg_path;
 
     // 记录器
-    logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV2() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 打开库位信息文件
     //std::string site_info_path = cfg_path + "SiteTable.txt";
@@ -294,7 +293,7 @@ QRcodeTableV2::QRcodeTableV2(std::string cfg_path, geometry_msgs::TransformStamp
                                                      ros::TransportHints().tcpNoDelay());
     logger->debug("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTableV2() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 QRcodeTableV2::~QRcodeTableV2() {}

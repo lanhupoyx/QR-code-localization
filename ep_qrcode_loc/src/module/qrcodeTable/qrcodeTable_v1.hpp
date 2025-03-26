@@ -26,10 +26,6 @@ public:
 
     void subPose();
 
-    bool is_head(uint32_t code_new);
-    std::vector<uint32_t> get_neighbor(uint32_t base_code);
-    bool is_code_in_order(uint32_t code_new, double vel_x, bool reset);
-
 private:
     // 计算二维码位姿
     QRcodeInfo calPose();

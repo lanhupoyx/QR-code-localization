@@ -7,6 +7,8 @@
 
 std::shared_ptr<QRcodeLoc> chooseMode(ParamServer &param, MV_SC2005AM &camera)
 {
+    epLogger *logger = &epLogger::getInstance();
+    logger->info(std::string(__FUNCTION__) + "() start");
     std::shared_ptr<QRcodeLoc> QRcodeLocPtr;
 
     if ("1" == param.operating_mode)
@@ -81,7 +83,8 @@ std::shared_ptr<QRcodeLoc> chooseMode(ParamServer &param, MV_SC2005AM &camera)
     {
         QRcodeLocPtr = std::make_shared<Mode_North>(param, &camera);
     }
-
+    
+    logger->info(std::string(__FUNCTION__) + "() return");
     return QRcodeLocPtr;
 }
 

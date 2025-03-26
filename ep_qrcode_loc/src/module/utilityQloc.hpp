@@ -109,14 +109,14 @@ double getYawRad(geometry_msgs::Quaternion q);
 /// @brief 得到pose，yaw单位deg
 /// @param x 
 /// @param y 
-/// @param yaw 
+/// @param yawDeg 
 /// @return pose
 geometry_msgs::Pose toPoseDeg(double x, double y, double yawDeg);
 
 /// @brief 得到pose，yaw单位rad
 /// @param x 
 /// @param y 
-/// @param yaw 
+/// @param yawRad 
 /// @return pose
 geometry_msgs::Pose toPoseRad(double x, double y, double yawRad);
 

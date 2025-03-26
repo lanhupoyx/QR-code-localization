@@ -3,7 +3,7 @@
 WheelSpeedOdometer::WheelSpeedOdometer(geometry_msgs::TransformStamped trans_camera2base, ParamServer &param) : param(param)
 {
     logger = &epLogger::getInstance();
-    logger->info("WheelSpeedOdometer() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     trans_camera2base_ = trans_camera2base;
     sub_realvel = param.nh.subscribe<geometry_msgs::Twist>("/real_vel", 1, &WheelSpeedOdometer::realvelCallback,
@@ -26,8 +26,8 @@ WheelSpeedOdometer::WheelSpeedOdometer(geometry_msgs::TransformStamped trans_cam
     odom.pose.pose.orientation.w = 1;
     setEstimationInitialPose(odom);
     map_o_init_ = true;
-
-    logger->info("WheelSpeedOdometer() return");
+    
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 WheelSpeedOdometer::~WheelSpeedOdometer() {}

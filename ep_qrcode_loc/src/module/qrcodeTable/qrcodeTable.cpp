@@ -4,14 +4,14 @@ QRcodeTable::QRcodeTable(ParamServer &param) : param(param)
 {
     // 记录器
     logger = &epLogger::getInstance();
-    logger->info("QRcodeTable() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // sub_pos = param.nh.subscribe<nav_msgs::Odometry>("/ep_localization/odometry/lidar", 1,
     //                                                  &QRcodeTable::lidarPoseCallback, this,
     //                                                  ros::TransportHints().tcpNoDelay());
     // logger->info("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTable() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 QRcodeTable::~QRcodeTable() {}

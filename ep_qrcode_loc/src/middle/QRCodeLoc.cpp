@@ -12,7 +12,7 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
 {
     // 记录器
     logger = &epLogger::getInstance();
-    logger->info("QRcodeLoc() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 初始化发布器
     pub_odom_map_base = param.nh.advertise<nav_msgs::Odometry>(param.odomMapBase, 10);
@@ -28,7 +28,7 @@ QRcodeLoc::QRcodeLoc(ParamServer &param, MV_SC2005AM* camera) : param(param),cam
     // 获取tf值，base和camera
     getTrans_BaseToCamera();
 
-    logger->info("QRcodeLoc() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 // 析构函数

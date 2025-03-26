@@ -3,7 +3,7 @@
 MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
 {
     logger = &epLogger::getInstance();
-    logger->info("MV_SC2005AM() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     is_subNewFrame = false;
 
@@ -14,9 +14,9 @@ MV_SC2005AM::MV_SC2005AM(ParamServer &param) : param(param)
     pub_frame = param.nh.advertise<ep_qrcode_loc::LocCamera>("ep_qrcode_loc/cemera/frame",10);
     sub_frame = param.nh.subscribe<ep_qrcode_loc::LocCamera>("ep_qrcode_loc/cemera/frame", 1,
                                 &MV_SC2005AM::LocCameraCallback, this, ros::TransportHints().tcpNoDelay());
-    logger->info("sub: /ep_localization/odometry/lidar");
+    logger->info("sub: ep_qrcode_loc/cemera/frame");
 
-    logger->info("MV_SC2005AM() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 MV_SC2005AM::~MV_SC2005AM() {}
@@ -346,7 +346,7 @@ void MV_SC2005AM::publishFrame(CameraFrame frame)
 // 相机处理循环
 void MV_SC2005AM::cameraLoop()
 {
-    logger->info("cameraLoop() start!");
+    logger->info(std::string(__FUNCTION__) + "() start");
     if(param.is_mainloop_query_camera)
     {
         logger->info("cameraLoop() stop! param.is_mainloop_query_camera = 1");
@@ -366,7 +366,7 @@ void MV_SC2005AM::cameraLoop()
         loop_rate_ctrl.sleep();
         ros::spinOnce();
     }
-    logger->info("cameraLoop() stop!");
+    logger->info(std::string(__FUNCTION__) + "() return");
     return;
 }
 

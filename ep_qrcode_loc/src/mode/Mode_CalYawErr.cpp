@@ -3,13 +3,13 @@
 // 构造函数
 Mode_CalYawErr::Mode_CalYawErr(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_CalYawErr() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_CalYawErr() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_CalYawErr::~Mode_CalYawErr() {}
@@ -17,7 +17,7 @@ Mode_CalYawErr::~Mode_CalYawErr() {}
 // 补偿地码角度模式
 void Mode_CalYawErr::loop()
 {
-    logger->info("Mode_CalYawErr::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 关闭logger中的yawerr.txt文件
     logger->close_yawerr();
@@ -164,4 +164,6 @@ void Mode_CalYawErr::loop()
 
     ofs.close();
     logger->info(output_path + "写入完毕!");
+
+    logger->info(std::string(__FUNCTION__) + "() return");
 }

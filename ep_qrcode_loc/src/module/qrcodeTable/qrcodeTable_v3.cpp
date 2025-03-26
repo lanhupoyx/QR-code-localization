@@ -49,8 +49,7 @@ geometry_msgs::Pose QRcodeColumn::poseMove(geometry_msgs::Pose pose, double dis_
 QRcodeTableV3::QRcodeTableV3(ParamServer &param) : QRcodeTable(param)
 {
     // 记录器
-    logger = &epLogger::getInstance();
-    logger->info("QRcodeTableV3() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     loadCodeTable();
 
@@ -59,7 +58,7 @@ QRcodeTableV3::QRcodeTableV3(ParamServer &param) : QRcodeTable(param)
                                                      ros::TransportHints().tcpNoDelay());
     logger->info("sub: /ep_localization/odometry/lidar");
 
-    logger->info("QRcodeTableV3() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 QRcodeTableV3::~QRcodeTableV3() {}

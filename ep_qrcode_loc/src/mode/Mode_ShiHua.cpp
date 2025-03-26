@@ -3,13 +3,13 @@
 // 构造函数
 Mode_ShiHua::Mode_ShiHua(ParamServer &param, MV_SC2005AM *camera) : QRcodeLoc(param, camera)
 {
-    logger->info("Mode_ShiHua() start");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     // 实例化功能对象
     qrcode_table = new QRcodeTableV2(param.cfg_dir, trans_camera2base, param);
     wheel_odom = new WheelSpeedOdometer(trans_camera2base, param);
 
-    logger->info("Mode_ShiHua() return");
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
 
 Mode_ShiHua::~Mode_ShiHua() {}
@@ -17,7 +17,7 @@ Mode_ShiHua::~Mode_ShiHua() {}
 // 采集二维码编号模式
 void Mode_ShiHua::loop()
 {
-    logger->info("Mode_ShiHua::loop()");
+    logger->info(std::string(__FUNCTION__) + "() start");
 
     QRcodeInfo code_info;     // 存放查询到的地码信息
     code_info.frame.code = 0; // 初始化地码编号
@@ -221,4 +221,6 @@ void Mode_ShiHua::loop()
         loop_rate_ctrl.sleep();
         ros::spinOnce();
     }
+
+    logger->info(std::string(__FUNCTION__) + "() return");
 }
