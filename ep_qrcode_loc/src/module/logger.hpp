@@ -1,15 +1,7 @@
 #pragma once
 #include "utilityQloc.hpp"
 
-#include <iostream>
-#include <array>
-#include <memory>
-#include <stdexcept>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
+
 
 // 记录服务器
 class epLogger
@@ -75,5 +67,4 @@ public:
     void logLoop();
 
     void saveBasicInfo();
-    std::string exec(const char *cmd);
 };

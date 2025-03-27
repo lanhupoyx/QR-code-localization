@@ -278,6 +278,27 @@ geometry_msgs::Pose poseInverse(geometry_msgs::Pose source)
     return result;
 }
 
+// 函数：执行系统命令并捕获输出
+std::string exec(std::string scmd)
+{
+    const char *cmd = scmd.c_str();
+    std::array<char, 128> buffer;
+    std::string result;
+    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+
+    if (!pipe)
+    {
+        throw std::runtime_error("popen() failed!");
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+    {
+        result += buffer.data();
+    }
+
+    return result;
+}
+
 // 构造函数
 QRcodeInfo::QRcodeInfo(uint32_t code_, double x_, double y_, double yaw_, bool is_head_)
 {

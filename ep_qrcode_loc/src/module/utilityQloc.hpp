@@ -19,6 +19,12 @@
 #include <cstddef>
 #include <math.h>
 #include <memory>
+#include <stdexcept>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <sys/wait.h>
 
 // ros基础
 #include "ros/ros.h"
@@ -122,6 +128,8 @@ geometry_msgs::Pose toPoseRad(double x, double y, double yawRad);
 
 // get yaw frome pose
 geometry_msgs::Pose poseInverse(geometry_msgs::Pose source);
+
+std::string exec(std::string scmd);
 
 // 扫码相机数据帧格式
 struct CameraFrame

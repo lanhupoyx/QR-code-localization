@@ -224,10 +224,10 @@ void epLogger::saveBasicInfo()
     try
     {
         // 假设程序的包名是 "myprogram"
-        const char *packageName = "ep-qrcode-loc";
+        std::string packageName = "ep-qrcode-loc";
 
         // 获取已安装的.deb包版本信息
-        std::string versionInfo = exec(("dpkg -s " + std::string(packageName)).c_str());
+        std::string versionInfo = exec("dpkg -s " + packageName);
 
         // 输出版本信息
         std::cout << "Version information for package " << packageName << ":\n";
@@ -241,22 +241,3 @@ void epLogger::saveBasicInfo()
     }
 }
 
-// 函数：执行系统命令并捕获输出
-std::string epLogger::exec(const char *cmd)
-{
-    std::array<char, 128> buffer;
-    std::string result;
-    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-
-    if (!pipe)
-    {
-        throw std::runtime_error("popen() failed!");
-    }
-
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
-    {
-        result += buffer.data();
-    }
-
-    return result;
-}
