@@ -146,6 +146,22 @@ public:
     void loop();
 };
 
+/// @brief 标定模式
+class Mode_Calibration : public QRcodeLoc
+{
+private:
+    QRcodeTableV2 *qrcode_table;
+
+public:
+    // 构造函数
+    Mode_Calibration(ParamServer &param, MV_SC2005AM *camera);
+    ~Mode_Calibration();
+
+    // 循环
+    void loop();
+};
+
+
 /// @brief 获取地码编号模式
 class Mode_CollectQRCodeIndex : public QRcodeLoc
 {

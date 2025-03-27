@@ -97,6 +97,7 @@ add_executable(${PROJECT_NAME}_node src/main.cpp
                                     src/module/qrcodeTable/qrcodeTable_v1.cpp
                                     src/mode/Mode_AssistedDriving.cpp  
                                     src/mode/Mode_CheckCameraHorizon.cpp  
+                                    src/mode/Mode_Calibration.cpp
                                     src/mode/Mode_CollectQRCodePose.cpp
                                     src/mode/Mode_ShiHua.cpp
                                     src/mode/Mode_CalYawErr.cpp        

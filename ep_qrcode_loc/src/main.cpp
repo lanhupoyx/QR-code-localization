@@ -71,6 +71,10 @@ std::shared_ptr<QRcodeLoc> chooseMode(ParamServer &param, MV_SC2005AM &camera)
     {
         QRcodeLocPtr = std::make_shared<Mode_CheckCameraHorizon>(param, &camera);
     }
+    else if ("Mode_Calibration" == param.operating_mode)
+    {
+        QRcodeLocPtr = std::make_shared<Mode_Calibration>(param, &camera);
+    }
     else if ("Mode_AssistedDriving" == param.operating_mode)
     {
         QRcodeLocPtr = std::make_shared<Mode_AssistedDriving>(param, &camera);
